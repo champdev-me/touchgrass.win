@@ -29,6 +29,10 @@ export const B = {
   regenAbove: 50,
   starvePerTick: -1 / 5, // health, per empty stat
   busyEnergyPerTick: -1 / 10,
+  baseSize: 5,
+  firstBaseFromPlaza: [20, 40],
+  baseNear: [8, 100], // tiles from another robot's flag or spawn
+  baseTries: 300,
   tradeRange: 3,
   offerTicks: 60,
   bigTradeGold: 50, // trades this big make world news

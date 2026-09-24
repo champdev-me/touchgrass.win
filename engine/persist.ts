@@ -2,17 +2,19 @@ import { B } from '../shared/balance.ts';
 import { trimBag } from '../shared/items.ts';
 import { CHAT_STREAM, recentChat, type Redis } from '../shared/redis.ts';
 import { TERRAIN as T } from '../shared/types.ts';
-import type { Agent, Creature, NodeKind, PackedNode, Structure } from '../shared/types.ts';
+import type { Agent, Base, Creature, NodeKind, PackedNode, Structure, Vec } from '../shared/types.ts';
 import type { Clue } from './treasure.ts';
+import { placeBase } from './bases.ts';
 import { normalizeAgent } from './agent.ts';
 import { NODE_RULES, chunkOf, fullAmount, generateNodes, nodeKindAt, packChunk, unpackChunk } from './nodes.ts';
 import { TERRAIN_RULES, chunkBytes, generateLand, levelsOf, walkable, writeChunk } from './terrain.ts';
 import { World, type LootPile } from './world.ts';
 
 export const BAG_RULES = 2; // 2: small bags
+export const BASE_RULES = 1; // 1: every joined robot gets a base
 export const ECON_RULES = 1; // 1: the Smith retired, robots trade with robots
 
-export const K = { meta: 'meta', terrain: 'terrain', agents: 'agents', nodes: 'nodes', loot: 'loot', firsts: 'firsts', chat: CHAT_STREAM, creatures: 'creatures', heights: 'heights', structures: 'structures', market: 'market', treasures: 'treasures', clues: 'clues' } as const;
+export const K = { meta: 'meta', terrain: 'terrain', agents: 'agents', nodes: 'nodes', loot: 'loot', firsts: 'firsts', chat: CHAT_STREAM, creatures: 'creatures', heights: 'heights', structures: 'structures', market: 'market', treasures: 'treasures', clues: 'clues', bases: 'bases' } as const;
 
 const chunkKeys = (size: number): string[] => {
   const n = size / B.chunkSize, keys: string[] = [];
@@ -43,7 +45,7 @@ export async function saveAllNodes(r: Redis, w: World): Promise<void> {
 }
 
 export async function flush(r: Redis, w: World): Promise<void> {
-  const m = r.multi().hSet(K.meta, { tick: String(w.tick), nextId: String(w.nextId), nextMobId: String(w.nextMobId), mapSize: String(w.size), season: '1', seed: w.seed, nodeRules: String(NODE_RULES), bagRules: String(BAG_RULES), terrainRules: String(TERRAIN_RULES), econRules: String(ECON_RULES) });
+  const m = r.multi().hSet(K.meta, { tick: String(w.tick), nextId: String(w.nextId), nextMobId: String(w.nextMobId), mapSize: String(w.size), season: '1', seed: w.seed, nodeRules: String(NODE_RULES), bagRules: String(BAG_RULES), terrainRules: String(TERRAIN_RULES), econRules: String(ECON_RULES), baseRules: String(BASE_RULES) });
   const ids = [...w.dirty];
   const chunks = [...w.dirtyChunks];
   const lootWasDirty = w.lootDirty;
@@ -56,6 +58,9 @@ export async function flush(r: Redis, w: World): Promise<void> {
   const firstsWasDirty = w.firstsDirty;
   if (firstsWasDirty && Object.keys(w.firsts).length) m.hSet(K.firsts, w.firsts);
   w.firstsDirty = false;
+  const basesWereDirty = w.basesDirty;
+  if (basesWereDirty) m.set(K.bases, JSON.stringify([...w.bases.values()]));
+  w.basesDirty = false;
   const treasuresWereDirty = w.treasuresDirty || w.cluesDirty;
   if (treasuresWereDirty) m.set(K.treasures, JSON.stringify([...w.treasures])).set(K.clues, JSON.stringify({ next: w.nextClueId, all: [...w.clues] }));
   w.cluesDirty = false;
@@ -78,6 +83,7 @@ export async function flush(r: Redis, w: World): Promise<void> {
     w.firstsDirty ||= firstsWasDirty;
     w.creaturesDirty ||= creaturesWereDirty;
     w.structuresDirty ||= structuresWereDirty;
+    w.basesDirty ||= basesWereDirty;
     w.treasuresDirty ||= treasuresWereDirty;
     throw e;
   }
@@ -183,6 +189,16 @@ export async function loadWorld(r: Redis, seed = 'touchgrass-season-1'): Promise
       if (old === 'builder') a.role = 'smith';
       if (old === 'medic') a.role = 'gatherer';
       w.dirty.add(a.id);
+    }
+  }
+  const bs = await r.get(K.bases);
+  if (bs) for (const b of JSON.parse(bs) as Base[]) w.bases.set(b.owner, b);
+  if (Number(meta.baseRules ?? 0) < BASE_RULES) {
+    // Robots from before bases: each gets one in join order; it respawns there, it is not moved now.
+    for (const a of [...w.agents.values()].filter((o) => o.joined && !w.bases.has(o.id)).sort((p, q) => p.createdAt - q.createdAt)) {
+      const at: Vec = [a.x, a.y];
+      placeBase(w, a);
+      [a.x, a.y] = at;
     }
   }
   const tr = await r.get(K.treasures); // the gateway never reads this key

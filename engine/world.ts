@@ -3,7 +3,7 @@ import { dist } from '../shared/geo.ts';
 import { FOOD, ITEMS, KITS, addItem, isMap, room, slotsOf, type Inventory } from '../shared/items.ts';
 import { CREATURES } from '../shared/creatures.ts';
 import { timeOf } from '../shared/time.ts';
-import { GATHER_TARGETS, ROLES, TERRAIN as T, type Agent, type AgentView, type Bubble, type Creature, type CreatureView, type Structure, type StructureView, type GameEvent, type GatherTarget, type Role, type TickDelta, type Vec } from '../shared/types.ts';
+import { GATHER_TARGETS, ROLES, TERRAIN as T, type Agent, type AgentView, type Bubble, type Creature, type CreatureView, type Base, type Structure, type StructureView, type GameEvent, type GatherTarget, type Role, type TickDelta, type Vec } from '../shared/types.ts';
 import { checkAchievements } from './achievements.ts';
 import { AGENT_COLORS, normalizeAgent } from './agent.ts';
 import { BUFFET_SUFFIX, say } from './lines.ts';
@@ -15,6 +15,7 @@ import { NODE_DEF, chunkOf, fullAmount, wrongRole, type ResourceNode } from './n
 import { buildObservation } from './observe.ts';
 import { expireOffers, type Offer } from './trade.ts';
 import { spawnTreasures, type Clue } from './treasure.ts';
+import { placeBase } from './bases.ts';
 import { findPath } from './path.ts';
 import { addScore } from './score.ts';
 import { findTarget, runTask } from './tasks.ts';
@@ -62,6 +63,8 @@ export class World {
   nodeChanges: [number, number][] = [];
   loot = new Map<number, LootPile>();
   offers = new Map<string, Offer>(); // memory only: a restart clears open offers
+  bases = new Map<string, Base>(); // owner id -> base
+  basesDirty = false;
   treasures = new Map<number, { loot: number }>(); // tile -> buried treasure; scouts only, never broadcast
   treasuresDirty = false;
   treasureTarget: number = B.treasureCount;
@@ -154,6 +157,7 @@ export class World {
       a.joined = true;
       a.role = role;
       this.giveKit(a);
+      if (!this.bases.has(a.id)) placeBase(this, a);
       a.spawnedAt = this.tick;
       a.online = true;
       a.lastSeenAt = now;
@@ -390,7 +394,7 @@ export class World {
     const nodes = this.nodeChanges;
     this.events = [];
     this.nodeChanges = [];
-    return { tick: this.tick, agents: this.views(), events, nodes, loot: [...this.loot.keys()].map((i) => this.xy(i)), creatures: this.creatureViews(), structures: this.structureViews() };
+    return { tick: this.tick, agents: this.views(), events, nodes, loot: [...this.loot.keys()].map((i) => this.xy(i)), creatures: this.creatureViews(), structures: this.structureViews(), bases: [...this.bases.values()].map((b) => [b.x0, b.y0, b.x1, b.y1, this.agents.get(b.owner)?.color ?? '#ffffff']) };
   }
 
   stepAgent(a: Agent, dayTick: number): void {
@@ -539,6 +543,11 @@ export class World {
     this.emit('respawn', say('respawn', a.name, this.rng), a);
     this.note(a, 'You respawned at your spawn point.');
     this.giveKit(a);
+  }
+
+  baseAt(x: number, y: number): Base | null {
+    for (const b of this.bases.values()) if (x >= b.x0 && x <= b.x1 && y >= b.y0 && y <= b.y1) return b;
+    return null;
   }
 
   giveKit(a: Agent): void {

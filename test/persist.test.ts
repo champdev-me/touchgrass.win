@@ -31,7 +31,7 @@ test('flush then load restores terrain, agents, nodes, loot and counters; walkin
   assert.deepEqual(back.tiles, tiles);
   assert.deepEqual([back.tick, back.nextId, back.size], [1, 2, 64]);
   const b = back.agents.get(a.id)!;
-  assert.deepEqual([b.x, b.y, b.task, b.role, b.health], [0, 2, null, 'smith', a.health]);
+  assert.deepEqual([b.x, b.y, b.task, b.role, b.health], [a.x, a.y, null, 'smith', a.health]); // where it stood when saved
   assert.equal(b.inbox.at(-1), 'Task cancelled: the universe rebooted.');
   assert.equal(back.nodes.get(back.index(10, 10))!.left, 4);
   assert.deepEqual(back.loot.get(back.index(5, 5))!.items, { wood: 2 });
@@ -203,5 +203,31 @@ test('0.0.1-5 saves migrate once: builders become smiths, medics gatherers, the 
   await r.hDel(K.meta, 'econRules');
   const back = (await loadWorld(r))!;
   assert.deepEqual([back.agents.get(a.id)!.role, back.agents.get(b.id)!.role, await r.exists(K.market)], ['smith', 'gatherer', 0]);
+  await r.close();
+});
+
+test('0.0.1-6 saves give every joined robot a base on land, once, without moving it', async () => {
+  const r = await connectRedis(redisUrl(14));
+  await r.flushDb();
+  const n = 128, tiles = new Uint8Array(n * n).fill(T.MEADOW);
+  for (let y = 20; y < 50; y++) for (let x = 20; x < 50; x++) tiles[y * n + x] = T.SHALLOW;
+  const w = new World(tiles, n, () => 0.37);
+  await saveTerrain(r, tiles, n);
+  await saveAllNodes(r, w);
+  const bots = Array.from({ length: 6 }, (_, i) => {
+    const a = w.register(`Old ${i}`, i);
+    w.join(a.id, 'scout', null, 0);
+    return a;
+  });
+  w.bases.clear();
+  for (const [i, a] of bots.entries()) [a.x, a.y] = [60 + i, 60];
+  await flush(r, w);
+  await r.del(K.bases);
+  await r.hDel(K.meta, 'baseRules');
+  const back = (await loadWorld(r))!;
+  const all = [...back.bases.values()];
+  assert.equal(all.length, 6);
+  for (const b of all) for (let y = b.y0; y <= b.y1; y++) for (let x = b.x0; x <= b.x1; x++) assert.notEqual(back.at(x, y), T.SHALLOW);
+  for (const [i, a] of bots.entries()) assert.deepEqual([back.agents.get(a.id)!.x, back.agents.get(a.id)!.spawn], [60 + i, back.bases.get(a.id)!.flag]);
   await r.close();
 });

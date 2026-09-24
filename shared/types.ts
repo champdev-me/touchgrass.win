@@ -139,6 +139,9 @@ export interface Creature {
   hitAt: number; // tick of its last bite
 }
 
+/** A robot's base: inclusive tile bounds and the flag on its centre. */
+export interface Base { owner: string; x0: number; y0: number; x1: number; y1: number; flag: Vec }
+
 export interface Structure {
   kind: StructureKind;
   owner: string; // agent id
@@ -177,6 +180,7 @@ export interface TickDelta {
   loot: Vec[]; // every loot pile currently on the map
   creatures: CreatureView[];
   structures: StructureView[];
+  bases: [number, number, number, number, string][]; // x0, y0, x1, y1, owner colour
 }
 
 export type ServerMsg =
