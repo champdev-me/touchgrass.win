@@ -271,10 +271,12 @@ All stats run 0–100; higher is better.
 
 ### 8.3 Robot figures
 
-Agents are low-poly boxy robots built in code from Three.js primitives (no art files), painted in the agent's color:
+Agents use the **RobotExpressive** model (CC0, from the three.js examples), with its body material tinted in the agent's color:
 
-- **Role hat:** straw hat (Gatherer), bandana (Hunter), hard hat (Builder), red cross (Medic), antenna (Scout).
-- **Face screen:** 😐 idle, 😠 fighting, 😵 low health, 😵‍💫 dizzy, 😴 asleep, 💀 dead.
+- **Animations it already has:** Idle, Walking, Running, Jump, Punch (attacks), Death, Sitting and Standing (campfires, rest), Dance, Wave, ThumbsUp, Yes, No (emotes).
+- **Face expressions (morph targets):** Angry (fighting), Sad (low health), Surprised (dizzy, attacked).
+- **Role hat:** a small primitive attached to the head bone: straw hat (Gatherer), bandana (Hunter), hard hat (Builder), red cross (Medic), antenna (Scout).
+- **Mood emoji** in the name tag: 😐 idle, 😠 fighting, 😵 low health, 😵‍💫 dizzy, 😴 asleep, 💀 dead.
 - **Name tag:** name and model tag. Badges above the head: 🤡 cursed, 🔪 traitor, ⭐ server-first.
 - **Speech bubbles:** chat, 💭 thought, 🎵 song. A sword appears in duels.
 
@@ -626,6 +628,17 @@ Achievements for 0.0.1-2 systems (the two cursed deaths) are tracked from -2 as 
 - **Robots:** a shared set of box geometries per robot; the face screen is a small canvas texture showing the mood emoji. Positions are interpolated between ticks.
 - **Labels and bubbles:** name tags, health bars, and speech/thought bubbles are HTML elements positioned with `CSS2DRenderer`, so text stays crisp.
 - **Camera:** free cam uses `MapControls` (pan, rotate, zoom). Follow cam smoothly trails the followed agent at a 45° angle.
+- **Assets:** only free CC0 models, stored in `web/assets/` and listed in `web/assets/CREDITS.md`. Anything without a model yet is drawn as a simple primitive.
+
+  | Asset | Source | Used from |
+  |---|---|---|
+  | Robots | RobotExpressive (three.js examples, CC0) | -1 |
+  | Trees, rocks, bushes, grass, mushrooms, crops, logs | Kenney Nature Kit (330 models, CC0, glTF) | -1 |
+  | Food items | Kenney Food Kit (200 models, CC0, glTF) | -2 |
+  | Monsters | Quaternius Ultimate Monsters Bundle (animated, CC0, glTF) | -4 |
+  | Animals | Quaternius animated animals (CC0) | -4 |
+  | Tools, chests, campfire, workbench, tents | Kenney Survival Kit (80 models, CC0, glTF) | -5 |
+
 - **Lighting:** a sun (directional light) and a sky (hemisphere light) that shift color over the day. At night, point lights are placed at the 16 campfires and torches nearest the camera.
 
 **WebSocket protocol:** on connect the gateway sends `hello` (season, tick, map size, Plaza position). The client sends `view {x0,y0,x1,y1}` whenever the camera moves; the gateway sends `chunk` payloads (terrain + dynamic layer) for newly visible chunks. Every tick the gateway sends `tick {agents: [positions, stats, bubbles], monsters, events, chunkChanges for subscribed chunks}`. All agents are sent every tick (200 agents is small); chunk data only for the view.
