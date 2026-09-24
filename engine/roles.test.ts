@@ -122,3 +122,11 @@ test('only gatherers shake apples out of trees', () => {
   for (let i = 0; i < 4; i++) w.step(0);
   assert.equal(s.inventory.apple, undefined);
 });
+
+test('observe points at the nearest high ground, where the ore is', () => {
+  const tiles = new Uint8Array(256 * 256).fill(T.MEADOW);
+  for (let y = 0; y < 256; y++) for (let x = 180; x < 190; x++) tiles[y * 256 + x] = T.HILLS;
+  const w = new World(tiles, 256, () => 0.5);
+  const m = joined(w, 'miner', [120, 40]);
+  assert.ok(w.observe(m.id).landmarks.some((l) => /^hills or mountains \(ore, gems, gold\) at \(18\d, 4\d\), 6\d tiles E$/.test(l)), JSON.stringify(w.observe(m.id).landmarks));
+});

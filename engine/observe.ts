@@ -27,6 +27,23 @@ const describeTask = (t: Task | null) => {
   return { type: t.type };
 };
 
+const HIGH_GROUND = new Set<number>([T.HILLS, T.MOUNTAIN, T.HIGH, T.PEAK]);
+
+/** Nearest hills or mountains within the path radius, sampled every 4 tiles in growing rings. */
+function nearestHigh(w: World, a: Agent): Vec | null {
+  for (let d = 4; d <= B.pathRadius; d += 4) {
+    let best: Vec | null = null, bd = Infinity; // the straightest hit in this ring
+    for (let k = -d; k <= d; k += 4) {
+      for (const [x, y] of [[a.x + k, a.y - d], [a.x + k, a.y + d], [a.x - d, a.y + k], [a.x + d, a.y + k]] as Vec[]) {
+        const e = (x - a.x) ** 2 + (y - a.y) ** 2;
+        if (e < bd && x >= 0 && y >= 0 && x < w.size && y < w.size && HIGH_GROUND.has(w.at(x, y))) [best, bd] = [[x, y], e];
+      }
+    }
+    if (best) return best;
+  }
+  return null;
+}
+
 export function buildObservation(w: World, a: Agent) {
   const r = w.vision(a);
   const here: Vec = [a.x, a.y];
@@ -70,6 +87,7 @@ export function buildObservation(w: World, a: Agent) {
   }
   const resources = [...nearest.values()].flatMap((list) => list.sort((p, q) => p.d - q.d).slice(0, 2)).sort((p, q) => p.d - q.d).map((e) => e.line);
 
+  const high = HIGH_GROUND.has(w.at(a.x, a.y)) ? null : nearestHigh(w, a);
   const time = timeOf(w.tick);
   const [px, py] = w.plaza;
   const inbox = a.inbox;
@@ -106,7 +124,10 @@ export function buildObservation(w: World, a: Agent) {
       }),
     ],
     resources,
-    landmarks: [`the Plaza (${px}, ${py}) is ${dist([px, py], here)} tiles ${compass(px - a.x, py - a.y)}; robots meet here to trade`],
+    landmarks: [
+      `the Plaza (${px}, ${py}) is ${dist([px, py], here)} tiles ${compass(px - a.x, py - a.y)}; robots meet here to trade`,
+      ...(HIGH_GROUND.has(w.at(a.x, a.y)) ? [] : [high].flatMap((h) => (h ? [`hills or mountains (ore, gems, gold) ${where(h[0], h[1])}`] : []))),
+    ],
     stations: stations.map(({ at: [x, y], s }) => {
       if (s.kind !== 'chest') return `${s.kind}${s.kind === 'campfire' ? (s.litUntil > w.tick ? ' (lit)' : ' (out)') : ''} ${where(x, y)}`;
       const items = Object.entries(s.items ?? {});

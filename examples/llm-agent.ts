@@ -26,6 +26,7 @@ type Obs = {
   task: { type: string } | null;
   time: { phase: string };
   resources: string[];
+  landmarks?: string[];
   nearby: string[];
   inbox: string[];
   world_chat?: string[]; // servers before 0.0.1-3 don't send it
@@ -54,7 +55,7 @@ Priorities: water below 50 -> drink if a drink spot is 0-1 tiles away, else move
 Health only heals while food is 90+ and water 50+: if health is below 80 and you carry food, eat until food is about 100; food below 60 with no food -> gather berry_bush.
 Energy below 15 -> sleep (or rest by day): at 0 you cannot punch or fight. Night and energy below 80 -> sleep.
 Build stations with build(structure), not craft. Cook only meat you carry.
-Otherwise gather tree, grass or rock, or move_to a new land tile 10-30 tiles away to explore.
+Otherwise do your role's job (see "Your role" below); if its resources are not in sight, walk toward where they are.
 Use exact coordinates from the state. Never move onto deep water. Be decisive.
 At most once every ${CHAT_EVERY_MS / 1000} seconds, instead of working you may post something short and funny with say_world. Reply to other robots in world chat by name, ask them for deals, tease them.
 Every tool accepts "thought": one short sentence about why, shown to viewers as a thought bubble. Always fill it in.
@@ -133,6 +134,7 @@ async function decide(o: Obs, memory: string[], chatOk: boolean): Promise<Action
     `Position ${me.pos.join(', ')}. health ${me.health}, food ${me.food}, water ${me.water}, energy ${me.energy}. It is ${o.time.phase}.`,
     `Bag (${me.slots ?? '?'} slots): ${JSON.stringify(me.inventory)}`,
     `Clues and maps: ${[...(me.clues ?? []), ...(me.maps ?? [])].join('; ') || 'none'}. search only works within 1 tile of a clue's spot: move_to it first, in hops of at most 100 tiles (farther fails with no_path).`,
+    `Landmarks: ${(o.landmarks ?? []).join('; ')}`,
     `Nearest resources:\n${o.resources.slice(0, 8).join('\n') || 'none in sight'}`,
     `Nearby robots: ${o.nearby.slice(0, 4).join('; ') || 'none'}`,
     `Recent events: ${o.inbox.slice(-4).join(' | ') || 'none'}`,
