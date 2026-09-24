@@ -2,7 +2,7 @@ import { B } from '../shared/balance.ts';
 import { dist } from '../shared/geo.ts';
 import { FOOD, room, type Inventory } from '../shared/items.ts';
 import { timeOf } from '../shared/time.ts';
-import { GATHER_TARGETS, ROLES, TERRAIN as T, type Agent, type AgentView, type GameEvent, type GatherTarget, type Role, type TickDelta, type Vec } from '../shared/types.ts';
+import { GATHER_TARGETS, ROLES, TERRAIN as T, type Agent, type AgentView, type Bubble, type GameEvent, type GatherTarget, type Role, type TickDelta, type Vec } from '../shared/types.ts';
 import { AGENT_COLORS, normalizeAgent } from './agent.ts';
 import { BUFFET_SUFFIX, say } from './lines.ts';
 import { eat, tickBody } from './body.ts';
@@ -46,6 +46,7 @@ export class World {
   nodeChanges: [number, number][] = [];
   loot = new Map<number, LootPile>();
   lootDirty = false;
+  chatLog: string[] = [];
 
   constructor(tiles: Uint8Array, size: number = B.mapSize, rng: () => number = Math.random) {
     this.tiles = tiles;
@@ -350,6 +351,12 @@ export class World {
         moving: a.task?.type === 'move_to' || (a.task?.type === 'gather' && a.task.path.length > 0),
         health: Math.round(a.health), food: Math.round(a.food), water: Math.round(a.water), energy: Math.round(a.energy),
         dead: a.dead, action: a.dead ? 'dead' : (a.task?.type ?? 'idle'), online: a.online,
+        bubble: a.bubble && a.bubble.until >= this.tick ? { kind: a.bubble.kind, text: a.bubble.text } : null,
+        emote: a.emote && a.emote.until >= this.tick ? a.emote.name : null,
+        badge: a.badge && a.badge.until >= this.tick ? a.badge.emoji : null,
+        score: a.seasonScore,
+        life: a.lifeScore,
+        trophies: Object.keys(a.achievements).length,
       }));
   }
 
@@ -396,6 +403,23 @@ export class World {
 
   emit(type: string, text: string, a?: Agent): void {
     this.events.push({ tick: this.tick, type, text, agent: a?.id, x: a?.x, y: a?.y });
+    if (type !== 'move') this.log(text);
+  }
+
+  /** World chat from a robot: a 'chat' event carrying the speaker's name. */
+  chat(a: Agent, text: string): void {
+    this.events.push({ tick: this.tick, type: 'chat', text, agent: a.id, name: a.name, x: a.x, y: a.y });
+    this.log(`${a.name}: ${text}`);
+  }
+
+  log(line: string): void {
+    this.chatLog.push(line);
+    if (this.chatLog.length > B.chatLogKeep) this.chatLog.splice(0, this.chatLog.length - B.chatLogKeep);
+  }
+
+  bubble(a: Agent, kind: Bubble['kind'], text: string): void {
+    a.bubble = { kind, text, until: this.tick + B.bubbleTicks };
+    this.dirty.add(a.id);
   }
 
   bump(a: Agent, key: string): void {
