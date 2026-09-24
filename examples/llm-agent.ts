@@ -17,7 +17,7 @@ const LLM_MODEL = process.env.LLM_MODEL ?? 'gemma4:12b';
 const LLM_KEY = process.env.LLM_KEY ?? '';
 const LLM_REASONING = process.env.LLM_REASONING; // e.g. none: thinking models answer fast and do call a tool
 const ROLE = process.env.ROLE ?? 'gatherer';
-const ACTIONS = ['move_to', 'gather', 'eat', 'drink', 'rest', 'sleep', 'say_world', 'attack', 'heal', 'craft', 'flee', 'build', 'smith', 'give', 'drop'];
+const ACTIONS = ['move_to', 'gather', 'eat', 'drink', 'rest', 'sleep', 'say_world', 'attack', 'craft', 'flee', 'build', 'offer', 'accept', 'decline', 'give', 'store', 'take', 'chart', 'search', 'drop'];
 const CHAT_EVERY_MS = Number(process.env.CHAT_EVERY_S ?? 60) * 1000;
 
 type Obs = {
@@ -29,6 +29,7 @@ type Obs = {
   inbox: string[];
   world_chat?: string[]; // servers before 0.0.1-3 don't send it
   stations?: string[];
+  offers?: { incoming: string[]; outgoing: string[] };
 };
 type Reply = { ok: boolean; data: Record<string, unknown> };
 type Action = { name: string; args: Record<string, unknown>; why: string };
@@ -39,12 +40,12 @@ const sleep = (ms: number) => new Promise((ok) => setTimeout(ok, ms));
 const log = (s: string) => console.log(`${new Date().toTimeString().slice(0, 8)} ${s}`);
 
 const ROLE_GOALS: Record<string, string> = {
-  gatherer: 'chop trees and cut grass (you get double from plants); sell wood and fiber.',
-  miner: 'you get double from rock and ore. Mine rock, sell stone, buy a stone_pickaxe from the Smith (15 gold), then mine iron_vein and crystal in the hills and mountains and sell them.',
-  hunter: 'hunt rabbits, deer, boars, cows and chickens; eat some meat, sell hide and meat to the Smith.',
-  builder: 'your stations cost half. Build a workbench and a campfire, craft tools, sell spare stone and wood.',
-  medic: 'look for robots with low health in nearby and heal them (walk within 2 tiles first).',
-  scout: 'explore far and wide, report finds in world chat, gather what you pass.',
+  miner: 'only you dig iron_vein, gem_vein, crystal and gold_vein (gold goes straight to your wallet: you mint the coins). Sell ore and gems to smiths; buy pickaxes from smiths and food from hunters.',
+  mason: 'only you get stone and mud. Build a kiln, fire bricks, build furnaces for smiths. Sell stone and bricks; buy wood.',
+  smith: 'only you craft tools, weapons and armor (build a workbench; iron needs a mason\'s furnace). Buy iron ore, stone and hide; sell pickaxes and gear.',
+  hunter: 'only you get meat and hide from animals. Cook meat at a campfire and sell it (everyone needs full food to heal); sell hide to smiths.',
+  gatherer: 'you pick double plants and are the only one who gets herbs and apples. Craft bandages (2 fiber + 1 herb) and sell them, and sell wood and fiber.',
+  scout: 'only you see buried treasure: chart it into a map (2 fiber) and sell the map to a miner, or dig it yourself. You also read clues exactly: buy clues from others.',
 };
 const SYSTEM = `You control a robot in Touch Grass, a survival game. Each turn you get its state and must call exactly ONE tool.
 Stats run 0-100, higher is better. Food drops 1 every 30s, water 1 every 20s; at 0 you lose health.
@@ -56,10 +57,12 @@ At most once every ${CHAT_EVERY_MS / 1000} seconds, instead of working you may p
 Every tool accepts "thought": one short sentence about why, shown to viewers as a thought bubble. Always fill it in.
 If something is "hunting you": attack it (its mob id) when health is above 40, else flee (or flee to x, y).
 Rabbits and deer are food: attack them, then eat meat (+10 food, sometimes a tummy ache). With 5 wood, craft a club (double damage).
-Tools make work faster: build a workbench (6 wood, 2 stone), then craft stone_axe or stone_pickaxe. Cook meat at a campfire (+35 food).
-Gold is money: sell ore, crystals, hides, stone and wood to the Smith at the Plaza (512, 512) with smith action=sell; buy tools and blueprints there.
+Roles own the economy: you can only gather, craft and build what your role allows; a wrong_role error names who to trade with.
+There is no shop. Trade with robots within 3 tiles: offer(agent, give, want) with item counts ("gold" for coins); they accept or decline within 60 s and the swap is all-or-nothing. Haggle in world chat. Accept fair offers in "Offers to you".
+Health only comes back while food is full, so eat often. Punching and fighting cost energy.
+Treasure: clues turn up while gathering trees, grass and rocks; search at a clue's spot for the next find. Whoever holds a treasure_map digs with gather target "treasure".
 Bag full? drop things you cannot use or sell (berries beyond a snack stash) so you can keep working.
-Your role is ${ROLE}: ${ROLE_GOALS[ROLE] ?? 'do what you do best'} When you carry about 20 sellable items, walk to the Smith (in hops of at most 100 tiles) and sell.`;
+Your role is ${ROLE}: ${ROLE_GOALS[ROLE] ?? 'do what you do best'} When you carry about 20 things to sell and nobody is near, walk toward the Plaza (512, 512) where robots meet, in hops of at most 100 tiles.`;
 
 const mcp = new Client({ name: 'touchgrass-llm-agent', version: '1.0.0' });
 await mcp.connect(new StreamableHTTPClientTransport(new URL(`${TG_URL}/mcp`), { requestInit: { headers: { Authorization: `Bearer ${TG_TOKEN}` } } }));
@@ -123,6 +126,7 @@ async function decide(o: Obs, memory: string[], chatOk: boolean): Promise<Action
     `Nearest resources:\n${o.resources.slice(0, 8).join('\n') || 'none in sight'}`,
     `Nearby robots: ${o.nearby.slice(0, 4).join('; ') || 'none'}`,
     `Recent events: ${o.inbox.slice(-4).join(' | ') || 'none'}`,
+    `Offers to you: ${(o.offers?.incoming ?? []).join('; ') || 'none'}. Your open offers: ${(o.offers?.outgoing ?? []).join('; ') || 'none'}`,
     `World chat: ${(o.world_chat ?? []).slice(-5).join(' | ') || 'quiet'}`,
     `Your last actions: ${memory.join(' | ') || 'none'}`,
     chatOk ? 'You may chat now: say_world something short and funny, or reply to someone in world chat by name.' : 'Chat is on cooldown; do not use say_world.',

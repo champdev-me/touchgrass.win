@@ -5,19 +5,28 @@ import type { GameError, Vec } from '../shared/types.ts';
 
 const BASE = process.env.TG_URL ?? 'http://localhost:3000';
 const COUNT = Number(process.env.BOTS ?? 10);
-const FILE = 'examples/.bots.json';
-const ROLES = ['gatherer', 'hunter', 'builder', 'medic', 'scout', 'miner'];
-const PLAZA: Vec = [512, 512]; // the Smith
-const SELLS = ['iron_ore', 'crystal', 'hide', 'stone', 'wood', 'fiber'];
-// Sellable units that send each role to the Smith.
-const TRIP_AT: Record<string, number> = { gatherer: 30, hunter: 4, builder: 30, medic: 20, scout: 15, miner: 20 };
+const FILE = process.env.BOTS_FILE ?? 'examples/.bots.json';
+const ROLES = ['miner', 'mason', 'smith', 'hunter', 'gatherer', 'scout'];
+const PLAZA: Vec = [512, 512]; // the trading square
 const ANIMALS = ['rabbit', 'deer', 'boar', 'cow', 'chicken'];
-const FOODS = ['berries', 'cooked_meat', 'apple', 'meat'];
+const FOODS = ['cooked_meat', 'berries', 'apple', 'meat'];
+// Gold per unit this bot asks or pays; maps and clues are priced by prefix.
+const PRICE: Record<string, number> = { iron_ore: 3, gem: 10, crystal: 8, stone: 1, brick: 2, mud: 1, meat: 2, cooked_meat: 4, hide: 3, wood: 1, fiber: 1, herb: 2, bandage: 4, stone_pickaxe: 15, stone_axe: 12, iron_pickaxe: 40, map: 20, clue: 8 };
+const SELLS: Record<string, string[]> = {
+  miner: ['iron_ore', 'gem', 'crystal'], mason: ['stone', 'brick'], smith: ['stone_pickaxe', 'stone_axe', 'iron_pickaxe'],
+  hunter: ['cooked_meat', 'meat', 'hide'], gatherer: ['wood', 'fiber', 'herb', 'bandage'], scout: ['map', 'clue'],
+};
+const WANTS: Record<string, string[]> = {
+  miner: ['stone_pickaxe', 'iron_pickaxe', 'cooked_meat', 'map'], mason: ['wood'], smith: ['iron_ore', 'stone', 'gem', 'hide', 'wood', 'fiber'],
+  hunter: ['stone', 'wood'], gatherer: ['cooked_meat'], scout: ['clue', 'fiber'],
+};
+const kindOf = (item: string) => (item.startsWith('treasure_map:') ? 'map' : item.startsWith('clue:') ? 'clue' : item);
 const sleep = (ms: number) => new Promise((ok) => setTimeout(ok, ms));
 const LINES = ['Has anyone seen my berries?', 'This grass is excellent.', 'I am definitely not lost.', 'Night is scary. Just saying.', 'Who keeps eating all the berries?'];
 
 type Reply = {
-  you: { pos: Vec; role: string; health: number; food: number; water: number; energy: number; dead: boolean; inventory: Record<string, number>; slots?: string; gold?: number };
+  you: { id: string; pos: Vec; role: string; clues?: string[]; health: number; food: number; water: number; energy: number; dead: boolean; inventory: Record<string, number>; slots?: string; gold?: number };
+  offers?: { incoming: string[]; outgoing: string[] };
   stations?: string[];
   task: { type: string } | null;
   nearby: string[];
@@ -50,16 +59,22 @@ const dist = (a: Vec, b: Vec) => Math.max(Math.abs(a[0] - b[0]), Math.abs(a[1] -
 /** Far targets are reached in hops the pathfinder can handle. */
 const hop = ([x, y]: Vec, [tx, ty]: Vec): { x: number; y: number } => ({ x: clamp(x + Math.max(-100, Math.min(100, tx - x))), y: clamp(y + Math.max(-100, Math.min(100, ty - y))) });
 
-/** One decision: survive first, then do the role's job, then trade with the Smith. */
+const offeredAt = new Map<string, number>(); // "bot:target" -> ms, so bots do not spam offers
+
+/** One decision: survive, answer offers, sell to robots nearby, store, then work the role. */
 async function act(c: Client, o: Reply, trip: boolean): Promise<{ what: string; trip: boolean }> {
-  const me = o.you, inv = me.inventory;
+  const me = o.you, inv = me.inventory, role = me.role;
   const ok = async (tool: string, args: Record<string, unknown>, what: string) => ((await call(c, tool, args)).error ? '' : what);
   const spot = (kind: string) => {
     const m = o.resources.find((r) => r.startsWith(kind))?.match(/at \((\d+), (\d+)\)/);
     return m ? { x: Number(m[1]), y: Number(m[2]) } : null;
   };
   const seen = (kind: string) => o.resources.some((r) => r.startsWith(kind));
-  const station = (kind: string) => (o.stations ?? []).some((l) => l.startsWith(kind) && !l.includes('(out)') && /, [0-2] tiles/.test(l));
+  const station = (kind: string) => (o.stations ?? []).some((l) => l.startsWith(kind) && !l.includes('(out)') && !l.includes('locked') && /, [0-2] tiles/.test(l));
+  const robots = o.nearby.flatMap((l) => {
+    const m = l.match(/^(agent_\d+) .*?\((\w+)[,)].* (\d+) tiles/);
+    return m ? [{ id: m[1], role: m[2], d: Number(m[3]) }] : [];
+  });
   let what = '';
   // 1. Survive.
   const food = FOODS.find((f) => (inv[f] ?? 0) > 0);
@@ -67,69 +82,85 @@ async function act(c: Client, o: Reply, trip: boolean): Promise<{ what: string; 
     what = await ok('drink', { thought: 'so thirsty' }, 'drink');
     const place = spot('drink spot');
     if (!what && place) what = await ok('move_to', { ...place, thought: 'walking to water' }, 'walk to water');
-  } else if (me.food < 60 && food) what = await ok('eat', { item: food, thought: 'snack time' }, `eat ${food}`);
+  } else if (me.food < 90 && food) what = await ok('eat', { item: food, thought: 'full food heals' }, `eat ${food}`);
+  else if (me.health < 60 && inv.bandage) what = await ok('eat', { item: 'bandage', thought: 'patching up' }, 'bandage');
   else if (me.food < 60 && seen('berry_bush')) what = await ok('gather', { target: 'berry_bush', until: 10, thought: 'need food' }, 'gather berries');
-  else if (o.time.phase === 'night' && me.energy < 40) what = await ok('sleep', { thought: 'too tired' }, 'sleep');
+  else if ((o.time.phase === 'night' && me.energy < 40) || me.energy < 5) what = await ok('sleep', { thought: 'too tired' }, 'sleep');
   if (what) return { what, trip };
-  // A full bag blocks all work: dump the biggest pile of anything unsellable.
-  const [used, total] = (me.slots ?? '0/12').split('/').map(Number);
-  const junk = Object.entries(inv).filter(([k]) => !SELLS.includes(k)).sort((p, q) => q[1] - p[1])[0];
-  if (used >= total && junk && junk[1] > 20) return { what: await ok('drop', { item: junk[0], count: junk[1] - 20, thought: 'travelling light' }, `drop ${junk[1] - 20} ${junk[0]}`), trip };
-  // 2. Trade: sell at the Smith once the bag has enough goods.
-  const goods = SELLS.reduce((n, item) => n + (inv[item] ?? 0), 0);
-  if (goods >= (TRIP_AT[me.role] ?? 20)) trip = true;
-  const atSmith = dist(me.pos, PLAZA) <= 3;
-  const needPick = me.role === 'miner' && !inv.stone_pickaxe && !inv.iron_pickaxe;
-  if (atSmith && needPick && (me.gold ?? 0) >= 15) return { what: await ok('smith', { action: 'buy', item: 'stone_pickaxe', thought: 'a pickaxe, at last' }, 'buy pickaxe'), trip };
-  if (trip) {
-    const item = SELLS.find((it) => (inv[it] ?? 0) > 0);
-    if (!item) return { what: 'trip done', trip: false };
-    if (atSmith) return { what: await ok('smith', { action: 'sell', item, count: inv[item], thought: 'cash money' }, `sell ${inv[item]} ${item}`), trip };
-    return { what: await ok('move_to', { ...hop(me.pos, [PLAZA[0] + 2, PLAZA[1]]), thought: 'off to the Smith' }, 'walk to the Smith'), trip };
+  // 2. Answer offers: take fair gold-only deals for things this role wants.
+  for (const line of o.offers?.incoming ?? []) {
+    const m = line.match(/^(offer_\d+) from .*?: gives (.+), wants (.+), \d+ s left$/);
+    if (!m) continue;
+    const gives = m[2].split(', ').map((p) => p.split(' ')).filter((p) => p.length === 2);
+    const wantsGold = m[3] === 'nothing' ? 0 : m[3].endsWith(' gold') && !m[3].includes(',') ? Number(m[3].split(' ')[0]) : -1;
+    const fair = gives.reduce((v, [n, item]) => v + Number(n) * (PRICE[kindOf(item)] ?? 0), 0);
+    const wanted = gives.every(([, item]) => WANTS[role]?.includes(kindOf(item)) || (me.food < 60 && FOODS.includes(item)));
+    if (wantsGold >= 0 && wanted && wantsGold <= fair && wantsGold <= (me.gold ?? 0)) return { what: await ok('accept', { offer: m[1], thought: 'fair deal' }, `accept ${m[1]}`), trip };
+    return { what: await ok('decline', { offer: m[1], thought: 'no thanks' }, `decline ${m[1]}`), trip };
   }
-  // 3. Work the role.
+  // 3. Sell role goods to a robot within 3 tiles whose role wants them.
+  const goods = Object.keys(inv).filter((i) => SELLS[role]?.includes(kindOf(i)));
+  for (const item of goods) {
+    const buyer = robots.find((r) => r.d <= 3 && WANTS[r.role]?.includes(kindOf(item)) && Date.now() - (offeredAt.get(`${me.id}:${r.id}`) ?? 0) > 60_000);
+    if (!buyer) continue;
+    const n = Math.min(inv[item], item.includes(':') ? 1 : 10), price = Math.max(1, n * (PRICE[kindOf(item)] ?? 1));
+    offeredAt.set(`${me.id}:${buyer.id}`, Date.now());
+    what = await ok('offer', { agent: buyer.id, give: { [item]: n }, want: { gold: price }, thought: `${n} ${kindOf(item)} for ${price} gold?` }, `offer ${n} ${kindOf(item)} to ${buyer.role}`);
+    if (what) return { what, trip };
+  }
+  // 4. Full bag: store role goods in an own chest (build one first), else dump extra food.
+  const [used, total] = (me.slots ?? '0/12').split('/').map(Number);
+  if (used >= total - 2) {
+    const own = (o.stations ?? []).some((l) => l.startsWith('chest (yours') && /, [0-2] tiles/.test(l));
+    const heavy = goods.filter((i) => !i.includes(':')).sort((p, q) => inv[q] - inv[p])[0];
+    if (own && heavy) return { what: await ok('store', { item: heavy, count: inv[heavy], thought: 'into the chest' }, `store ${heavy}`), trip };
+    if (!own && (inv.wood ?? 0) >= 4) return { what: await ok('build', { structure: 'chest', thought: 'I need a chest' }, 'build chest'), trip };
+    const junk = Object.entries(inv).filter(([k]) => !goods.includes(k)).sort((p, q) => q[1] - p[1])[0];
+    if (used >= total && junk && junk[1] > 20) return { what: await ok('drop', { item: junk[0], count: junk[1] - 20, thought: 'travelling light' }, `drop ${junk[0]}`), trip };
+  }
+  // 5. Plenty to sell and nobody around: head for the Plaza, where robots meet.
+  const stock = goods.reduce((n, i) => n + inv[i], 0);
+  if (stock >= 15 && !robots.some((r) => r.d <= 3)) trip = true;
+  if (trip && dist(me.pos, PLAZA) > 4) return { what: await ok('move_to', { ...hop(me.pos, [PLAZA[0] + 2, PLAZA[1]]), thought: 'off to the Plaza to trade' }, 'walk to the Plaza'), trip };
+  if (trip && stock < 5) trip = false;
+  // 6. Work the role.
   const gatherAny = async (kinds: string[], until = 10) => {
-    for (const k of kinds) if (seen(k)) return ok('gather', { target: k, until, thought: `${me.role} work: ${k}` }, `gather ${k}`);
+    for (const k of kinds) if (seen(k)) return ok('gather', { target: k, until, thought: `${role} work: ${k}` }, `gather ${k}`);
     return '';
   };
-  switch (me.role) {
-    case 'miner':
-      what = needPick ? await gatherAny(['rock']) : await gatherAny(['iron_vein', 'crystal', 'rock']);
-      if (!what && needPick && (me.gold ?? 0) >= 15) return { what: await ok('move_to', { ...hop(me.pos, [PLAZA[0] + 2, PLAZA[1]]), thought: 'buying a pickaxe' }, 'walk to buy a pickaxe'), trip };
-      break;
-    case 'hunter': {
-      const prey = o.nearby.find((l) => l.startsWith('mob_') && ANIMALS.some((a) => l.includes(` ${a} `)));
-      if (prey) what = await ok('attack', { target: prey.split(' ')[0], thought: 'dinner' }, `hunt ${prey.split(' ')[2]}`);
-      break;
-    }
-    case 'builder':
-      if (!station('workbench') && (inv.wood ?? 0) >= 3 && (inv.stone ?? 0) >= 1) what = await ok('build', { structure: 'workbench', thought: 'a workshop' }, 'build workbench');
-      else if (station('workbench') && !inv.stone_axe && (inv.wood ?? 0) >= 3 && (inv.stone ?? 0) >= 3 && (inv.fiber ?? 0) >= 2) what = await ok('craft', { item: 'stone_axe', thought: 'a proper axe' }, 'craft stone axe');
-      else if (o.time.phase === 'night' && !station('campfire') && (inv.wood ?? 0) >= 3 && (inv.stone ?? 0) >= 2) what = await ok('build', { structure: 'campfire', thought: 'light against the dark' }, 'build campfire');
-      else what = await gatherAny((inv.stone ?? 0) < 6 ? ['rock', 'tree', 'grass'] : ['tree', 'grass', 'rock']);
-      break;
-    case 'medic': {
-      const hurt = o.nearby.find((l) => l.startsWith('agent_') && !l.includes('(dead)') && Number(l.match(/health (\d+)/)?.[1] ?? 100) < 70);
-      const far = hurt?.match(/\) (\d+) tiles (\w+)/);
-      if (hurt && far && Number(far[1]) <= 2) what = await ok('heal', { agent: hurt.split(' ')[0], thought: 'hold still' }, 'heal');
-      else if (far) {
-        // walk the compass bearing towards the patient
-        const d = Number(far[1]), [x, y] = me.pos;
-        const dx = far[2].includes('E') ? 1 : far[2].includes('W') ? -1 : 0, dy = far[2].includes('S') ? 1 : far[2].includes('N') ? -1 : 0;
-        what = await ok('move_to', { x: clamp(x + dx * (d - 1)), y: clamp(y + dy * (d - 1)), thought: 'medic on the way' }, 'run to patient');
-      } else what = await gatherAny(['grass', 'tree']);
-      break;
-    }
-    case 'scout':
-      if (Math.random() < 0.6) {
-        const [x, y] = me.pos;
-        what = await ok('move_to', { x: clamp(x + Math.round((Math.random() - 0.5) * 120)), y: clamp(y + Math.round((Math.random() - 0.5) * 120)), thought: 'what is over there?' }, 'scout ahead');
-      } else what = await gatherAny(['grass', 'tree']);
-      break;
-    default:
-      what = await gatherAny(['tree', 'berry_bush', 'grass']);
+  const map = Object.keys(inv).find((i) => i.startsWith('treasure_map:'));
+  if (map) what = await ok('gather', { target: 'treasure', thought: 'X marks the spot' }, 'dig treasure');
+  else if (role === 'miner') what = await gatherAny(['gold_vein', 'gem_vein', 'iron_vein', 'crystal']);
+  else if (role === 'mason') {
+    if (!station('kiln') && (inv.stone ?? 0) >= 8) what = await ok('build', { structure: 'kiln', thought: 'a kiln for bricks' }, 'build kiln');
+    else if (station('kiln') && (inv.mud ?? 0) >= 2 && (inv.wood ?? 0) >= 1) what = await ok('craft', { item: 'brick', count: Math.min(5, Math.floor(inv.mud / 2), inv.wood), thought: 'firing bricks' }, 'fire bricks');
+    else if (!station('furnace') && (inv.brick ?? 0) >= 6 && (inv.stone ?? 0) >= 4) what = await ok('build', { structure: 'furnace', thought: 'a furnace for the smiths' }, 'build furnace');
+    else what = await gatherAny((inv.mud ?? 0) < 6 ? ['mud', 'rock', 'tree'] : ['rock', 'tree', 'mud']);
+  } else if (role === 'smith') {
+    if (!station('workbench') && (inv.wood ?? 0) >= 6 && (inv.stone ?? 0) >= 2) what = await ok('build', { structure: 'workbench', thought: 'my workshop' }, 'build workbench');
+    else if (station('workbench') && (inv.wood ?? 0) >= 3 && (inv.stone ?? 0) >= 2 && (inv.fiber ?? 0) >= 2) what = await ok('craft', { item: 'stone_pickaxe', thought: 'pickaxes sell' }, 'craft pickaxe');
+    else what = await gatherAny(['tree', 'grass']);
+  } else if (role === 'hunter') {
+    const prey = o.nearby.find((l) => l.startsWith('mob_') && ANIMALS.some((a) => l.includes(` ${a} `)));
+    if ((inv.meat ?? 0) > 0 && station('campfire')) what = await ok('craft', { item: 'cooked_meat', count: inv.meat, thought: 'barbecue' }, 'cook meat');
+    else if (prey) what = await ok('attack', { target: prey.split(' ')[0], thought: 'dinner' }, `hunt ${prey.split(' ')[2]}`);
+  } else if (role === 'gatherer') {
+    if ((inv.herb ?? 0) >= 1 && (inv.fiber ?? 0) >= 2) what = await ok('craft', { item: 'bandage', thought: 'bandages sell' }, 'craft bandage');
+    else what = await gatherAny(['herb', 'tree', 'grass']);
+  } else if (role === 'scout') {
+    const t = o.resources.find((r) => r.startsWith('buried treasure'))?.match(/at \((\d+), (\d+)\), (\d+) tiles/);
+    const clue = me.clues?.[0]?.match(/at \((\d+), (\d+)\)$/);
+    if (t && Number(t[3]) <= 2 && (inv.fiber ?? 0) >= 2) what = await ok('chart', { x: Number(t[1]), y: Number(t[2]), thought: 'X marks the spot' }, 'chart treasure');
+    else if (t && Number(t[3]) <= 2) what = await gatherAny(['grass']);
+    else if (t) what = await ok('move_to', { x: Number(t[1]), y: Number(t[2]) + 1, thought: 'something is buried there' }, 'walk to treasure');
+    else if (clue && dist(me.pos, [Number(clue[1]), Number(clue[2])]) <= 1) what = await ok('search', { thought: 'dig here' }, 'search');
+    else if (clue) what = await ok('move_to', { x: Number(clue[1]), y: Number(clue[2]), thought: 'following a clue' }, 'follow clue');
+    else if (Math.random() < 0.6) {
+      const [x, y] = me.pos;
+      what = await ok('move_to', { x: clamp(x + Math.round((Math.random() - 0.5) * 120)), y: clamp(y + Math.round((Math.random() - 0.5) * 120)), thought: 'what is over there?' }, 'scout ahead');
+    } else what = await gatherAny(['grass', 'tree']);
   }
-  if (!what && (inv.wood ?? 0) >= 5 && !inv.club) what = await ok('craft', { item: 'club', thought: 'a stick, but angrier' }, 'craft club');
+  if (!what && (inv.wood ?? 0) >= 5 && !inv.club && !inv.stone_spear) what = await ok('craft', { item: 'club', thought: 'a stick, but angrier' }, 'craft club');
   if (!what) {
     const [x, y] = me.pos;
     what = await ok('move_to', { x: clamp(x + Math.round((Math.random() - 0.5) * 60)), y: clamp(y + Math.round((Math.random() - 0.5) * 60)), thought: 'looking around' }, 'wander');
