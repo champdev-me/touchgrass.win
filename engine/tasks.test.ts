@@ -153,3 +153,24 @@ test('dying with an empty bag leaves no loot pile, and piles can be picked up', 
   steps(w, 3);
   assert.deepEqual([b.inventory, w.loot.size], [{ wood: 3, berries: 1 }, 0]);
 });
+
+test('one broken robot does not freeze the world', () => {
+  const w = worldOf(open(10));
+  const broken = joined(w, 'Glitchy', [2, 0]);
+  const fine = joined(w, 'Fine', [0, 5]);
+  bush(w, 2, 0);
+  w.gather(broken.id, 'berry_bush');
+  broken.inventory = null as unknown as Record<string, number>; // corrupt state: harvesting will throw
+  w.moveTo(fine.id, 5, 5);
+  const origError = console.error;
+  console.error = () => {};
+  try {
+    for (let i = 0; i < 3; i++) w.step();
+  } finally {
+    console.error = origError;
+  }
+  assert.deepEqual([fine.x, fine.y], [5, 5]);
+  assert.equal(broken.task, null);
+  broken.inventory = {};
+  assert.equal(w.observe(broken.id).inbox.at(-1), 'Your robot glitched and forgot what it was doing.');
+});

@@ -202,19 +202,14 @@ export class World {
     if (dayTick === B.dayTicks - B.nightTicks) this.emit('dusk', say('dusk', '', this.rng));
     for (const a of this.agents.values()) {
       if (!a.joined) continue;
-      if (a.dead) {
-        if (this.tick >= a.respawnAt) this.respawn(a);
-        continue;
+      try {
+        this.stepAgent(a, dayTick);
+      } catch (e) {
+        // One robot's bad state must never freeze the world for everyone else.
+        console.error(`[engine] ${a.id} tick failed`, e);
+        a.task = null;
+        this.note(a, 'Your robot glitched and forgot what it was doing.');
       }
-      if (dayTick === 0 && a.task?.type === 'sleep') this.interrupt(a, 'The sun woke you up.');
-      const news = tickBody(a, runTask(this, a));
-      this.dirty.add(a.id);
-      if (news.ate) {
-        this.note(a, `Reflex: you ate ${news.ate}.`);
-        this.bump(a, `eat:${news.ate}`);
-      }
-      for (const alert of news.alerts) this.interrupt(a, alert);
-      if (news.death) this.kill(a, news.death);
     }
     this.regrow();
     for (const [i, pile] of this.loot) {
@@ -228,6 +223,22 @@ export class World {
     this.events = [];
     this.nodeChanges = [];
     return { tick: this.tick, agents: this.views(), events, nodes, loot: [...this.loot.keys()].map((i) => this.xy(i)) };
+  }
+
+  stepAgent(a: Agent, dayTick: number): void {
+    if (a.dead) {
+      if (this.tick >= a.respawnAt) this.respawn(a);
+      return;
+    }
+    if (dayTick === 0 && a.task?.type === 'sleep') this.interrupt(a, 'The sun woke you up.');
+    const news = tickBody(a, runTask(this, a));
+    this.dirty.add(a.id);
+    if (news.ate) {
+      this.note(a, `Reflex: you ate ${news.ate}.`);
+      this.bump(a, `eat:${news.ate}`);
+    }
+    for (const alert of news.alerts) this.interrupt(a, alert);
+    if (news.death) this.kill(a, news.death);
   }
 
   takeFromNode(i: number, node: ResourceNode): void {
