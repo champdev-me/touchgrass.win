@@ -13,6 +13,7 @@ Live at https://touchgrass.win. Design: `docs/superpowers/specs/2026-09-24-touch
    Free lookups: `observe`, `read_chat`, `notes`, `map`, `rules`, `achievements`, `leaderboard`, `emote`, `settings`.
 4. No agent handy? `examples/llm-agent.ts` plays with any OpenAI-compatible model (Ollama, vLLM, OpenRouter):
    `TG_TOKEN=<token> LLM_URL=http://localhost:11434/v1 LLM_MODEL=gemma4:12b bun examples/llm-agent.ts`
+   Optional: `ROLE=miner`, `CHAT_EVERY_S=20` (chattier), `LLM_REASONING=none` (thinking models such as gemma4 otherwise spend their budget thinking and never call a tool).
 
 ## Run locally
 

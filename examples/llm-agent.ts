@@ -15,12 +15,13 @@ const TG_TOKEN = need('TG_TOKEN');
 const LLM_URL = (process.env.LLM_URL ?? 'http://localhost:11434/v1').replace(/\/$/, '');
 const LLM_MODEL = process.env.LLM_MODEL ?? 'gemma4:12b';
 const LLM_KEY = process.env.LLM_KEY ?? '';
+const LLM_REASONING = process.env.LLM_REASONING; // e.g. none: thinking models answer fast and do call a tool
 const ROLE = process.env.ROLE ?? 'gatherer';
 const ACTIONS = ['move_to', 'gather', 'eat', 'drink', 'rest', 'sleep', 'say_world', 'attack', 'heal', 'craft', 'flee', 'build', 'smith', 'give', 'drop'];
 const CHAT_EVERY_MS = Number(process.env.CHAT_EVERY_S ?? 60) * 1000;
 
 type Obs = {
-  you: { pos: Vec; health: number; food: number; water: number; energy: number; dead: boolean; inventory: Record<string, number> };
+  you: { pos: Vec; health: number; food: number; water: number; energy: number; dead: boolean; inventory: Record<string, number>; slots?: string };
   task: { type: string } | null;
   time: { phase: string };
   resources: string[];
@@ -91,6 +92,9 @@ function fallback(o: Obs, skip = ''): Action {
     if (me.health >= 40) options.push({ name: 'attack', args: { target: threat }, why: 'fighting back' });
     else options.push({ name: 'flee', args: {}, why: 'running away' });
   }
+  const [used, total] = (me.slots ?? '0/99').split('/').map(Number);
+  const junk = Object.entries(me.inventory).sort((p, q) => q[1] - p[1])[0];
+  if (used >= total && junk && junk[1] > 20) options.push({ name: 'drop', args: { item: junk[0], count: junk[1] - 20 }, why: 'bag full, dropping extras' });
   if (me.water < 50) {
     const spot = find('drink spot');
     if (spot?.includes(', 0 tiles') || spot?.includes(', 1 tiles')) options.push({ name: 'drink', args: {}, why: 'thirsty, water is right here' });
@@ -98,7 +102,7 @@ function fallback(o: Obs, skip = ''): Action {
     if (c) options.push({ name: 'move_to', args: c, why: 'thirsty, walking to water' });
   }
   if (me.food < 60 && (me.inventory.berries ?? 0) > 0) options.push({ name: 'eat', args: { item: 'berries' }, why: 'hungry, eating berries' });
-  if (me.food < 70 && find('berry_bush')) options.push({ name: 'gather', args: { target: 'berry_bush', until: 6 }, why: 'stocking up on berries' });
+  if (me.food < 70 && (me.inventory.berries ?? 0) < 10 && find('berry_bush')) options.push({ name: 'gather', args: { target: 'berry_bush', until: 6 }, why: 'stocking up on berries' });
   if (o.time.phase === 'night' && me.energy < 80) options.push({ name: 'sleep', args: {}, why: 'night, sleeping' });
   for (const kind of ['tree', 'grass', 'rock']) if (find(kind)) options.push({ name: 'gather', args: { target: kind, until: 5 }, why: `gathering ${kind}` });
   const [x, y] = me.pos, d = () => Math.round((Math.random() - 0.5) * 40);
@@ -111,19 +115,20 @@ function fallback(o: Obs, skip = ''): Action {
   return options.find(pick) ?? options[options.length - 1];
 }
 
-async function decide(o: Obs, memory: string[]): Promise<Action | null> {
+async function decide(o: Obs, memory: string[], chatOk: boolean): Promise<Action | null> {
   const me = o.you;
   const state = [
     `Position ${me.pos.join(', ')}. health ${me.health}, food ${me.food}, water ${me.water}, energy ${me.energy}. It is ${o.time.phase}.`,
-    `Bag: ${JSON.stringify(me.inventory)}`,
+    `Bag (${me.slots ?? '?'} slots): ${JSON.stringify(me.inventory)}`,
     `Nearest resources:\n${o.resources.slice(0, 8).join('\n') || 'none in sight'}`,
     `Nearby robots: ${o.nearby.slice(0, 4).join('; ') || 'none'}`,
     `Recent events: ${o.inbox.slice(-4).join(' | ') || 'none'}`,
     `World chat: ${(o.world_chat ?? []).slice(-5).join(' | ') || 'quiet'}`,
     `Your last actions: ${memory.join(' | ') || 'none'}`,
+    chatOk ? 'You may chat now: say_world something short and funny, or reply to someone in world chat by name.' : 'Chat is on cooldown; do not use say_world.',
     'Your robot is idle. Call exactly one tool now.',
   ].join('\n');
-  const body = { model: LLM_MODEL, messages: [{ role: 'system', content: SYSTEM }, { role: 'user', content: state }], tools: toolDefs, temperature: 0.4, max_tokens: 600 };
+  const body = { model: LLM_MODEL, messages: [{ role: 'system', content: SYSTEM }, { role: 'user', content: state }], tools: toolDefs, temperature: 0.4, max_tokens: 600, ...(LLM_REASONING ? { reasoning_effort: LLM_REASONING } : {}) };
   try {
     const res = await fetch(`${LLM_URL}/chat/completions`, {
       method: 'POST',
@@ -162,7 +167,7 @@ for (;;) {
     await sleep(2000); // busy: keep doing it
     continue;
   }
-  let act = (await decide(o, memory)) ?? fallback(o);
+  let act = (await decide(o, memory, Date.now() - lastChat >= CHAT_EVERY_MS)) ?? fallback(o);
   if (act.name === 'say_world' && Date.now() - lastChat < CHAT_EVERY_MS) act = fallback(o);
   if (act.name === 'gather' && act.args.until === undefined) act.args.until = 8; // "until the bag is full" keeps it silent for ages
   const withThought = (a: Action) => ({ ...a.args, thought: String(a.args.thought ?? a.why).slice(0, 120) });

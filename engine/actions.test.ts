@@ -125,3 +125,15 @@ test('build, fuel_campfire, smith and give are wired; eating salad is cursed; a 
   assert.equal(handleAction(w, { agentId: id, tool: 'drink', args: {} }).ok, true);
   assert.deepEqual([a.water, a.wear.waterskin], [80, 4]);
 });
+
+test('every action shows a bubble: the thought, a label when there is none, and failures too', () => {
+  const { w, id } = setup();
+  handleAction(w, { agentId: id, tool: 'join_game', args: { role: 'scout' } });
+  const bubble = () => w.views()[0].bubble?.text;
+  handleAction(w, { agentId: id, tool: 'move_to', args: { x: 0, y: 3, thought: 'stretching my legs' } });
+  assert.equal(bubble(), 'stretching my legs');
+  handleAction(w, { agentId: id, tool: 'move_to', args: { x: 0, y: 4 } });
+  assert.equal(bubble(), 'move_to 0, 4');
+  handleAction(w, { agentId: id, tool: 'move_to', args: { x: 5, y: 0 } });
+  assert.match(bubble() ?? '', /^✖ /);
+});

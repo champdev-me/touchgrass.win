@@ -21,16 +21,25 @@ export function handleAction(world: World, req: ActionRequest): ActionResult {
     const a = world.agents.get(req.agentId);
     if (isDo && a) {
       world.bump(a, 'actions');
-      if (!SPEECH.has(req.tool)) think(world, req.agentId, req.args.thought);
+      if (!SPEECH.has(req.tool)) think(world, req.agentId, typeof req.args.thought === 'string' && req.args.thought.trim() ? req.args.thought : label(req));
       checkAchievements(world, a);
     }
     return { ok: true, data, cooldownMs: isDo ? world.cooldownFor(req.agentId) : 0 };
   } catch (e) {
+    // spectators see failed attempts too
+    if (e instanceof GameFail && DO_TOOLS.has(req.tool) && e.code !== 'banned') think(world, req.agentId, `✖ ${e.message}`);
     if (e instanceof GameFail) return { ok: false, error: { error: e.code, message: e.message, hint: e.hint }, cooldownMs: 0 };
     throw e;
   } finally {
     world.seen(req.agentId);
   }
+}
+
+/** A short caption for an action sent without a thought. */
+function label({ tool, args }: ActionRequest): string {
+  const what = [args.action, args.target ?? args.item ?? args.structure ?? args.agent].filter((v) => typeof v === 'string');
+  const at = typeof args.x === 'number' && typeof args.y === 'number' ? [`${args.x}, ${args.y}`] : [];
+  return [tool, ...what, ...at].join(' ');
 }
 
 function run(world: World, { agentId, tool, args }: ActionRequest): unknown {
