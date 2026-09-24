@@ -1,13 +1,28 @@
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { CREATURES, type CreatureKind } from '../../shared/creatures.ts';
 import type { CreatureView } from '../../shared/types.ts';
 
-// Primitives until real CC0 models land: colour, width, height in tiles.
-const BODY: Record<CreatureKind, [string, number, number]> = {
-  rabbit: ['#d9d2c5', 0.3, 0.3], deer: ['#a0703c', 0.45, 0.8], boar: ['#5b4636', 0.55, 0.45], duck: ['#f2d23c', 0.3, 0.35],
-  goblin: ['#4f9a3a', 0.4, 0.6], wolf: ['#6d7280', 0.5, 0.5], roomba: ['#2b2b2b', 0.6, 0.15], golem: ['#5d7a4a', 1.2, 1.8],
+// CC0 Kenney models (see web/assets/CREDITS.md): file, height in tiles, optional tint. The Roomba is a plain disc, as Roombas are.
+const LOOK: Record<Exclude<CreatureKind, 'roomba'>, { file: string; height: number; tint?: string }> = {
+  rabbit: { file: 'pets/animal-bunny.glb', height: 0.4 },
+  deer: { file: 'pets/animal-deer.glb', height: 0.75 },
+  boar: { file: 'pets/animal-hog.glb', height: 0.5 },
+  duck: { file: 'pets/animal-chick.glb', height: 0.4 },
+  wolf: { file: 'pets/animal-dog.glb', height: 0.6, tint: '#9aa3b5' },
+  goblin: { file: 'graveyard/character-zombie.glb', height: 0.8 },
+  golem: { file: 'pets/animal-polar.glb', height: 2.2, tint: '#7fa36a' },
 };
+const CLIPS: Record<string, string[]> = { idle: ['idle'], walk: ['walk'], run: ['run', 'sprint'] }; // names differ per pack
+
+interface Model {
+  scene: THREE.Object3D;
+  clips: THREE.AnimationClip[];
+  scale: number;
+  height: number;
+}
 
 interface Mob {
   root: THREE.Group;
@@ -16,6 +31,9 @@ interface Mob {
   from: THREE.Vector3;
   to: THREE.Vector3;
   t: number;
+  mixer: THREE.AnimationMixer | null;
+  actions: Map<string, THREE.AnimationAction>;
+  clip: string;
 }
 
 export class Creatures {
@@ -23,12 +41,35 @@ export class Creatures {
   heightAt: (x: number, y: number) => number;
   tickMs: number;
   mobs = new Map<string, Mob>();
-  looks = new Map<CreatureKind, [THREE.BoxGeometry, THREE.MeshLambertMaterial]>();
+  models = new Map<CreatureKind, Model>();
 
   constructor(scene: THREE.Scene, heightAt: (x: number, y: number) => number, tickMs: number) {
     this.scene = scene;
     this.heightAt = heightAt;
     this.tickMs = tickMs;
+  }
+
+  async load(): Promise<void> {
+    const loader = new GLTFLoader();
+    await Promise.all(Object.entries(LOOK).map(async ([kind, look]) => {
+      const g = await loader.loadAsync(`/assets/${look.file}`);
+      g.scene.traverse((o) => {
+        if (!(o instanceof THREE.Mesh)) return;
+        const m = (o.material as THREE.MeshStandardMaterial).clone();
+        m.metalness = 0;
+        if (look.tint) m.color.set(look.tint);
+        o.material = m;
+      });
+      const size = new THREE.Box3().setFromObject(g.scene).getSize(new THREE.Vector3());
+      this.models.set(kind as CreatureKind, { scene: g.scene, clips: g.animations, scale: look.height / size.y, height: look.height });
+    }));
+    const disc = new THREE.Group(); // the Lost Roomba
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.1, 24), new THREE.MeshLambertMaterial({ color: '#2b2b2b' }));
+    const light = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.02, 12), new THREE.MeshBasicMaterial({ color: '#38e07b' }));
+    body.position.y = 0.05;
+    light.position.set(0, 0.11, 0.18);
+    disc.add(body, light);
+    this.models.set('roomba', { scene: disc, clips: [], scale: 1, height: 0.12 });
   }
 
   sync(views: CreatureView[]): void {
@@ -41,6 +82,8 @@ export class Creatures {
       m.t = 0;
       m.hp.style.width = `${(100 * v.hp) / v.maxHp}%`;
       m.tag.classList.toggle('angry', v.mode === 'chase');
+      const moving = m.from.distanceToSquared(m.to) > 1e-4;
+      this.play(m, !moving ? 'idle' : v.mode === 'chase' || v.mode === 'flee' ? 'run' : 'walk');
     }
     for (const [id, m] of this.mobs) {
       if (seen.has(id)) continue;
@@ -56,19 +99,15 @@ export class Creatures {
       m.root.position.lerpVectors(m.from, m.to, m.t);
       const dx = m.to.x - m.from.x, dz = m.to.z - m.from.z;
       if (Math.abs(dx) + Math.abs(dz) > 1e-3) m.root.rotation.y = Math.atan2(dx, dz);
+      m.mixer?.update(dt);
     }
   }
 
   spawn(v: CreatureView): Mob {
-    const [color, width, height] = BODY[v.kind];
-    let look = this.looks.get(v.kind);
-    if (!look) {
-      look = [new THREE.BoxGeometry(width, height, width * 1.4), new THREE.MeshLambertMaterial({ color })];
-      this.looks.set(v.kind, look);
-    }
+    const model = this.models.get(v.kind)!;
     const root = new THREE.Group();
-    const body = new THREE.Mesh(look[0], look[1]);
-    body.position.y = height / 2;
+    const body = model.clips.length ? SkeletonUtils.clone(model.scene) : model.scene.clone();
+    body.scale.setScalar(model.scale);
     root.add(body);
     const tag = document.createElement('div');
     tag.className = 'mobtag';
@@ -79,12 +118,23 @@ export class Creatures {
     bar.append(hp);
     tag.append(bar);
     const label = new CSS2DObject(tag);
-    label.position.y = height + 0.35;
+    label.position.y = model.height + 0.3;
     root.add(label);
     root.position.set(v.x + 0.5, this.heightAt(v.x, v.y), v.y + 0.5);
     this.scene.add(root);
-    const m: Mob = { root, tag, hp, from: root.position.clone(), to: root.position.clone(), t: 1 };
+    const mixer = model.clips.length ? new THREE.AnimationMixer(body) : null;
+    const actions = new Map(mixer ? model.clips.map((c) => [c.name, mixer.clipAction(c)] as const) : []);
+    const m: Mob = { root, tag, hp, from: root.position.clone(), to: root.position.clone(), t: 1, mixer, actions, clip: '' };
+    this.play(m, 'idle');
     this.mobs.set(v.id, m);
     return m;
+  }
+
+  play(m: Mob, want: string): void {
+    const name = CLIPS[want].find((n) => m.actions.has(n));
+    if (!name || m.clip === name) return;
+    m.actions.get(m.clip)?.fadeOut(0.2);
+    m.actions.get(name)?.reset().fadeIn(0.2).play();
+    m.clip = name;
   }
 }

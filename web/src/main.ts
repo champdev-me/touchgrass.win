@@ -60,10 +60,10 @@ const FOLLOW_OFFSET = new THREE.Vector3(-6, 7, 6);
 let send: (m: ClientMsg) => void = () => {};
 const ui = setupUi((id) => setFollow(id));
 const robots = new Robots(scene, (x, y) => chunks.heightAt(x, y), B.tickMs);
-const [models] = await Promise.all([loadProps(), robots.load()]);
+const creatures = new Creatures(scene, (x, y) => chunks.heightAt(x, y), B.tickMs);
+const [models] = await Promise.all([loadProps(), robots.load(), creatures.load()]);
 const chunks = new ChunkView(scene, models, (list) => send({ type: 'chunks', list }));
 const loot = new LootView(scene, (x, y) => chunks.heightAt(x, y));
-const creatures = new Creatures(scene, (x, y) => chunks.heightAt(x, y), B.tickMs);
 
 function setFollow(id: string | null) {
   follow = id;
