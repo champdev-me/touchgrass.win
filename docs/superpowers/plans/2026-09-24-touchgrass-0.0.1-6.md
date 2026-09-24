@@ -17,6 +17,7 @@
 - Six roles: `miner`, `mason`, `smith`, `hunter`, `gatherer`, `scout`. Migration: `builder` becomes `smith`, `medic` becomes `gatherer`.
 - `B.tradeRange` = 3, `B.offerTicks` = 60, `B.chestSlots` = 12, `B.maxChests` = 3, `B.treasureCount` = 6, `B.treasureMinFromPlaza` = 64, `B.regenPerTick` = 0.5, `B.regenFood` = 99, `B.scoutVision` = 16, `B.bigTradeGold` = 50.
 - Health regenerates only while food is full (≥ `B.regenFood`) and water > `B.regenAbove` (50).
+- Punching a node costs `B.punchEnergy` = 0.3 per punch tick; each strike costs `B.swingEnergy` = 1; at 0 energy both stop with `too_tired`.
 - Treasure never appears in chunk data, tick deltas or any spectator payload.
 - Every exclusive-action failure uses `GameFail` code `wrong_role` with a hint naming the role to trade with.
 - UI uses SVG icons, not emoji or text, where possible.
@@ -114,7 +115,7 @@ git add -A && git commit -m "feat!: retire the Smith NPC, his shop, market and b
 
 ---
 
-### Task 2: Six roles, starter kits, health at full food
+### Task 2: Six roles, starter kits, health at full food, energy for work
 
 **Files:**
 - Modify: `shared/types.ts` (ROLES), `shared/balance.ts`, `shared/items.ts` (KITS), `engine/world.ts` (join, respawn), `engine/body.ts`, `engine/combat.ts` (delete `heal`), `engine/actions.ts`, `gateway/mcp.ts`, `engine/craft.ts` (builder half cost), `engine/tasks.ts` (miner double), `engine/achievements.ts` (field_medic), `engine/agent.ts` (`healed`), `engine/persist.ts` (role migration), `engine/rules.ts`, `web/src/icons.ts`
@@ -149,6 +150,21 @@ test('every role gets its starter kit on join and again on respawn, without dupl
   const s = w.register('Smithy', 0);
   w.join(s.id, 'smith', null, 0);
   assert.deepEqual(s.inventory, { wood: 6, stone: 2 });
+});
+
+test('every punch and every swing costs energy; at 0 the work stops', () => {
+  const w = world();
+  const a = w.register('Puncher', 0);
+  w.join(a.id, 'gatherer', null, 0);
+  [a.x, a.y] = [5, 5];
+  w.nodes.set(w.index(6, 5), { kind: 'tree', left: 5, regrowAt: 0 });
+  a.inventory = {}; // no axe: 3 punches per wood
+  w.gather(a.id, 'tree', 1);
+  const before = a.energy;
+  for (let i = 0; i < 3; i++) w.step(0);
+  assert.equal(Math.round((before - a.energy) * 100) / 100, Math.round((3 * B.punchEnergy + 3 * -B.busyEnergyPerTick) * 100) / 100);
+  a.energy = 0;
+  assert.throws(() => w.gather(a.id, 'tree', 1), /too tired/i);
 });
 
 test('health comes back only while food is full', () => {
@@ -199,8 +215,12 @@ giveKit(a: Agent): void {
 ```
 
   and call it in `join` (inside the `!a.joined` branch, after `a.role = role`) and at the end of `respawn`.
-- `shared/balance.ts`: `regenPerTick: 0.5`, add `regenFood: 99`, `scoutVision: 16`; delete `healAmount`, `healRange`, `fieldMedicBelow`.
+- `shared/balance.ts`: `regenPerTick: 0.5`, add `regenFood: 99`, `scoutVision: 16`, `punchEnergy: 0.3`, `swingEnergy: 1`; delete `healAmount`, `healRange`, `fieldMedicBelow`.
 - `engine/body.ts`: `else if (a.food >= B.regenFood && a.water > B.regenAbove) a.health = clamp(a.health + B.regenPerTick);`
+- `engine/tasks.ts` punch loop (the `++t.progress < ticks` block before `harvest`): first `if (a.energy <= 0) { w.interrupt(a, 'Too tired to punch. Rest or sleep.'); return 'idle'; }`, then `a.energy = Math.max(0, a.energy - B.punchEnergy);` each punch tick.
+- `engine/combat.ts` `strike`: `a.energy = Math.max(0, a.energy - B.swingEnergy);` (the existing 0-energy checks already stop the fight).
+- `engine/world.ts` `gather`: `if (a.energy <= 0) throw new GameFail('too_tired', 'Your robot is too tired to punch anything.', 'rest or sleep first.');`
+- `engine/rules.ts` body lines: `` `Work costs energy: ${B.punchEnergy} per punch (tools need fewer punches), ${B.swingEnergy} per strike, on top of walking.` ``
 - `engine/combat.ts`: delete `heal`; `engine/actions.ts`: delete `'heal'`; `gateway/mcp.ts`: delete the `heal` tool; `engine/achievements.ts`: delete `field_medic`; `shared/types.ts`/`engine/agent.ts`: delete `healed`.
 - `engine/craft.ts` `build`: `const cost = STRUCTURES[kind];` (half-cost perk gone).
 - `engine/tasks.ts` `harvest`: `const per = plant && a.role === 'gatherer' ? B.gathererMultiplier : 1;`

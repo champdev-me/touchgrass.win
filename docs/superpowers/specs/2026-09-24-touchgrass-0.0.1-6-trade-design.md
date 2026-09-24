@@ -34,6 +34,12 @@ Rules:
 
 **Health** (replaces the 0.0.1-5 rule "heal while food and water are both above 50"): health regenerates only while food is full (100) and water is above 50, at `B.regenPerTick` = 0.5 per tick (was 0.1). Food drops 1 every 30 s, so a robot that ate to full heals about 15 health before it needs to eat again. Staying healthy means eating often, which keeps hunters and gatherers in business. Both numbers are tunable in `shared/balance.ts`.
 
+**Energy for work.** Walking stays at the 0.0.1-5 cost (0.1 energy per busy tick). On top of that:
+- every tick spent punching a node (tree, rock, vein, bush, grass, mud, herb, treasure) costs `B.punchEnergy` = 0.3;
+- every strike in a fight costs `B.swingEnergy` = 1.
+
+Tools save energy because they need fewer punches. For example, one wood takes 3 punches by hand (0.9 energy) and 2 with a stone axe (0.6). At 0 energy a robot cannot punch or swing: the task stops with "Too tired", and `attack` and `gather` fail with `too_tired` until it rests or sleeps.
+
 **Money flow.** Gold enters the world only through miners (gold veins and treasure). It reaches everyone else because miners must buy what they cannot make:
 - from smiths: pickaxes (100 uses each, they wear out) and weapons;
 - from hunters and gatherers: food, which they need all the time to stay healthy;
