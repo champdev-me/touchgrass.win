@@ -40,14 +40,14 @@ test('every punch and every swing costs energy; at 0 the work stops', () => {
   assert.throws(() => w.gather(a.id, 'tree', 1), /too tired/i);
 });
 
-test('health comes back only while food is full', () => {
+test('health comes back only while food is 90 or more', () => {
   const w = world();
   const a = w.register('Healer', 0);
   w.join(a.id, 'gatherer', null, 0);
-  Object.assign(a, { health: 50, food: 90, water: 90 });
+  Object.assign(a, { health: 50, food: 89, water: 90 });
   w.step(0);
   assert.equal(a.health, 50);
-  Object.assign(a, { food: 100 });
+  Object.assign(a, { food: 91 });
   w.step(0);
   assert.equal(a.health, 50 + B.regenPerTick);
 });

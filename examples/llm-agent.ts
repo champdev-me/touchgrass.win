@@ -22,7 +22,7 @@ const CHAT_EVERY_MS = Number(process.env.CHAT_EVERY_S ?? 60) * 1000;
 const MEMORY = Number(process.env.LLM_MEMORY ?? 6); // past actions shown to the model each turn
 
 type Obs = {
-  you: { pos: Vec; health: number; food: number; water: number; energy: number; dead: boolean; inventory: Record<string, number>; slots?: string };
+  you: { pos: Vec; health: number; food: number; water: number; energy: number; dead: boolean; inventory: Record<string, number>; slots?: string; clues?: string[]; maps?: string[] };
   task: { type: string } | null;
   time: { phase: string };
   resources: string[];
@@ -51,7 +51,7 @@ const ROLE_GOALS: Record<string, string> = {
 const SYSTEM = `You control a robot in Touch Grass, a survival game. Each turn you get its state and must call exactly ONE tool.
 Stats run 0-100, higher is better. Food drops 1 every 30s, water 1 every 20s; at 0 you lose health.
 Priorities: water below 50 -> drink if a drink spot is 0-1 tiles away, else move_to that drink spot.
-Health only heals while food is full: if health is below 80 and you carry food, eat until food is about 100; food below 60 with no food -> gather berry_bush.
+Health only heals while food is 90+ and water 50+: if health is below 80 and you carry food, eat until food is about 100; food below 60 with no food -> gather berry_bush.
 Energy below 15 -> sleep (or rest by day): at 0 you cannot punch or fight. Night and energy below 80 -> sleep.
 Build stations with build(structure), not craft. Cook only meat you carry.
 Otherwise gather tree, grass or rock, or move_to a new land tile 10-30 tiles away to explore.
@@ -62,7 +62,7 @@ If something is "hunting you": attack it (its mob id) when health is above 40, e
 Rabbits and deer are food: attack them, then eat meat (+10 food, sometimes a tummy ache). With 5 wood, craft a club (double damage).
 Roles own the economy: you can only gather, craft and build what your role allows; a wrong_role error names who to trade with.
 There is no shop. Trade with robots within 3 tiles: offer(agent, give, want) with item counts ("gold" for coins); they accept or decline within 60 s and the swap is all-or-nothing. Haggle in world chat. Accept fair offers in "Offers to you".
-Health only comes back while food is full, so eat often. Punching and fighting cost energy.
+Health only comes back while food is 90+, so eat often. Punching and fighting cost energy.
 Treasure: clues turn up while gathering trees, grass and rocks; search at a clue's spot for the next find. Whoever holds a treasure_map digs with gather target "treasure".
 Bag full? drop things you cannot use or sell (berries beyond a snack stash) so you can keep working.
 Your role is ${ROLE}: ${ROLE_GOALS[ROLE] ?? 'do what you do best'} When you carry about 20 things to sell and nobody is near, walk toward the Plaza (512, 512) where robots meet, in hops of at most 100 tiles.`;
@@ -132,6 +132,7 @@ async function decide(o: Obs, memory: string[], chatOk: boolean): Promise<Action
   const state = [
     `Position ${me.pos.join(', ')}. health ${me.health}, food ${me.food}, water ${me.water}, energy ${me.energy}. It is ${o.time.phase}.`,
     `Bag (${me.slots ?? '?'} slots): ${JSON.stringify(me.inventory)}`,
+    `Clues and maps: ${[...(me.clues ?? []), ...(me.maps ?? [])].join('; ') || 'none'}. search only works within 1 tile of a clue's spot: move_to it first, in hops of at most 100 tiles (farther fails with no_path).`,
     `Nearest resources:\n${o.resources.slice(0, 8).join('\n') || 'none in sight'}`,
     `Nearby robots: ${o.nearby.slice(0, 4).join('; ') || 'none'}`,
     `Recent events: ${o.inbox.slice(-4).join(' | ') || 'none'}`,

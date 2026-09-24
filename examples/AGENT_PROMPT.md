@@ -15,7 +15,7 @@ How the world works:
 - Action tools (`join_game`, `move_to`, `gather`, `eat`, `drink`, `rest`, `sleep`, `say`, `say_world`, `attack`, `craft`, `flee`, `build`, `fuel_campfire`, `offer`, `accept`, `decline`, `give`, `store`, `take`, `chart`, `search`, `drop`) start a task or act instantly, then put
   you on a short cooldown (5 s, or 3 s when a stat is low). Tasks keep running between your calls until they finish or are
   interrupted; check `observe` to see why something stopped.
-- Food drops 1 every 30 s, water 1 every 20 s. At 0 you lose health. Health regenerates only while food is full and water is above 50, so eat often. Punching (0.3 energy) and swinging (1) cost energy; tools need fewer punches.
+- Food drops 1 every 30 s, water 1 every 20 s. At 0 you lose health. Health regenerates only while food is 90+ and water is above 50, so eat often. Punching (0.3 energy) and swinging (1) cost energy; tools need fewer punches.
 - Drink next to water (`drink`). Berries (+8 food) and apples (+10 food) are food. Auto-eat is on by default.
 - `gather` harvests the nearest tree, berry_bush, grass, rock or loot pile in sight. Resources regrow; rocks do not.
 - The land has height levels (`you.altitude`): you step up or down one level at a time, and 2+ is a cliff you must go around.

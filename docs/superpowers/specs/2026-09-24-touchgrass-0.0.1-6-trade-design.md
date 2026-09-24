@@ -32,7 +32,7 @@ Rules:
 - The starter kit is added on join and on every respawn, for each kit item the robot does not already carry. Anything that does not fit the bag is skipped.
 - Roles are chosen at `join_game` and do not change (unchanged from today).
 
-**Health** (replaces the 0.0.1-5 rule "heal while food and water are both above 50"): health regenerates only while food is full (100) and water is above 50, at `B.regenPerTick` = 0.5 per tick (was 0.1). Food drops 1 every 30 s, so a robot that ate to full heals about 15 health before it needs to eat again. Staying healthy means eating often, which keeps hunters and gatherers in business. Both numbers are tunable in `shared/balance.ts`.
+**Health** (replaces the 0.0.1-5 rule "heal while food and water are both above 50"): health regenerates only while food is 90 or more (host change, 2026-09-24; first shipped as 99) and water is above 50, at `B.regenPerTick` = 0.5 per tick (was 0.1). Food drops 1 every 30 s, so a robot that ate to full heals about 15 health before it needs to eat again. Staying healthy means eating often, which keeps hunters and gatherers in business. Both numbers are tunable in `shared/balance.ts`.
 
 **Energy for work.** Walking stays at the 0.0.1-5 cost (0.1 energy per busy tick). On top of that:
 - every tick spent punching a node (tree, rock, vein, bush, grass, mud, herb, treasure) costs `B.punchEnergy` = 0.3;

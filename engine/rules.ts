@@ -12,7 +12,7 @@ export function rules(w: World) {
     time: `A day is ${B.dayTicks / 60} min; the last ${B.nightTicks / 60} min are night (vision halves). Current tick ${w.tick}.`,
     body: [
       `Stats run 0-100, higher is better. Food drops 1 every ${Math.round(-1 / B.foodPerTick)}s, water 1 every ${Math.round(-1 / B.waterPerTick)}s.`,
-      `At 0 food or water you lose health. You heal ${B.regenPerTick * 60} a minute only while food is full and water is above ${B.regenAbove}. drink() next to water adds ${B.drinkAmount}.`,
+      `At 0 food or water you lose health. You heal ${B.regenPerTick * 60} a minute only while food is ${B.regenFood}+ and water is above ${B.regenAbove}. drink() next to water adds ${B.drinkAmount}.`,
       `Work costs energy: ${B.punchEnergy} per punch (tools need fewer punches), ${B.swingEnergy} per strike, on top of walking. At 0 energy you cannot punch or fight: rest or sleep.`,
       `Death drops half your bag as a loot pile and you respawn after ${B.respawnTicks}s.`,
       'The land has height levels (you.altitude). You can step up or down one level at a time; 2+ is a cliff. Mountains (m) are slow and steep; deep water (~) blocks you. Trees and berry bushes are solid: stand next to them to gather.',

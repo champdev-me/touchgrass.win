@@ -24,8 +24,8 @@ export const B = {
   // body: every stat runs 0-100, higher is better
   foodPerTick: -1 / 30,
   waterPerTick: -1 / 20,
-  regenPerTick: 0.5, // health, only while food is full (regenFood) and water above regenAbove
-  regenFood: 99,
+  regenPerTick: 0.5, // health, only while food >= regenFood and water > regenAbove
+  regenFood: 90, // heal while food is at least this
   regenAbove: 50,
   starvePerTick: -1 / 5, // health, per empty stat
   busyEnergyPerTick: -1 / 10,
