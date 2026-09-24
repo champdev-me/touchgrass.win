@@ -67,6 +67,8 @@ export function runTask(w: World, a: Agent): Activity {
       return task.type;
     case 'gather':
       return gatherStep(w, a, task);
+    case 'attack':
+      return 'idle'; // wired in 0.0.1-4 Task 3
   }
 }
 

@@ -1,3 +1,5 @@
+import type { CreatureKind } from './creatures.ts';
+
 export const TERRAIN = { DEEP: 0, SHALLOW: 1, SAND: 2, MEADOW: 3, FOREST: 4, HILLS: 5, RUINS: 6, PLAZA: 7 } as const;
 export type Terrain = (typeof TERRAIN)[keyof typeof TERRAIN];
 
@@ -27,7 +29,8 @@ export type Task =
   | { type: 'move_to'; target: Vec; path: Vec[] }
   | { type: 'gather'; target: GatherTarget; until: number; got: number; node: number; path: Vec[]; progress: number }
   | { type: 'rest' }
-  | { type: 'sleep' };
+  | { type: 'sleep' }
+  | { type: 'attack'; target: string; progress: number };
 
 export interface Agent {
   id: string;
@@ -69,6 +72,9 @@ export interface Agent {
   badge: { emoji: string; until: number } | null;
   lastWorldChatTick: number;
   lastCountedChatTick: number;
+  lastHurtAt: number; // tick
+  recentKills: Record<string, number>; // victim agent id -> tick, for anti-farm
+  healed: string[]; // agents healed while under 50%, for Field Medic
 }
 
 export interface GameError {
@@ -110,6 +116,31 @@ export interface AgentView {
   score: number; // season score
   life: number; // current life score
   trophies: number; // achievements unlocked
+  fighting: boolean;
+}
+
+export interface Creature {
+  id: string;
+  kind: CreatureKind;
+  x: number;
+  y: number;
+  hp: number;
+  mode: 'wander' | 'chase' | 'flee' | 'follow';
+  target: string | null; // agent it chases, flees from or follows
+  until: number; // tick when the mode ends
+  bag: Record<string, number>; // a goblin's loot, a Roomba's vacuumings
+  pack: number; // wolves spawned together share it; 0 = alone
+  hitAt: number; // tick of its last bite
+}
+
+export interface CreatureView {
+  id: string;
+  kind: CreatureKind;
+  x: number;
+  y: number;
+  hp: number;
+  maxHp: number;
+  mode: Creature['mode'];
 }
 
 export interface GameEvent {
@@ -128,6 +159,7 @@ export interface TickDelta {
   events: GameEvent[];
   nodes: [number, number][]; // [global tile index, units left] changed this tick
   loot: Vec[]; // every loot pile currently on the map
+  creatures: CreatureView[];
 }
 
 export type ServerMsg =

@@ -2,7 +2,7 @@ import { test } from 'bun:test';
 import assert from 'node:assert/strict';
 import type { Agent } from '../shared/types.ts';
 import { normalizeAgent } from './agent.ts';
-import { tickBody } from './body.ts';
+import { eat, eatBest, tickBody } from './body.ts';
 
 const near = (a: number, b: number) => Math.abs(a - b) < 1e-6;
 const bot = (over: Partial<Agent> = {}) => normalizeAgent({ id: 'agent_1', name: 'Bot', ...over });
@@ -64,4 +64,20 @@ test('health reaching zero reports the cause', () => {
   assert.equal(tickBody(bot({ food: 60, water: 0, health: 0.1 }), 'idle').death, 'thirst');
   assert.equal(tickBody(bot({ food: 0, water: 0, health: 0.3 }), 'idle').death, 'hunger and thirst');
   assert.equal(tickBody(bot(), 'idle').death, null);
+});
+
+test('raw meat can give a tummy ache; a battery is pure energy; auto-eat never eats batteries', () => {
+  const a = bot({ food: 50, energy: 60, inventory: { meat: 2, battery: 1 } });
+  assert.equal(eat(a, 'meat', () => 0.1), true);
+  assert.deepEqual([a.food, a.energy], [60, 40]);
+  assert.equal(eat(a, 'meat', () => 0.9), false);
+  assert.deepEqual([a.food, a.energy], [70, 40]);
+  eat(a, 'battery');
+  assert.equal(a.energy, 90);
+  assert.equal(eatBest(bot({ food: 10, inventory: { battery: 3 } })), null);
+});
+
+test('old records get combat fields', () => {
+  const a = normalizeAgent({ id: 'agent_1', name: 'Old' });
+  assert.deepEqual([a.lastHurtAt < 0, a.recentKills, a.healed], [true, {}, []]);
 });

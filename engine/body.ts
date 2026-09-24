@@ -11,17 +11,23 @@ export interface BodyNews {
 
 const clamp = (v: number) => Math.max(0, Math.min(100, v));
 
-export function eat(a: Agent, item: string): void {
+/** Returns true when raw food upset the stomach. */
+export function eat(a: Agent, item: string, rng: () => number = Math.random): boolean {
+  const f = FOOD[item];
   takeItem(a.inventory, item);
-  a.food = clamp(a.food + FOOD[item].food);
-  a.water = clamp(a.water + FOOD[item].water);
+  a.food = clamp(a.food + f.food);
+  a.water = clamp(a.water + f.water);
+  a.energy = clamp(a.energy + (f.energy ?? 0));
+  const ache = Boolean(f.tummy) && rng() < B.tummyAcheChance;
+  if (ache) a.energy = clamp(a.energy - B.tummyAcheEnergy);
+  return ache;
 }
 
-/** Eats the lowest-value food carried; returns what was eaten. */
-export function eatBest(a: Agent): string | null {
-  const item = FOOD_ITEMS.filter((f) => (a.inventory[f] ?? 0) > 0).sort((p, q) => FOOD[p].food - FOOD[q].food)[0];
+/** Eats the lowest-value real food carried; returns what was eaten. */
+export function eatBest(a: Agent, rng: () => number = Math.random): string | null {
+  const item = FOOD_ITEMS.filter((f) => FOOD[f].food > 0 && (a.inventory[f] ?? 0) > 0).sort((p, q) => FOOD[p].food - FOOD[q].food)[0];
   if (!item) return null;
-  eat(a, item);
+  eat(a, item, rng);
   return item;
 }
 

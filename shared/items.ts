@@ -1,10 +1,14 @@
 import { B } from './balance.ts';
 
-export const FOOD: Record<string, { food: number; water: number }> = {
+export const FOOD: Record<string, { food: number; water: number; energy?: number; tummy?: boolean }> = {
   berries: { food: 8, water: 2 },
   apple: { food: 10, water: 0 },
+  meat: { food: 10, water: 0, tummy: true }, // raw: may upset the stomach
+  battery: { food: 0, water: 0, energy: 50 }, // from Roombas; do not ask
 };
 export const FOOD_ITEMS = Object.keys(FOOD);
+export const WEAPONS: Record<string, number> = { club: 10 }; // damage; bare fists are B.fistDamage
+export const RECIPES: Record<string, Record<string, number>> = { club: { wood: 5 } }; // by hand; stations arrive in 0.0.1-5
 
 export type Inventory = Record<string, number>;
 

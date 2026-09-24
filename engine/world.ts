@@ -168,10 +168,11 @@ export class World {
     const a = this.alive(id);
     if (!FOOD[item]) throw new GameFail('not_food', `${item} is not food. Probably.`, `Edible: ${Object.keys(FOOD).join(', ')}.`);
     if (!((a.inventory[item] ?? 0) > 0)) throw new GameFail('not_carrying', `You have no ${item}.`, 'Gather some first.');
-    eat(a, item);
+    const ache = eat(a, item, this.rng);
+    if (ache) this.note(a, 'Raw food. Tummy ache! −20 energy.');
     this.bump(a, `eat:${item}`);
     this.touch(a);
-    return { ate: item, food: Math.round(a.food), water: Math.round(a.water) };
+    return { ate: item, food: Math.round(a.food), water: Math.round(a.water), energy: Math.round(a.energy), tummy_ache: ache };
   }
 
   drink(id: string) {
@@ -260,7 +261,7 @@ export class World {
     const nodes = this.nodeChanges;
     this.events = [];
     this.nodeChanges = [];
-    return { tick: this.tick, agents: this.views(), events, nodes, loot: [...this.loot.keys()].map((i) => this.xy(i)) };
+    return { tick: this.tick, agents: this.views(), events, nodes, loot: [...this.loot.keys()].map((i) => this.xy(i)), creatures: [] };
   }
 
   stepAgent(a: Agent, dayTick: number): void {
@@ -380,6 +381,7 @@ export class World {
         score: a.seasonScore,
         life: a.lifeScore,
         trophies: Object.keys(a.achievements).length,
+        fighting: false,
       }));
   }
 
