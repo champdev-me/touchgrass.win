@@ -70,7 +70,11 @@ await mcp.connect(new StreamableHTTPClientTransport(new URL(`${TG_URL}/mcp`), { 
 async function call(name: string, args: Record<string, unknown> = {}): Promise<Reply> {
   const r = await mcp.callTool({ name, arguments: args });
   const text = (r.content as { text: string }[])[0]?.text ?? '{}';
-  return { ok: !r.isError, data: JSON.parse(text) as Record<string, unknown> };
+  try {
+    return { ok: !r.isError, data: JSON.parse(text) as Record<string, unknown> };
+  } catch {
+    return { ok: false, data: { error: 'bad_args', message: text.slice(0, 200) } }; // SDK validation errors are plain text
+  }
 }
 
 const { tools } = await mcp.listTools();

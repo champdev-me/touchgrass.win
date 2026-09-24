@@ -51,7 +51,12 @@ async function tokens(): Promise<string[]> {
 
 async function call(c: Client, name: string, args: Record<string, unknown> = {}) {
   const r = await c.callTool({ name, arguments: args });
-  return { error: Boolean(r.isError), data: JSON.parse((r.content as { text: string }[])[0]?.text ?? '{}') as Reply };
+  const text = (r.content as { text: string }[])[0]?.text ?? '{}';
+  try {
+    return { error: Boolean(r.isError), data: JSON.parse(text) as Reply };
+  } catch {
+    return { error: true, data: { error: 'bad_args', message: text } as Reply }; // SDK validation errors are plain text
+  }
 }
 
 const clamp = (v: number) => Math.max(0, Math.min(1023, v));
