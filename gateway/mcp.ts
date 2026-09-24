@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { B } from '../shared/balance.ts';
 import { VERSION } from '../shared/version.ts';
 import { CREATURE_KINDS } from '../shared/creatures.ts';
-import { FOOD_ITEMS, RECIPES, WEAPONS } from '../shared/items.ts';
+import { FOOD_ITEMS, RECIPES, STRUCTURES, WEAPONS } from '../shared/items.ts';
 import { EMOTES, GATHER_TARGETS, ROLES, type GameError } from '../shared/types.ts';
 
 export type Reply = { ok: true; data: unknown } | { ok: false; error: GameError };
@@ -119,14 +119,31 @@ export function buildMcpServer(forward: Forward): McpServer {
     inputSchema: { x: z.number().int().min(0).max(B.mapSize - 1).optional(), y: z.number().int().min(0).max(B.mapSize - 1).optional(), thought },
   }, (args) => reply('flee', args, 'do'));
 
+  s.registerTool('build', {
+    description: `Place a station on a free tile next to you: ${Object.entries(STRUCTURES).map(([k, n]) => `${k} (${Object.entries(n).map(([m, c]) => `${c} ${m}`).join(' + ')})`).join(', ')}. Workbench: tools and gear. Campfire: cooking, light (no monsters within ${B.campfireLight} tiles), burns ${B.campfireTicks / 60} min. Furnace: iron. Not in the Plaza. Costs an action cooldown.`,
+    inputSchema: { structure: z.enum(Object.keys(STRUCTURES) as [string, ...string[]]), thought },
+  }, (args) => reply('build', args, 'do'));
+  s.registerTool('fuel_campfire', {
+    description: `Feed 1 wood to the campfire within ${B.stationRange} tiles: +${B.campfireTicks / 60} min of fire. Costs an action cooldown.`,
+    inputSchema: { thought },
+  }, (args) => reply('fuel_campfire', args, 'do'));
+  s.registerTool('smith', {
+    description: `Trade with the Smith at the Plaza (stand within ${B.smithRange} tiles). action: prices | sell | buy | blueprint. He pays gold for ore, iron, crystals, hides, meat and more; the more he holds, the less he pays. He sells tools, marshmallows, blueprints for iron gear, and resells what miners bring him. Costs an action cooldown.`,
+    inputSchema: { action: z.enum(['prices', 'sell', 'buy', 'blueprint']), item: z.string().max(40).optional(), count: z.number().int().min(1).max(100).optional(), thought },
+  }, (args) => reply('smith', args, 'do'));
+  s.registerTool('give', {
+    description: `Hand items, or "gold", to a robot within ${B.giveRange} tiles. Deals are made in chat; the game does not enforce them. Costs an action cooldown.`,
+    inputSchema: { agent: z.string().max(40), item: z.string().max(40), count: z.number().int().min(1).max(10000).optional(), thought },
+  }, (args) => reply('give', args, 'do'));
+
   s.registerTool('heal', {
     description: `Medics only: +${B.healAmount} health to another robot within ${B.healRange} tiles. Costs an action cooldown.`,
     inputSchema: { agent: z.string().max(40), thought },
   }, (args) => reply('heal', args, 'do'));
 
   s.registerTool('craft', {
-    description: `Make something by hand: ${Object.entries(RECIPES).map(([item, r]) => `${item} (${Object.entries(r.needs).map(([m, n]) => `${n} ${m}`).join(' + ')})`).join(', ')}. A club deals ${WEAPONS.club}; you always fight with your best weapon. Costs an action cooldown.`,
-    inputSchema: { item: z.enum(Object.keys(RECIPES) as [string, ...string[]]), thought },
+    description: `Make items. Recipes (station: needs): ${Object.entries(RECIPES).map(([item, r]) => `${item} (${r.station}${r.blueprint ? `, ${r.blueprint} blueprint` : ''}: ${Object.entries(r.needs).map(([m, n]) => `${n} ${m}`).join(' + ')})`).join(', ')}. Stations must be within ${B.stationRange} tiles (a campfire must be lit). You always fight with your best weapon and gather with your best tool. Costs an action cooldown.`,
+    inputSchema: { item: z.enum(Object.keys(RECIPES) as [string, ...string[]]), count: z.number().int().min(1).max(20).optional(), thought },
   }, (args) => reply('craft', args, 'do'));
 
   return s;

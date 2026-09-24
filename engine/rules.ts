@@ -1,6 +1,6 @@
 import { B } from '../shared/balance.ts';
 import { CREATURES } from '../shared/creatures.ts';
-import { FOOD, RECIPES, WEAPONS } from '../shared/items.ts';
+import { BLUEPRINTS, FOOD, ITEMS, RECIPES, SMITH_BUYS, SMITH_SELLS, STRUCTURES, WEAPONS } from '../shared/items.ts';
 import { EMOTES, ROLES } from '../shared/types.ts';
 import { ACHIEVEMENTS, TIER_POINTS } from './achievements.ts';
 import { NODE_DEF } from './nodes.ts';
@@ -26,6 +26,20 @@ export function rules(w: World) {
       `thought: optional on every action, shown as a 💭 bubble (max ${B.thoughtMaxLength} chars).`,
       `emote: ${EMOTES.join(', ')}.`,
     ],
+    crafting: [
+      ...Object.entries(RECIPES).map(([item, r]) => `${item}: ${r.station}${r.blueprint ? ` + ${r.blueprint} blueprint` : ''}, ${Object.entries(r.needs).map(([m, n]) => `${n} ${m}`).join(' + ')}`),
+      `stations (build): ${Object.entries(STRUCTURES).map(([k, n]) => `${k} = ${Object.entries(n).map(([m, c]) => `${c} ${m}`).join(' + ')}`).join('; ')}. Use them within ${B.stationRange} tiles; a campfire burns ${B.campfireTicks / 60} min per wood.`,
+    ],
+    tools: [
+      'By hand: trees and rocks 3 ticks per unit, iron veins and crystals 4 (and they need a pickaxe). A stone tool halves that, iron halves it again.',
+      `Wear: ${Object.entries(ITEMS).filter(([, d]) => d.uses).map(([i, d]) => `${i} ${d.uses}`).join(', ')} uses. Armor: hide -20% damage, iron -40% (and slower).`,
+    ],
+    economy: [
+      `Money is gold. You start with ${B.startGold}. The Smith at the Plaza pays for: ${Object.entries(SMITH_BUYS).map(([i, p]) => `${i} ${p}`).join(', ')} (the more he holds, the less he pays; his stock drains 2% a minute).`,
+      `He sells: ${Object.entries(SMITH_SELLS).map(([i, s]) => `${s.count} ${i} for ${s.price}`).join(', ')}, resells what he holds at 2x, and teaches blueprints: ${Object.entries(BLUEPRINTS).map(([i, p]) => `${i} ${p}`).join(', ')}.`,
+      'give(agent, item, count) hands items or gold to a robot within 2 tiles. Deals are made in chat.',
+      'Miners dig double stone, iron and crystal; gatherers pick double wood, berries and fiber.',
+    ],
     combat: [
       `attack(target): an id from observe (agent_12, mob_5) or a type meaning the nearest one (rabbit, deer, boar, duck, goblin, wolf, roomba, golem, rock).`,
       `A hit every ${B.attackTicks}s in reach. Fists ${B.fistDamage}, club ${WEAPONS.club}; hunters x${B.hunterMultiplier}. Your best carried weapon is used.`,
@@ -43,7 +57,7 @@ export function rules(w: World) {
       `+1 per ${B.gatherScoreEvery} units gathered`,
       `achievements: ${Object.entries(TIER_POINTS).map(([t, p]) => `${t} ${p}`).join(', ')}; server firsts pay double`,
       'kills: animal +1, monster +2, robot +5, Moss Golem +20',
-      'death resets your life score; season score and wallet stay',
+      'death resets your life score; season score and gold stay',
     ],
     achievements: ACHIEVEMENTS.map((a) => `${a.emoji} ${a.name} (${a.tier}, ${TIER_POINTS[a.tier]}): ${a.trigger}`),
   };

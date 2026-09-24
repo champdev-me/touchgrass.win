@@ -6,13 +6,14 @@ import { TERRAIN as T, type Agent, type NodeKind, type Task, type Vec } from '..
 import { CREATURES } from '../shared/creatures.ts';
 import { ACHIEVEMENTS } from './achievements.ts';
 import { weaponOf } from './combat.ts';
+import { smithAt } from './smith.ts';
 import type { World } from './world.ts';
 
 const GRID: Record<number, string> = { [T.DEEP]: '~', [T.SHALLOW]: ',', [T.SAND]: ':', [T.MEADOW]: '.', [T.FOREST]: 'f', [T.HILLS]: '^', [T.RUINS]: 'r', [T.PLAZA]: '#', [T.MOUNTAIN]: 'm', [T.HIGH]: 'm', [T.PEAK]: 'm' };
 const NODE_CHAR: Record<NodeKind, string> = { tree: 'T', berry_bush: '*', grass: '"', rock: 'o', iron_vein: 'i', crystal: 'c' };
 const LEGEND: Record<string, string> = {
   '@': 'you', '~': 'deep water (blocked)', m: 'mountain (climb one height level per step)', ',': 'shallow water (slow)', ':': 'sand', '.': 'meadow', f: 'forest', '^': 'hills',
-  r: 'ruins', '#': 'the Plaza', T: 'tree (wood)', '*': 'berry bush (berries)', '"': 'grass (fiber)', o: 'rock (stone)', i: 'iron vein (iron ore, needs a pickaxe)', c: 'crystal (needs a pickaxe)',
+  r: 'ruins', '#': 'the Plaza', T: 'tree (wood)', '*': 'berry bush (berries)', '"': 'grass (fiber)', o: 'rock (stone)', i: 'iron vein (iron ore, needs a pickaxe)', '+': 'your station: workbench, campfire or furnace', '!': 'the Smith', c: 'crystal (needs a pickaxe)',
   $: 'loot pile', 'A-Z': 'other agents', '%': 'animal', '&': 'monster', '=': 'Lost Roomba (harmless, eats loot piles)',
 };
 const TERRAIN_NAME: Record<number, string> = { [T.DEEP]: 'deep water', [T.SHALLOW]: 'shallow water', [T.SAND]: 'sand', [T.MEADOW]: 'meadow', [T.FOREST]: 'forest', [T.HILLS]: 'hills', [T.RUINS]: 'ruins', [T.PLAZA]: 'the Plaza', [T.MOUNTAIN]: 'mountain', [T.HIGH]: 'high crags', [T.PEAK]: 'snowy peak' };
@@ -43,6 +44,10 @@ export function buildObservation(w: World, a: Agent) {
     .filter((c) => dist([c.x, c.y], here) <= r)
     .sort((p, q) => dist([p.x, p.y], here) - dist([q.x, q.y], here));
   for (const c of mobs) if (!marks.has(`${c.x},${c.y}`)) marks.set(`${c.x},${c.y}`, CREATURES[c.kind].char);
+  const stations = [...w.structures].map(([i, s]) => ({ at: w.xy(i), s })).filter(({ at }) => dist(at, here) <= r);
+  for (const { at } of stations) if (!marks.has(at.join(','))) marks.set(at.join(','), '+');
+  const [sx, sy] = smithAt(w);
+  if (dist([sx, sy], here) <= r && !marks.has(`${sx},${sy}`)) marks.set(`${sx},${sy}`, '!');
 
   const grid: string[] = [];
   const nearest = new Map<string, { d: number; line: string }[]>();
@@ -78,6 +83,8 @@ export function buildObservation(w: World, a: Agent) {
       dead: a.dead, respawn_in_seconds: a.dead ? Math.max(0, a.respawnAt - w.tick) : undefined,
       score: { life: a.lifeScore, season: a.seasonScore, best_life: a.bestLife },
       gold: a.wallet,
+      gear: Object.fromEntries(Object.entries(a.wear).filter(([i]) => (a.inventory[i] ?? 0) > 0)), // uses left
+      blueprints: a.blueprints,
       achievements: `${Object.keys(a.achievements).length}/${ACHIEVEMENTS.length} unlocked`,
       badge: a.badge && a.badge.until >= w.tick ? a.badge.emoji : undefined,
       altitude: w.height(a.x, a.y),
@@ -98,7 +105,8 @@ export function buildObservation(w: World, a: Agent) {
       }),
     ],
     resources,
-    landmarks: [`the Plaza (${px}, ${py}) is ${dist([px, py], here)} tiles ${compass(px - a.x, py - a.y)}`],
+    landmarks: [`the Plaza (${px}, ${py}) is ${dist([px, py], here)} tiles ${compass(px - a.x, py - a.y)}; the Smith trades there`],
+    stations: stations.map(({ at: [x, y], s }) => `${s.kind}${s.kind === 'campfire' ? (s.litUntil > w.tick ? ' (lit)' : ' (out)') : ''} ${where(x, y)}`),
     inbox,
     world_chat: w.chatLog.slice(-B.chatHistory),
     roles: w.census(),

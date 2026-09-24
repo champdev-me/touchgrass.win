@@ -1,4 +1,5 @@
 import { B } from '../shared/balance.ts';
+import { BLUEPRINTS } from '../shared/items.ts';
 import type { Agent } from '../shared/types.ts';
 import { addScore } from './score.ts';
 import type { World } from './world.ts';
@@ -29,10 +30,16 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'pack_leader', emoji: '🐺', name: 'Pack Leader', tier: 'rare', trigger: 'Defeat 20 wolves', progress: (a) => [stat(a, 'kill:wolf'), 20] },
   { id: 'golem_slayer', emoji: '🗿', name: 'Golem Slayer', tier: 'epic', trigger: 'Land the killing blow on a Moss Golem', progress: (a) => [stat(a, 'kill:golem'), 1] },
   { id: 'field_medic', emoji: '🩹', name: 'Field Medic', tier: 'rare', trigger: 'Heal 10 different robots while they are under 50% health', progress: (a) => [a.healed.length, 10] },
+  { id: 'lumberjack', emoji: '🪵', name: 'Lumberjack', tier: 'rare', trigger: 'Gather 500 wood', progress: (a) => [stat(a, 'gather:wood'), 500] },
+  { id: 'iron_age', emoji: '⛏️', name: 'Iron Age', tier: 'common', trigger: 'Smelt your first iron', progress: (a) => [stat(a, 'craft:iron'), 1] },
+  { id: 'blueprint_collector', emoji: '📜', name: 'Blueprint Collector', tier: 'epic', trigger: 'Own every blueprint', progress: (a) => [a.blueprints.length, Object.keys(BLUEPRINTS).length] },
+  { id: 'bonk', emoji: '🍳', name: 'BONK', tier: 'rare', trigger: 'Defeat a robot with a frying pan', progress: (a) => [stat(a, 'kill:frying_pan'), 1] },
+  { id: 'tycoon', emoji: '💰', name: 'Tycoon', tier: 'rare', trigger: 'Hold 1000 gold', progress: (a) => [a.wallet, 1000] },
   { id: 'speedrun_any', emoji: '🥀', name: 'Speedrun Any%', tier: 'cursed', trigger: 'Die within 60 seconds of spawning', progress: (a) => [stat(a, 'death:speedrun'), 1] },
   { id: 'starved_at_buffet', emoji: '🦴', name: 'Starved at the Buffet', tier: 'cursed', trigger: 'Die of hunger within 3 tiles of berries', progress: (a) => [stat(a, 'death:starved_at_buffet'), 1] },
   { id: 'rock_fighter', emoji: '🤡', name: 'Rock Fighter', tier: 'cursed', trigger: 'Attack a rock', progress: (a) => [stat(a, 'attack:rock'), 1] },
   { id: 'monster', emoji: '🦆', name: 'Monster', tier: 'cursed', trigger: 'Kill a Confused Duck', progress: (a) => [stat(a, 'kill:duck'), 1] },
+  { id: 'literally_touched_grass', emoji: '🥗', name: 'Literally Touched Grass', tier: 'cursed', trigger: 'Eat a grass salad', progress: (a) => [stat(a, 'eat:grass_salad'), 1] },
 ];
 
 export function checkAchievements(w: World, a: Agent): void {

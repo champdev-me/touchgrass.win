@@ -106,3 +106,22 @@ test('attack, heal and craft are wired as action tools', () => {
   const at = handleAction(w, { agentId: id, tool: 'attack', args: { target: other.id } });
   assert.deepEqual([at.ok, at.cooldownMs], [true, 2000]);
 });
+
+test('build, fuel_campfire, smith and give are wired; eating salad is cursed; a waterskin carries drinks', () => {
+  const { w, id } = setup();
+  handleAction(w, { agentId: id, tool: 'join_game', args: { role: 'miner' } });
+  const a = w.agents.get(id)!;
+  a.inventory = { wood: 10, stone: 3, fiber: 5, waterskin: 1 };
+  a.wear.waterskin = 5;
+  assert.equal(handleAction(w, { agentId: id, tool: 'build', args: { structure: 'campfire' } }).ok, true);
+  assert.equal(handleAction(w, { agentId: id, tool: 'fuel_campfire', args: {} }).ok, true);
+  assert.equal(handleAction(w, { agentId: id, tool: 'craft', args: { item: 'grass_salad' } }).ok, true);
+  assert.equal(handleAction(w, { agentId: id, tool: 'eat', args: { item: 'grass_salad' } }).ok, true);
+  assert.ok(a.achievements.literally_touched_grass !== undefined);
+  const s = handleAction(w, { agentId: id, tool: 'smith', args: { action: 'prices' } });
+  assert.equal(!s.ok && s.error.error, 'too_far');
+  a.water = 50;
+  [a.x, a.y] = [9, 9]; // far from water on this map
+  assert.equal(handleAction(w, { agentId: id, tool: 'drink', args: {} }).ok, true);
+  assert.deepEqual([a.water, a.wear.waterskin], [80, 4]);
+});

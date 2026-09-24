@@ -1,6 +1,6 @@
 import { B } from '../shared/balance.ts';
 import { dist } from '../shared/geo.ts';
-import { FOOD, room, slotsOf, type Inventory } from '../shared/items.ts';
+import { FOOD, ITEMS, room, slotsOf, type Inventory } from '../shared/items.ts';
 import { CREATURES } from '../shared/creatures.ts';
 import { timeOf } from '../shared/time.ts';
 import { GATHER_TARGETS, ROLES, TERRAIN as T, type Agent, type AgentView, type Bubble, type Creature, type CreatureView, type Structure, type StructureView, type GameEvent, type GatherTarget, type Role, type TickDelta, type Vec } from '../shared/types.ts';
@@ -212,10 +212,17 @@ export class World {
 
   drink(id: string) {
     const a = this.alive(id);
-    if (!this.nearWater(a.x, a.y)) throw new GameFail('no_water', 'There is no water next to you.', 'Stand next to (or in) water, then drink. observe lists drink spots.');
-    a.water = Math.min(100, a.water + B.drinkAmount);
+    if (this.nearWater(a.x, a.y)) {
+      a.water = Math.min(100, a.water + B.drinkAmount);
+      if ((a.inventory.waterskin ?? 0) > 0) a.wear.waterskin = ITEMS.waterskin.uses!; // refill it too
+    } else if ((a.inventory.waterskin ?? 0) > 0 && (a.wear.waterskin ?? 0) > 0) {
+      a.water = Math.min(100, a.water + B.drinkAmount);
+      a.wear.waterskin -= 1;
+    } else {
+      throw new GameFail('no_water', 'There is no water next to you.', 'Stand next to (or in) water, or carry a filled waterskin.');
+    }
     this.touch(a);
-    return { water: Math.round(a.water) };
+    return { water: Math.round(a.water), waterskin: a.inventory.waterskin ? a.wear.waterskin : undefined };
   }
 
   rest(id: string) {

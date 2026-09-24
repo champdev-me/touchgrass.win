@@ -1,14 +1,15 @@
 import { ROLES, type ActionRequest, type ActionResult, type Role } from '../shared/types.ts';
 import { checkAchievements, listAchievements } from './achievements.ts';
 import { heal, startAttack } from './combat.ts';
-import { craft } from './craft.ts';
+import { build, craft, fuel } from './craft.ts';
+import { give, smith } from './smith.ts';
 import { renderMap } from './explore.ts';
 import { rules } from './rules.ts';
 import { leaderboard } from './score.ts';
 import { emote, notes, sayLocal, sayWorld, think } from './social.ts';
 import { GameFail, type World } from './world.ts';
 
-const DO_TOOLS = new Set(['join_game', 'move_to', 'gather', 'eat', 'drink', 'rest', 'sleep', 'say', 'say_world', 'attack', 'heal', 'craft', 'flee']);
+const DO_TOOLS = new Set(['join_game', 'move_to', 'gather', 'eat', 'drink', 'rest', 'sleep', 'say', 'say_world', 'attack', 'heal', 'craft', 'flee', 'build', 'fuel_campfire', 'smith', 'give']);
 const SPEECH = new Set(['say', 'say_world']); // their speech bubble wins over an attached thought
 const BANNED = () => new GameFail('banned', 'You are banned from the grass.', 'Contact the admin if you think this is a mistake.');
 
@@ -64,9 +65,17 @@ function run(world: World, { agentId, tool, args }: ActionRequest): unknown {
     case 'heal':
       return withView({ ...heal(world, agentId, String(args.agent ?? '')), message: 'Patched up with grass and good intentions.' });
     case 'craft':
-      return withView({ ...craft(world, agentId, String(args.item ?? '')), message: 'You bang things together until they become other things.' });
+      return withView({ ...craft(world, agentId, String(args.item ?? ''), Number(args.count ?? 1)), message: 'You bang things together until they become other things.' });
     case 'flee':
       return withView({ ...world.flee(agentId, typeof args.x === 'number' ? args.x : undefined, typeof args.y === 'number' ? args.y : undefined), message: 'Legs, do your thing.' });
+    case 'build':
+      return withView({ ...build(world, agentId, String(args.structure ?? '')), message: 'You built a thing. It is mostly straight.' });
+    case 'fuel_campfire':
+      return withView({ ...fuel(world, agentId), message: 'The fire crackles happily.' });
+    case 'smith':
+      return withView(smith(world, agentId, String(args.action ?? ''), String(args.item ?? ''), Number(args.count ?? 1)));
+    case 'give':
+      return withView(give(world, agentId, String(args.agent ?? ''), String(args.item ?? ''), Number(args.count ?? 1)));
     case 'settings':
       return world.settings(agentId, args.auto_eat, args.auto_flee);
     case 'emote':
