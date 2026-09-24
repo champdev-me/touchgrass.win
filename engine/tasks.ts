@@ -1,6 +1,7 @@
 import { B } from '../shared/balance.ts';
 import { dist } from '../shared/geo.ts';
 import { addItem, room } from '../shared/items.ts';
+import { dig, mapOf } from './treasure.ts';
 import type { Agent, GatherTarget, Task, Vec } from '../shared/types.ts';
 import type { Activity } from './body.ts';
 import { fightStep } from './combat.ts';
@@ -33,7 +34,7 @@ export function walk(w: World, a: Agent, path: Vec[]): boolean {
 }
 
 const available = (w: World, i: number, target: GatherTarget): boolean =>
-  target === 'loot' ? w.loot.has(i) : w.nodes.get(i)?.kind === target && (w.nodes.get(i)?.left ?? 0) > 0;
+  target === 'loot' ? w.loot.has(i) : target === 'treasure' ? w.treasures.has(i) : w.nodes.get(i)?.kind === target && (w.nodes.get(i)?.left ?? 0) > 0;
 
 /** Nearest reachable target in vision; tries the 5 closest so water between us doesn't stall. */
 export function findTarget(w: World, a: Agent, target: GatherTarget): { index: number; path: Vec[] } | null {
@@ -87,6 +88,10 @@ export function runTask(w: World, a: Agent): Activity {
 }
 
 function gatherStep(w: World, a: Agent, t: GatherTask): Activity {
+  if (t.target === 'treasure' && !available(w, t.node, t.target)) {
+    w.finish(a, 'Someone dug it up first. The map is now a souvenir.');
+    return 'idle';
+  }
   if (!available(w, t.node, t.target)) {
     const next = findTarget(w, a, t.target);
     if (!next) {
@@ -99,6 +104,21 @@ function gatherStep(w: World, a: Agent, t: GatherTask): Activity {
   }
   if (t.path.length) {
     walk(w, a, t.path);
+    return 'busy';
+  }
+  if (t.target === 'treasure') {
+    if (a.energy <= 0) {
+      w.interrupt(a, 'Too tired to dig. Rest or sleep.');
+      return 'idle';
+    }
+    a.energy = Math.max(0, a.energy - B.punchEnergy);
+    if (++t.progress < B.treasureDigTicks) return 'busy';
+    const [x, y] = w.xy(t.node);
+    if (!(a.inventory[mapOf(x, y)] ?? 0)) {
+      w.interrupt(a, 'You lost the map. Where was it again?');
+      return 'idle';
+    }
+    w.finish(a, dig(w, a, t.node));
     return 'busy';
   }
   if (t.target === 'loot') {

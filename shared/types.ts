@@ -11,7 +11,7 @@ export type Vec = [number, number];
 
 export const NODE_KINDS = ['tree', 'berry_bush', 'grass', 'rock', 'iron_vein', 'crystal', 'mud', 'gem_vein', 'gold_vein', 'herb'] as const;
 export type NodeKind = (typeof NODE_KINDS)[number];
-export const GATHER_TARGETS = [...NODE_KINDS, 'loot'] as const;
+export const GATHER_TARGETS = [...NODE_KINDS, 'loot', 'treasure'] as const;
 export type GatherTarget = (typeof GATHER_TARGETS)[number];
 
 export const EMOTES = ['dance', 'wave', 'bow', 'cry', 'flex'] as const;

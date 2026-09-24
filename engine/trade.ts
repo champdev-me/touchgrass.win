@@ -1,6 +1,6 @@
 import { B } from '../shared/balance.ts';
 import { dist } from '../shared/geo.ts';
-import { addItem, room, takeItem, type Inventory } from '../shared/items.ts';
+import { addItem, isMap, room, takeItem, type Inventory } from '../shared/items.ts';
 import type { Agent } from '../shared/types.ts';
 import { GameFail, type World } from './world.ts';
 
@@ -111,6 +111,8 @@ export function accept(w: World, id: string, offerId: string) {
     w.bump(r, 'trades');
     w.dirty.add(r.id);
   }
+  if (Object.keys(o.give).some(isMap)) w.bump(a, 'sold:map');
+  if (Object.keys(o.want).some(isMap)) w.bump(b, 'sold:map');
   w.note(a, `${b.name} accepted: you gave ${describe(o.give)} and got ${describe(o.want)}.`);
   if ((o.give.gold ?? 0) >= B.bigTradeGold || (o.want.gold ?? 0) >= B.bigTradeGold) {
     w.emit('trade', `💰 ${a.name} traded ${describe(o.give)} to ${b.name} for ${describe(o.want)}.`, a, b);

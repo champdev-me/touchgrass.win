@@ -1,6 +1,6 @@
 import { B } from '../shared/balance.ts';
 import { dist } from '../shared/geo.ts';
-import { FOOD, ITEMS, KITS, addItem, room, slotsOf, type Inventory } from '../shared/items.ts';
+import { FOOD, ITEMS, KITS, addItem, isMap, room, slotsOf, type Inventory } from '../shared/items.ts';
 import { CREATURES } from '../shared/creatures.ts';
 import { timeOf } from '../shared/time.ts';
 import { GATHER_TARGETS, ROLES, TERRAIN as T, type Agent, type AgentView, type Bubble, type Creature, type CreatureView, type Structure, type StructureView, type GameEvent, type GatherTarget, type Role, type TickDelta, type Vec } from '../shared/types.ts';
@@ -14,6 +14,7 @@ import { chunksPerRow, dominantTerrain, explore } from './explore.ts';
 import { NODE_DEF, chunkOf, fullAmount, wrongRole, type ResourceNode } from './nodes.ts';
 import { buildObservation } from './observe.ts';
 import { expireOffers, type Offer } from './trade.ts';
+import { spawnTreasures } from './treasure.ts';
 import { findPath } from './path.ts';
 import { addScore } from './score.ts';
 import { findTarget, runTask } from './tasks.ts';
@@ -53,6 +54,9 @@ export class World {
   nodeChanges: [number, number][] = [];
   loot = new Map<number, LootPile>();
   offers = new Map<string, Offer>(); // memory only: a restart clears open offers
+  treasures = new Map<number, { loot: number }>(); // tile -> buried treasure; scouts only, never broadcast
+  treasuresDirty = false;
+  treasureTarget: number = B.treasureCount;
   nextOfferId = 1;
   lootDirty = false;
   chatLog: string[] = [];
@@ -189,6 +193,7 @@ export class World {
     const a = this.alive(id);
     if (a.energy <= 0) throw new GameFail('too_tired', 'Your robot is too tired to punch anything.', 'rest or sleep first.');
     if (!isTarget(target)) throw new GameFail('bad_target', `You cannot gather "${target}".`, `Gather one of: ${GATHER_TARGETS.join(', ')}.`);
+    if (target === 'treasure') return this.digFor(a);
     if (target !== 'loot' && NODE_DEF[target].roles && !NODE_DEF[target].roles!.includes(a.role!)) throw wrongRole(target);
     if (target !== 'loot' && target !== 'gold_vein' && room(a.inventory, NODE_DEF[target].item) === 0) throw new GameFail('bag_full', 'Your bag is full.', `It holds ${slotsOf(a.inventory)} slots. Eat, drop, trade or store something, or stop hoarding.`);
     if (target !== 'loot' && NODE_DEF[target].needsPickaxe && !bestTool(a, target)) {
@@ -200,6 +205,21 @@ export class World {
     a.task = { type: 'gather', target, until: want, got: 0, node: found.index, path: found.path, progress: 0 };
     this.touch(a);
     return { target, until: want === B.gatherUntilFull ? 'bag full' : want, walk_steps: found.path.length };
+  }
+
+  /** Miners with a treasure map walk to the spot and dig. */
+  private digFor(a: Agent) {
+    if (a.role !== 'miner') throw new GameFail('wrong_role', 'Only miners dig treasure. Scouts find it, miners get it out.', 'Sell the map to a miner.');
+    const map = Object.keys(a.inventory).find(isMap);
+    if (!map) throw new GameFail('no_map', 'You need a treasure map to know where to dig.', 'Buy one from a scout.');
+    const [x, y] = map.slice('treasure_map:'.length).split(',').map(Number);
+    if (!this.treasures.has(this.index(x, y))) throw new GameFail('stale_map', 'Someone already dug this one up. The map is now a souvenir.', 'Buy a fresher map.');
+    if (!bestTool(a, 'iron_vein')) throw new GameFail('needs_pickaxe', 'You need a pickaxe to dig treasure.', 'Buy one from a smith.');
+    const path = x === a.x && y === a.y ? [] : findPath(this.at, [a.x, a.y], [x, y], B.pathRadius, this.canStep);
+    if (!path) throw new GameFail('no_path', 'Your robot cannot find a way to the treasure.', `Walk within ${B.pathRadius} tiles of (${x}, ${y}) first.`);
+    a.task = { type: 'gather', target: 'treasure', until: 1, got: 0, node: this.index(x, y), path, progress: 0 };
+    this.touch(a);
+    return { target: 'treasure', at: [x, y], walk_steps: path.length };
   }
 
   eatItem(id: string, item: string) {
@@ -348,6 +368,7 @@ export class World {
     }
     stepCreatures(this);
     expireOffers(this);
+    if (this.tick % 60 === 0) spawnTreasures(this);
     this.regrow();
     for (const [i, pile] of this.loot) {
       if (pile.expiresAt <= this.tick) {

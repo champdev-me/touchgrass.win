@@ -32,6 +32,11 @@ export const B = {
   tradeRange: 3,
   offerTicks: 60,
   bigTradeGold: 50, // trades this big make world news
+  treasureCount: 6,
+  treasureMinFromPlaza: 64,
+  treasureDigTicks: 10,
+  treasureGold: [30, 80],
+  chartFiber: 2,
   maxChests: 3,
   chestSlots: 12,
   luckyChance: 0.1, // lucky charm: chance of double yield

@@ -11,7 +11,7 @@ import { World, type LootPile } from './world.ts';
 export const BAG_RULES = 2; // 2: small bags
 export const ECON_RULES = 1; // 1: the Smith retired, robots trade with robots
 
-export const K = { meta: 'meta', terrain: 'terrain', agents: 'agents', nodes: 'nodes', loot: 'loot', firsts: 'firsts', chat: CHAT_STREAM, creatures: 'creatures', heights: 'heights', structures: 'structures', market: 'market' } as const;
+export const K = { meta: 'meta', terrain: 'terrain', agents: 'agents', nodes: 'nodes', loot: 'loot', firsts: 'firsts', chat: CHAT_STREAM, creatures: 'creatures', heights: 'heights', structures: 'structures', market: 'market', treasures: 'treasures' } as const;
 
 const chunkKeys = (size: number): string[] => {
   const n = size / B.chunkSize, keys: string[] = [];
@@ -55,6 +55,9 @@ export async function flush(r: Redis, w: World): Promise<void> {
   const firstsWasDirty = w.firstsDirty;
   if (firstsWasDirty && Object.keys(w.firsts).length) m.hSet(K.firsts, w.firsts);
   w.firstsDirty = false;
+  const treasuresWereDirty = w.treasuresDirty;
+  if (treasuresWereDirty) m.set(K.treasures, JSON.stringify([...w.treasures]));
+  w.treasuresDirty = false;
   const structuresWereDirty = w.structuresDirty;
   if (structuresWereDirty) m.set(K.structures, JSON.stringify([...w.structures]));
   w.structuresDirty = false;
@@ -73,6 +76,7 @@ export async function flush(r: Redis, w: World): Promise<void> {
     w.firstsDirty ||= firstsWasDirty;
     w.creaturesDirty ||= creaturesWereDirty;
     w.structuresDirty ||= structuresWereDirty;
+    w.treasuresDirty ||= treasuresWereDirty;
     throw e;
   }
 }
@@ -179,6 +183,8 @@ export async function loadWorld(r: Redis, seed = 'touchgrass-season-1'): Promise
       w.dirty.add(a.id);
     }
   }
+  const tr = await r.get(K.treasures); // the gateway never reads this key
+  if (tr) w.treasures = new Map(JSON.parse(tr) as [number, { loot: number }][]);
   const st = await r.get(K.structures);
   if (st) w.structures = new Map(JSON.parse(st) as [number, Structure][]);
   w.nextMobId = Number(meta.nextMobId) || 1;

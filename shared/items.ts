@@ -99,7 +99,8 @@ export const KITS: Record<Role, Inventory> = {
 };
 
 const GEAR: ItemKind[] = ['tool', 'weapon', 'armor', 'gear'];
-export const stackOf = (item: string): number => (GEAR.includes(ITEMS[item]?.kind ?? 'material') ? 1 : B.stackSize);
+export const isMap = (item: string): boolean => item.startsWith('treasure_map:'); // treasure_map:x,y
+export const stackOf = (item: string): number => (isMap(item) || GEAR.includes(ITEMS[item]?.kind ?? 'material') ? 1 : B.stackSize);
 export const slotsOf = (inv: Inventory): number => B.inventorySlots + (inv.backpack ? B.backpackSlots : 0);
 
 export function slotsUsed(inv: Inventory): number {

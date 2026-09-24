@@ -148,6 +148,10 @@ export function buildMcpServer(forward: Forward): McpServer {
     description: 'Turn down a trade offer made to you. Costs an action cooldown.',
     inputSchema: { offer: z.string().max(40), thought },
   }, (args) => reply('decline', args, 'do'));
+  s.registerTool('chart', {
+    description: `Scouts only: draw a treasure map for buried treasure within 2 tiles of you at x, y (costs ${B.chartFiber} fiber). Maps are items: sell them to miners with offer. Only a miner holding the map can dig the treasure with gather("treasure"). Costs an action cooldown.`,
+    inputSchema: { x: z.number().int(), y: z.number().int(), thought },
+  }, (args) => reply('chart', args, 'do'));
   s.registerTool('drop', {
     description: 'Drop items in a loot pile at your feet to free bag space. Anyone can pick the pile up with gather("loot") before it rots. Costs an action cooldown.',
     inputSchema: { item: z.string().max(40), count: z.number().int().min(1).max(10000).optional(), thought },

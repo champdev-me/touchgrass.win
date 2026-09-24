@@ -1,6 +1,6 @@
 import { B } from '../shared/balance.ts';
 import { compass, dist } from '../shared/geo.ts';
-import { slotsOf, slotsUsed } from '../shared/items.ts';
+import { isMap, slotsOf, slotsUsed } from '../shared/items.ts';
 import { timeOf } from '../shared/time.ts';
 import { TERRAIN as T, type Agent, type NodeKind, type Task, type Vec } from '../shared/types.ts';
 import { CREATURES } from '../shared/creatures.ts';
@@ -58,6 +58,7 @@ export function buildObservation(w: World, a: Agent) {
       const d = dist([x, y], here);
       if (node && node.left > 0) offer(node.kind, d, `${node.kind} (${node.left} left) ${where(x, y)}`);
       if (i >= 0 && w.loot.has(i)) offer('loot', d, `loot pile ${where(x, y)}`);
+      if (i >= 0 && a.role === 'scout' && w.treasures.has(i)) offer('treasure', d, `buried treasure ${where(x, y)} (chart it, then sell the map to a miner)`);
       if (i >= 0 && w.at(x, y) !== T.DEEP && w.nearWater(x, y)) offer('water', d, `drink spot ${where(x, y)}`);
       row.push(
         x === a.x && y === a.y ? '@'
@@ -87,6 +88,7 @@ export function buildObservation(w: World, a: Agent) {
       altitude: w.height(a.x, a.y),
       weapon: `${weaponOf(a).name} (${weaponOf(a).damage} damage)`,
       in_combat: w.inCombat(a),
+      maps: Object.keys(a.inventory).filter(isMap).map((m) => `treasure_map -> (${m.slice('treasure_map:'.length).replace(',', ', ')})`),
     },
     task: describeTask(a.task),
     time: { day: time.day, phase: time.phase, [time.phase === 'day' ? 'seconds_to_night' : 'seconds_to_day']: time.secondsToSwitch },
