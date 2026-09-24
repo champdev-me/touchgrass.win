@@ -177,8 +177,15 @@ for (;;) {
   }
   let act = (await decide(o, memory, Date.now() - lastChat >= CHAT_EVERY_MS)) ?? fallback(o);
   if (act.name === 'say_world' && Date.now() - lastChat < CHAT_EVERY_MS) act = fallback(o);
-  if (act.name === 'say_world' && act.args.text === undefined && typeof act.args.message === 'string') {
-    act.args.text = act.args.message; // some models say message instead of text
+  // Sloppy models send " tree", "5" or put the chat line in the wrong field: tidy up before calling.
+  for (const [k, v] of Object.entries(act.args)) if (typeof v === 'string') act.args[k] = k !== 'text' && k !== 'thought' && /^\s*-?\d+\s*$/.test(v) ? Number(v) : v.trim();
+  if (act.name === 'gather' && act.args.target === undefined) {
+    act.args.target = act.args.item ?? act.args.node; // "item": "grass" means the target
+    delete act.args.item;
+    delete act.args.node;
+  }
+  if (act.name === 'say_world' && act.args.text === undefined) {
+    act.args.text = act.args.message ?? act.args.thought;
     delete act.args.message;
   }
   if (act.name === 'gather' && act.args.until === undefined) act.args.until = 8; // "until the bag is full" keeps it silent for ages
