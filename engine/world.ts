@@ -21,6 +21,14 @@ import { findTarget, runTask } from './tasks.ts';
 import { levelsOf, stepCost, tileAt, walkable } from './terrain.ts';
 
 /** A rule the agent broke; the dispatcher turns it into a GameError instead of a crash. */
+/** A bag as spectators see it: treasure maps lose their coordinates. */
+function publicBag(inv: Inventory): Inventory {
+  if (!inv || !Object.keys(inv).some(isMap)) return inv; // a corrupt bag must not stop the tick
+  const out: Inventory = {};
+  for (const [k, n] of Object.entries(inv)) out[isMap(k) ? 'treasure_map' : k] = (out[isMap(k) ? 'treasure_map' : k] ?? 0) + n;
+  return out;
+}
+
 export class GameFail extends Error {
   code: string;
   hint?: string;
@@ -564,7 +572,7 @@ export class World {
         life: a.lifeScore,
         trophies: Object.keys(a.achievements).length,
         fighting: this.inCombat(a),
-        inventory: a.inventory,
+        inventory: publicBag(a.inventory),
         gold: a.wallet,
         face: this.faceOf(a),
       }));

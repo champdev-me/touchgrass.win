@@ -40,7 +40,7 @@ export function handleAction(world: World, req: ActionRequest): ActionResult {
 /** A short caption for an action sent without a thought. */
 function label({ tool, args }: ActionRequest): string {
   const what = [args.action, args.target ?? args.item ?? args.structure ?? args.agent].filter((v) => typeof v === 'string');
-  const at = typeof args.x === 'number' && typeof args.y === 'number' ? [`${args.x}, ${args.y}`] : [];
+  const at = tool !== 'chart' && typeof args.x === 'number' && typeof args.y === 'number' ? [`${args.x}, ${args.y}`] : []; // never caption a treasure spot
   return [tool, ...what, ...at].join(' ');
 }
 

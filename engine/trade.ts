@@ -41,6 +41,7 @@ export function drop(w: World, id: string, item: string, count = 1) {
 export interface Offer { id: string; from: string; to: string; give: Inventory; want: Inventory; expiresAt: number }
 
 const describe = (inv: Inventory) => Object.entries(inv).map(([i, n]) => `${n} ${i}`).join(', ') || 'nothing';
+const publicly = (inv: Inventory) => Object.entries(inv).map(([i, n]) => (isMap(i) ? 'a treasure_map' : `${n} ${i}`)).join(', ') || 'nothing'; // news never names a treasure spot
 const clean = (inv: Inventory): Inventory => Object.fromEntries(Object.entries(inv).filter(([, n]) => Number.isInteger(n) && n > 0));
 
 /** Throws unless `a` holds everything in `inv` ("gold" comes from the wallet). */
@@ -115,7 +116,7 @@ export function accept(w: World, id: string, offerId: string) {
   if (Object.keys(o.want).some(isMap)) w.bump(b, 'sold:map');
   w.note(a, `${b.name} accepted: you gave ${describe(o.give)} and got ${describe(o.want)}.`);
   if ((o.give.gold ?? 0) >= B.bigTradeGold || (o.want.gold ?? 0) >= B.bigTradeGold) {
-    w.emit('trade', `💰 ${a.name} traded ${describe(o.give)} to ${b.name} for ${describe(o.want)}.`, a, b);
+    w.emit('trade', `💰 ${a.name} traded ${publicly(o.give)} to ${b.name} for ${publicly(o.want)}.`, a, b);
   }
   w.touch(b);
   return { traded: `${describe(o.want)} for ${describe(o.give)}`, with: a.name };

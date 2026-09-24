@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { B } from '../shared/balance.ts';
 import { TERRAIN as T, type Role, type Vec } from '../shared/types.ts';
 import { packChunk } from './nodes.ts';
+import { handleAction } from './actions.ts';
 import { accept, offer } from './trade.ts';
 import { chart, findClue, search } from './treasure.ts';
 import { GameFail, World } from './world.ts';
@@ -119,4 +120,21 @@ test('anyone with a map digs; without a pickaxe it takes three times as long', (
   assert.equal(w.treasures.has(w.index(30, 30)), true);
   for (let i = 0; i < B.treasureDigTicks * 2; i++) w.step(0);
   assert.equal(w.treasures.has(w.index(30, 30)), false);
+});
+
+test('spectators never learn where a treasure is: map keys and chart captions are redacted', () => {
+  const w = world();
+  const s = joined(w, 'scout', [14, 10]);
+  w.treasures.set(w.index(14, 10), { loot: 1 });
+  s.inventory.fiber = 2;
+  assert.equal(handleAction(w, { agentId: s.id, tool: 'chart', args: { x: 14, y: 10 } }).ok, true);
+  const seen = JSON.stringify(w.step(0));
+  assert.ok(!seen.includes('14,10') && !seen.includes('14, 10'), seen.slice(0, 300));
+  assert.equal(w.views()[0].inventory.treasure_map, 1);
+  const m = joined(w, 'miner', [15, 10]);
+  m.wallet = 100;
+  const o = offer(w, s.id, m.id, { 'treasure_map:14,10': 1 }, { gold: 60 });
+  accept(w, m.id, o.offer);
+  const news = JSON.stringify(w.step(0).events);
+  assert.ok(news.includes('traded a treasure_map') && !news.includes('14,10'), news);
 });
