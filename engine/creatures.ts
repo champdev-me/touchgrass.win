@@ -112,13 +112,14 @@ function bite(w: World, c: Creature, a: Agent): void {
   w.hurt(a, def.damage, c.kind, `A ${def.name}`);
 }
 
-/** A rabbit leaps at a robot, kicks it, and bolts. */
-function dropkick(w: World, c: Creature, a: Agent): void {
+/** An animal leaps at a robot that came too close, kicks it, and bolts. */
+function kick(w: World, c: Creature, a: Agent): void {
   for (let i = 0; i < B.fleeRadius && dist([a.x, a.y], [c.x, c.y]) > B.attackReach; i++) toward(w, c, [a.x, a.y]);
   if (dist([a.x, a.y], [c.x, c.y]) > B.attackReach) return;
-  w.emit('rabbit', say('rabbit', a.name, w.rng), a);
+  const def = CREATURES[c.kind];
+  w.emit('kick', say(`kick:${c.kind}`, a.name, w.rng), a);
   setMode(c, 'flee', a, w.tick + 5);
-  w.hurt(a, B.rabbitKickDamage, 'rabbit', 'A rabbit');
+  w.hurt(a, def.kick, c.kind, `A ${def.name}`);
 }
 
 const oldPile = (w: World, p: LootPile) => p.expiresAt - w.tick <= B.lootTicks - B.roombaLootAgeTicks;
@@ -149,9 +150,9 @@ function act(w: World, c: Creature, robots: Agent[]): void {
     setMode(c, 'wander', null, c.mode === 'follow' ? w.tick + B.duckRestTicks : 0);
   }
   if (c.kind === 'roomba') return roombaStep(w, c);
-  if (c.kind === 'rabbit') {
+  if (def.kick > 0) {
     const near = nearest(robots, c.x, c.y);
-    if (near && near.d <= B.fleeRadius && w.rng() < B.rabbitKickChance) return dropkick(w, c, near.a);
+    if (near && near.d <= B.fleeRadius && w.rng() < B.animalKickChance) return kick(w, c, near.a);
   }
   if (c.mode === 'wander') {
     const near = nearest(robots, c.x, c.y);

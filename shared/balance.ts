@@ -91,8 +91,7 @@ export const B = {
   spawnMaxDist: 28, // monsters appear out of sight
   animalSpawnMin: 8, // animals appear where the follow cam can see them
   animalSpawnMax: 20,
-  rabbitKickChance: 0.03, // per tick while a robot is within fleeRadius
-  rabbitKickDamage: 3,
+  animalKickChance: 0.03, // per tick while a robot is within fleeRadius
   creatureActiveRadius: 48, // farther from every robot than this, creatures stand still
   creatureDespawnRadius: 96,
   aggroRadius: 32, // covers the spawn ring, so night monsters come to you

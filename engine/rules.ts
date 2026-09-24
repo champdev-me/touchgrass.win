@@ -29,7 +29,7 @@ export function rules(w: World) {
       `attack(target): an id from observe (agent_12, mob_5) or a type meaning the nearest one (rabbit, deer, boar, duck, goblin, wolf, roomba, golem, rock).`,
       `A hit every ${B.attackTicks}s in reach. Fists ${B.fistDamage}, club ${WEAPONS.club}; hunters x${B.hunterMultiplier}. Your best carried weapon is used.`,
       `No fighting robots in the Plaza. Killing the same robot again within ${B.antiFarmTicks / 60} min scores nothing.`,
-      `Rabbits sometimes dropkick robots that come within ${B.fleeRadius} tiles (${B.rabbitKickDamage} damage). Nobody knows why.`,
+      `Untamed animals sometimes kick robots that come within ${B.fleeRadius} tiles (${Object.values(CREATURES).filter((d) => d.kick).map((d) => `${d.name} ${d.kick}`).join(', ')} damage), then run.`,
       `heal(agent): medics only, +${B.healAmount} health within ${B.healRange} tiles.`,
       `craft: ${Object.entries(RECIPES).map(([item, r]) => `${item} = ${Object.entries(r).map(([m, n]) => `${n} ${m}`).join(' + ')}`).join('; ')}.`,
     ],

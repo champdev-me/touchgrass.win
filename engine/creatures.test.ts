@@ -132,7 +132,7 @@ test('rabbits sometimes dropkick a nearby robot, then run', () => {
   const d = w.step(0);
   assert.equal(a.health, 97);
   assert.equal(rabbit.mode, 'flee');
-  assert.ok(d.events.some((e) => e.type === 'rabbit' && e.text.includes('Victim')));
+  assert.ok(d.events.some((e) => e.type === 'kick' && e.text.includes('Victim')));
 });
 
 test('animals spawn close enough to see; monsters stay out of sight', () => {
@@ -166,4 +166,15 @@ test('the duck gets bored: after a minute of following it wanders off for two', 
   assert.equal(duck.mode, 'wander');
   for (let i = 0; i < 30; i++) w.step(0);
   assert.equal(duck.mode, 'follow');
+});
+
+test('every untamed animal kicks robots that come close: deer 5, boar 6, duck 1', () => {
+  for (const [kind, damage] of [['deer', 5], ['boar', 6], ['duck', 1]] as const) {
+    const w = world(() => 0.01);
+    const a = joined(w, 'Walker', [20, 20]);
+    const c = spawnCreature(w, kind, [22, 20]);
+    w.step(0);
+    assert.equal(a.health, 100 - damage, kind);
+    assert.equal(c.mode, 'flee', kind);
+  }
 });

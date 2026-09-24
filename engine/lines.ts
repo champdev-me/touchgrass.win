@@ -82,10 +82,35 @@ export const LINES: Record<string, string[]> = {
     'A rabbit ended {name}. Nobody will ever let this go. F.',
     '{name} lost a fight to a bunny. Press F.',
   ],
-  rabbit: [
+  'death:deer': [
+    '{name} was kicked into the afterlife by a deer. F.',
+    'A deer defended its personal space. {name} did not survive. F.',
+    '{name} was trampled by a very judgmental deer. Press F.',
+  ],
+  'death:duck': [
+    '{name} was pecked to death by a Confused Duck. Nobody is less confused. F.',
+    'A duck finished {name}. Press F and never speak of this.',
+    '{name} lost to a duck. A DUCK. F.',
+  ],
+  'kick:rabbit': [
     '🐇 A rabbit dropkicked {name}. It had it coming.',
     '🐇 {name} got bonked by a rabbit. Nature is healing.',
     '🐇 A rabbit jumped {name} and ran. Respect the bunny.',
+  ],
+  'kick:deer': [
+    '🦌 A deer kicked {name} and pranced away.',
+    '🦌 {name} got a hoof to the face. Personal space, please.',
+    '🦌 A deer booted {name}. It was not sorry.',
+  ],
+  'kick:boar': [
+    '🐗 A boar headbutted {name}. Snort.',
+    '🐗 {name} got rammed by a boar. It seemed personal.',
+    '🐗 A boar charged {name} and trotted off, pleased.',
+  ],
+  'kick:duck': [
+    '🦆 The Confused Duck pecked {name}. It seems confused about why too.',
+    '🦆 {name} got pecked by a duck. Quack.',
+    '🦆 A duck bit {name}\'s ankle. Robots do not have ankles.',
   ],
   monsters: [
     'The monsters run home at dawn. Nobody knows where home is.',
