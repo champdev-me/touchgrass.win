@@ -35,7 +35,7 @@ beforeAll(async () => {
   eng = await startEngine({ redis, port: 0, seed: 'e2e', replayDir: join(root, 'replays'), size: 256, tickMs: 200 });
   gw = await startGateway({
     redis, engineUrl: `http://127.0.0.1:${eng.port}`, port: 0, webDir: join(root, 'web'),
-    publicUrl: 'http://tg.test', signupPerIpPerDay: 3, trustProxy: true,
+    publicUrl: 'http://tg.test', signupPerIpPerDay: 3, trustProxy: true, adminKey: 'test-admin-key',
   });
   base = `http://127.0.0.1:${gw.port}`;
 });
@@ -180,7 +180,7 @@ test('survival tools are exposed over MCP and chunks carry resource nodes', asyn
   const { body } = await signup('Survivor', '5.5.5.5');
   const c = await mcp(body.token);
   const { tools } = await c.listTools();
-  assert.deepEqual(tools.map((t) => t.name).sort(), ['drink', 'eat', 'gather', 'join_game', 'move_to', 'observe', 'rest', 'settings', 'sleep']);
+  assert.deepEqual(tools.map((t) => t.name).sort(), ['achievements', 'drink', 'eat', 'emote', 'gather', 'join_game', 'leaderboard', 'map', 'move_to', 'notes', 'observe', 'read_chat', 'rest', 'rules', 'say', 'say_world', 'settings', 'sleep']);
   await call(c, 'join_game', { role: 'gatherer' });
   const s = await call(c, 'settings', { auto_eat: false });
   assert.equal((s.data as unknown as { auto_eat: boolean }).auto_eat, false);
@@ -200,6 +200,32 @@ test('survival tools are exposed over MCP and chunks carry resource nodes', asyn
 });
 
 // Keep last: it stops the engine.
+test('world chat is cleaned, readable with read_chat, and admins can mute and ban', async () => {
+  const { body } = await signup('Chatter', '6.6.6.6');
+  const c = await mcp(body.token);
+  await call(c, 'join_game', { role: 'scout' });
+  await sleep(5100);
+  const said = await call(c, 'say_world', { text: `visit https://spam.example shit  ${'x'.repeat(10_000)}` });
+  const posted = (said.data as unknown as { posted: string }).posted;
+  assert.ok(posted.startsWith('visit [link removed] grass x') && posted.length === B.chatMaxLength, posted.slice(0, 60));
+  await sleep(1300);
+  const read = await call(c, 'read_chat', { limit: 5 });
+  const messages = (read.data as unknown as { messages: { type: string; name?: string; text: string }[] }).messages;
+  assert.ok(messages.some((m) => m.type === 'chat' && m.name === 'Chatter' && m.text === posted), JSON.stringify(messages));
+
+  const admin = (path: string, key: string | null, payload: object) =>
+    fetch(`${base}/admin/${path}`, { method: 'POST', headers: { 'content-type': 'application/json', ...(key ? { authorization: `Bearer ${key}` } : {}) }, body: JSON.stringify(payload) });
+  assert.equal((await admin('mute', null, { agent: body.agentId })).status, 401);
+  assert.equal((await admin('mute', 'wrong-key', { agent: body.agentId })).status, 401);
+  assert.equal((await admin('mute', 'test-admin-key', { agent: body.agentId, minutes: 5 })).status, 200);
+  await sleep(5100);
+  const muted = await call(c, 'say_world', { text: 'can you hear me' });
+  assert.equal(muted.data.error, 'muted');
+  assert.equal((await admin('ban', 'test-admin-key', { agent: body.agentId })).status, 200);
+  await assert.rejects(mcp(body.token));
+  await c.close();
+});
+
 test('when the engine is down agents get a retryable error, not a crash', async () => {
   const { body } = await signup('Patient', '3.3.3.3');
   const c = await mcp(body.token);

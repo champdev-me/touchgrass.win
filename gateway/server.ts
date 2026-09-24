@@ -1,11 +1,12 @@
+import { timingSafeEqual } from 'node:crypto';
 import { resolve, sep } from 'node:path';
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
 import { B } from '../shared/balance.ts';
 import { VERSION } from '../shared/version.ts';
-import type { Redis } from '../shared/redis.ts';
+import { recentChat, type Redis } from '../shared/redis.ts';
 import type { ActionResult, ClientMsg, GameError, GameEvent, PackedNode, TickDelta } from '../shared/types.ts';
 import { agentForToken, hashToken, newToken } from './auth.ts';
-import { isRude } from './filter.ts';
+import { clean, isRude } from './filter.ts';
 import { clientIp } from './ip.ts';
 import { buildMcpServer, type Forward } from './mcp.ts';
 import { claimSlot, startCooldown } from './ratelimit.ts';
@@ -19,6 +20,7 @@ export interface GatewayOpts {
   signupPerIpPerDay: number;
   trustProxy: boolean;
   clientIpHeader?: string;
+  adminKey?: string;
 }
 
 type Registered = { ok: boolean; agentId?: string; error?: GameError };
@@ -31,6 +33,16 @@ const RATE_MSGS = [
 const ENGINE_DOWN: GameError = { error: 'engine_unavailable', message: 'The world is rebooting. Stand still and think about grass.', hint: 'Retry in a few seconds.', retry_after_seconds: 5 };
 const NAME_RE = /^[A-Za-z0-9 _-]{3,24}$/;
 const json = (status: number, body: unknown) => Response.json(body, { status });
+const ADMIN_ACTIONS = ['mute', 'unmute', 'kick', 'ban'];
+const INPUT_MAX = 1000; // chat text is clipped before filtering; the engine clips further
+
+async function readChat(r: Redis, args: Record<string, unknown>) {
+  const limit = Math.min(50, Math.max(1, Math.floor(Number(args.limit ?? 20)) || 20));
+  const before = typeof args.before === 'string' && /^\d+-\d+$/.test(args.before) ? args.before : undefined;
+  const rows = await recentChat(r, limit, before);
+  const messages = rows.map((m) => ({ id: m.id, tick: m.tick, type: m.type, name: m.name || undefined, text: m.text }));
+  return { ok: true as const, data: { messages, next_before: messages.at(-1)?.id ?? null } };
+}
 
 export async function startGateway(o: GatewayOpts) {
   const r = o.redis;
@@ -48,6 +60,11 @@ export async function startGateway(o: GatewayOpts) {
     if (tool === 'join_game' && typeof args.model === 'string' && isRude(args.model)) {
       return { ok: false, error: { error: 'rude_model', message: 'That model tag made the grass blush.', hint: 'Use your real model name.' } };
     }
+    const cleaned: Record<string, unknown> = { ...args };
+    for (const k of ['text', 'thought']) {
+      const v = cleaned[k];
+      if (typeof v === 'string') cleaned[k] = clean(v.slice(0, INPUT_MAX));
+    }
     const key = `${kind === 'do' ? 'cd' : 'cdlook'}:${agentId}`;
     const wait = await claimSlot(r, key, kind === 'do' ? B.doCooldownMs : B.lookCooldownMs);
     if (wait > 0) {
@@ -56,9 +73,10 @@ export async function startGateway(o: GatewayOpts) {
         hint: 'Your current task keeps running while you wait.', retry_after_seconds: Math.ceil(wait / 100) / 10,
       } };
     }
+    if (tool === 'read_chat') return readChat(r, args);
     let res: ActionResult;
     try {
-      res = await callEngine<ActionResult>('/action', { agentId, tool, args });
+      res = await callEngine<ActionResult>('/action', { agentId, tool, args: cleaned });
     } catch {
       if (kind === 'do') await r.del(key);
       return { ok: false, error: ENGINE_DOWN };
@@ -99,8 +117,30 @@ export async function startGateway(o: GatewayOpts) {
     }
     if (!reg.ok || !reg.agentId) return json(409, reg.error);
     const token = newToken();
-    await r.multi().set(`token:${hashToken(token)}`, reg.agentId).incr(key).expire(key, 86400).exec();
+    const hash = hashToken(token);
+    await r.multi().set(`token:${hash}`, reg.agentId).set(`agent_token:${reg.agentId}`, hash).incr(key).expire(key, 86400).exec();
     return json(200, { agentId: reg.agentId, token, mcpUrl: `${o.publicUrl}/mcp` });
+  }
+
+  async function handleAdmin(req: Request, action: string): Promise<Response> {
+    if (!o.adminKey) return json(404, { error: 'not_found' });
+    const want = Buffer.from(`Bearer ${o.adminKey}`), got = Buffer.from(req.headers.get('authorization') ?? '');
+    if (got.length !== want.length || !timingSafeEqual(got, want)) return json(401, { error: 'unauthorized' });
+    if (!ADMIN_ACTIONS.includes(action)) return json(404, { error: 'not_found' });
+    const body = (await req.json()) as { agent?: unknown; minutes?: unknown } | null;
+    const agentId = typeof body?.agent === 'string' ? body.agent : '';
+    let res: { ok: boolean; error?: GameError };
+    try {
+      res = await callEngine('/admin', { action, agentId, minutes: Number(body?.minutes ?? 10) });
+    } catch {
+      return json(503, ENGINE_DOWN);
+    }
+    if (!res.ok) return json(400, res.error);
+    if (action === 'ban') {
+      const hash = await r.get(`agent_token:${agentId}`);
+      if (hash) await r.del([`token:${hash}`, `agent_token:${agentId}`]);
+    }
+    return json(200, res);
   }
 
   async function handleHealth(): Promise<Response> {
@@ -144,6 +184,7 @@ export async function startGateway(o: GatewayOpts) {
       try {
         if (pathname === '/ws') return srv.upgrade(req) ? undefined : json(400, { error: 'expected_websocket' });
         if (pathname === '/mcp') return await handleMcp(req);
+        if (req.method === 'POST' && pathname.startsWith('/admin/')) return await handleAdmin(req, pathname.slice('/admin/'.length));
         if (req.method === 'POST' && pathname === '/signup') {
           return await handleSignup(req, clientIp(req.headers, srv.requestIP(req)?.address, o));
         }

@@ -12,6 +12,7 @@ const gw = await startGateway({
   signupPerIpPerDay: Number(process.env.SIGNUP_PER_IP_PER_DAY ?? 3),
   trustProxy: process.env.TRUST_PROXY === '1',
   clientIpHeader: process.env.CLIENT_IP_HEADER || undefined,
+  adminKey: process.env.ADMIN_KEY || undefined,
 });
 console.log(`[gateway] listening on ${gw.port}`);
 for (const sig of ['SIGINT', 'SIGTERM'] as const) {
