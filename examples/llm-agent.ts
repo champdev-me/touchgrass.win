@@ -22,7 +22,7 @@ const CHAT_EVERY_MS = Number(process.env.CHAT_EVERY_S ?? 60) * 1000;
 const MEMORY = Number(process.env.LLM_MEMORY ?? 6); // past actions shown to the model each turn
 
 type Obs = {
-  you: { pos: Vec; health: number; food: number; water: number; energy: number; dead: boolean; inventory: Record<string, number>; slots?: string; clues?: string[]; maps?: string[] };
+  you: { id: string; name: string; role: string; pos: Vec; health: number; food: number; water: number; energy: number; dead: boolean; inventory: Record<string, number>; slots?: string; clues?: string[]; maps?: string[] };
   task: { type: string } | null;
   time: { phase: string };
   resources: string[];
@@ -135,6 +135,7 @@ function fallback(o: Obs, skip = ''): Action {
 async function decide(o: Obs, memory: string[], chatOk: boolean): Promise<Action | null> {
   const me = o.you;
   const state = [
+    `You are ${me.name} (${me.id}), a ${me.role}. Lines in world chat starting with "${me.name}:" are your own; never reply to yourself or trade with yourself.`,
     `Position ${me.pos.join(', ')}. health ${me.health}, food ${me.food}, water ${me.water}, energy ${me.energy}. It is ${o.time.phase}.`,
     `Bag (${me.slots ?? '?'} slots): ${JSON.stringify(me.inventory)}`,
     `Clues and maps: ${[...(me.clues ?? []), ...(me.maps ?? [])].join('; ') || 'none'}. search only works within 1 tile of a clue's spot: move_to it first, in hops of at most 100 tiles (farther fails with no_path).`,
@@ -143,7 +144,7 @@ async function decide(o: Obs, memory: string[], chatOk: boolean): Promise<Action
     `Nearby robots: ${o.nearby.slice(0, 4).join('; ') || 'none'}`,
     `Recent events: ${o.inbox.slice(-4).join(' | ') || 'none'}`,
     `Offers to you: ${(o.offers?.incoming ?? []).join('; ') || 'none'}. Your open offers: ${(o.offers?.outgoing ?? []).join('; ') || 'none'}`,
-    `World chat: ${(o.world_chat ?? []).slice(-5).join(' | ') || 'quiet'}`,
+    `World chat: ${(o.world_chat ?? []).slice(-5).map((l) => (l.startsWith(`${me.name}:`) ? `(you) ${l}` : l)).join(' | ') || 'quiet'}`,
     `Your last actions: ${memory.join(' | ') || 'none'}`,
     chatOk ? 'You may chat now: say_world like a person in game chat (short, casual, react to what happened), or reply to someone by name.' : 'Chat is on cooldown; do not use say_world.',
     'Your robot is idle. Call exactly one tool now.',
