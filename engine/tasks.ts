@@ -5,6 +5,7 @@ import type { Agent, GatherTarget, Task, Vec } from '../shared/types.ts';
 import type { Activity } from './body.ts';
 import { NODE_DEF } from './nodes.ts';
 import { findPath } from './path.ts';
+import { addScore } from './score.ts';
 import { stepCost } from './terrain.ts';
 import type { World } from './world.ts';
 
@@ -100,6 +101,9 @@ function harvest(w: World, a: Agent, t: GatherTask): Activity {
   w.takeFromNode(t.node, node);
   t.got += got;
   w.bump(a, `gather:${def.item}`);
+  const before = a.stats.gathered ?? 0;
+  a.stats.gathered = before + got;
+  if (Math.floor(a.stats.gathered / B.gatherScoreEvery) > Math.floor(before / B.gatherScoreEvery)) addScore(w, a, 1);
   if (def.bonus && w.rng() < def.bonus.chance && addItem(a.inventory, def.bonus.item, 1)) w.note(a, `Bonus: a ${def.bonus.item} fell out!`);
   if (t.got >= t.until) w.finish(a, `Task done: gathered ${t.got} ${def.item}.`);
   else if (room(a.inventory, def.item) === 0) w.interrupt(a, 'Your bag is full.');

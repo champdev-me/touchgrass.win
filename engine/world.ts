@@ -6,9 +6,11 @@ import { GATHER_TARGETS, ROLES, TERRAIN as T, type Agent, type AgentView, type B
 import { AGENT_COLORS, normalizeAgent } from './agent.ts';
 import { BUFFET_SUFFIX, say } from './lines.ts';
 import { eat, tickBody } from './body.ts';
+import { chunksPerRow, dominantTerrain, explore } from './explore.ts';
 import { NODE_DEF, chunkOf, fullAmount, type ResourceNode } from './nodes.ts';
 import { buildObservation } from './observe.ts';
 import { findPath } from './path.ts';
+import { addScore } from './score.ts';
 import { findTarget, runTask } from './tasks.ts';
 import { stepCost, tileAt, walkable } from './terrain.ts';
 
@@ -47,6 +49,7 @@ export class World {
   loot = new Map<number, LootPile>();
   lootDirty = false;
   chatLog: string[] = [];
+  chunkTerrain: Uint8Array | null = null;
 
   constructor(tiles: Uint8Array, size: number = B.mapSize, rng: () => number = Math.random) {
     this.tiles = tiles;
@@ -66,6 +69,15 @@ export class World {
 
   xy(i: number): Vec {
     return [i % this.size, Math.floor(i / this.size)];
+  }
+
+  chunkCount(): number {
+    return chunksPerRow(this.size) ** 2;
+  }
+
+  chunkTerrainOf(): Uint8Array {
+    this.chunkTerrain ??= dominantTerrain(this.tiles, this.size);
+    return this.chunkTerrain;
   }
 
   register(name: string, now = Date.now()): Agent {
@@ -260,6 +272,9 @@ export class World {
     }
     for (const alert of news.alerts) this.interrupt(a, alert);
     if (news.death) this.kill(a, news.death);
+    if (a.dead) return;
+    explore(this, a);
+    if (this.tick > a.spawnedAt && (this.tick - a.spawnedAt) % B.aliveScoreEveryTicks === 0) addScore(this, a, 1);
   }
 
   takeFromNode(i: number, node: ResourceNode): void {
@@ -303,6 +318,7 @@ export class World {
     a.dead = true;
     a.task = null;
     a.health = 0;
+    a.lifeScore = 0;
     a.respawnAt = this.tick + B.respawnTicks;
     const dropped: Inventory = {};
     for (const [item, n] of Object.entries(a.inventory)) {
