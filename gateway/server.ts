@@ -2,7 +2,7 @@ import { resolve, sep } from 'node:path';
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
 import { B } from '../shared/balance.ts';
 import type { Redis } from '../shared/redis.ts';
-import type { ActionResult, ClientMsg, GameError, TickDelta } from '../shared/types.ts';
+import type { ActionResult, ClientMsg, GameError, PackedNode, TickDelta } from '../shared/types.ts';
 import { agentForToken, hashToken, newToken } from './auth.ts';
 import { isRude } from './filter.ts';
 import { clientIp } from './ip.ts';
@@ -166,8 +166,9 @@ export async function startGateway(o: GatewayOpts) {
           if (!Number.isInteger(cx) || !Number.isInteger(cy)) continue;
           if (budget.used >= B.chunkRequestsPerWindow) return;
           budget.used++;
-          const data = await r.hGet('terrain', `${cx},${cy}`);
-          if (data) ws.send(JSON.stringify({ type: 'chunk', cx, cy, data }));
+          const key = `${cx},${cy}`;
+          const [data, nodes] = await Promise.all([r.hGet('terrain', key), r.hGet('nodes', key)]);
+          if (data) ws.send(JSON.stringify({ type: 'chunk', cx, cy, data, nodes: nodes ? (JSON.parse(nodes) as PackedNode[]) : [] }));
         }
       },
     },

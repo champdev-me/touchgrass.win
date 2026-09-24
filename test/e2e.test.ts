@@ -165,6 +165,29 @@ test('health reports engine and redis', async () => {
   assert.deepEqual([res.status, await res.json()], [200, { engine: true, redis: true }]);
 });
 
+test('survival tools are exposed over MCP and chunks carry resource nodes', async () => {
+  const { body } = await signup('Survivor', '5.5.5.5');
+  const c = await mcp(body.token);
+  const { tools } = await c.listTools();
+  assert.deepEqual(tools.map((t) => t.name).sort(), ['drink', 'eat', 'gather', 'join_game', 'move_to', 'observe', 'rest', 'settings', 'sleep']);
+  await call(c, 'join_game', { role: 'gatherer' });
+  const s = await call(c, 'settings', { auto_eat: false });
+  assert.equal((s.data as unknown as { auto_eat: boolean }).auto_eat, false);
+
+  const ws = new WebSocket(`ws://127.0.0.1:${gw.port}/ws`);
+  const msgs: ServerMsg[] = [];
+  ws.addEventListener('message', (e) => msgs.push(JSON.parse(String(e.data)) as ServerMsg));
+  await new Promise((ok) => ws.addEventListener('open', ok, { once: true }));
+  ws.send(JSON.stringify({ type: 'chunks', list: [[3, 3]] }));
+  await sleep(500);
+  const chunk = msgs.find((m): m is ChunkMsg => m.type === 'chunk')!;
+  assert.ok(Array.isArray(chunk.nodes));
+  const tick = msgs.find((m) => m.type === 'tick');
+  assert.ok(tick && tick.type === 'tick' && Array.isArray(tick.loot) && tick.agents.every((a) => typeof a.health === 'number'));
+  ws.close();
+  await c.close();
+});
+
 // Keep last: it stops the engine.
 test('when the engine is down agents get a retryable error, not a crash', async () => {
   const { body } = await signup('Patient', '3.3.3.3');
