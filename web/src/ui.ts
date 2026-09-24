@@ -78,7 +78,8 @@ export function setupUi(onFollow: (id: string) => void) {
       }
       doing.textContent = v.dead ? '💀 dead, respawning soon' : `${DOING[v.action] ?? v.action} · at (${v.x}, ${v.y})${v.online ? '' : ' · owner away'}`;
     },
-    events: (events: GameEvent[]) => {
+    events: (events: GameEvent[], reset = false) => {
+      if (reset) shown.length = 0;
       for (const e of events) if (e.type !== 'move') shown.unshift(e.text);
       shown.length = Math.min(shown.length, 8);
       feed.replaceChildren(...shown.map((t) => Object.assign(document.createElement('div'), { textContent: t })));

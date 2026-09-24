@@ -101,7 +101,7 @@ export interface TickDelta {
 }
 
 export type ServerMsg =
-  | { type: 'hello'; mapSize: number; chunkSize: number; plaza: Vec; tick: number }
+  | { type: 'hello'; mapSize: number; chunkSize: number; plaza: Vec; tick: number; recent: GameEvent[] }
   | { type: 'chunk'; cx: number; cy: number; data: string; nodes: PackedNode[] }
   | ({ type: 'tick' } & TickDelta);
 

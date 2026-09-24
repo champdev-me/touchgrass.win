@@ -3,7 +3,7 @@ import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/
 import { B } from '../shared/balance.ts';
 import { VERSION } from '../shared/version.ts';
 import type { Redis } from '../shared/redis.ts';
-import type { ActionResult, ClientMsg, GameError, PackedNode, TickDelta } from '../shared/types.ts';
+import type { ActionResult, ClientMsg, GameError, GameEvent, PackedNode, TickDelta } from '../shared/types.ts';
 import { agentForToken, hashToken, newToken } from './auth.ts';
 import { isRude } from './filter.ts';
 import { clientIp } from './ip.ts';
@@ -134,6 +134,7 @@ export async function startGateway(o: GatewayOpts) {
   }
 
   let lastTick = 0;
+  const recent: GameEvent[] = []; // so viewers who arrive later still see what just happened
   const chunkBudget = new WeakMap<object, { used: number; since: number }>();
   const server = Bun.serve({
     port: o.port,
@@ -158,7 +159,7 @@ export async function startGateway(o: GatewayOpts) {
     websocket: {
       open(ws) {
         ws.subscribe('tick');
-        ws.send(JSON.stringify({ type: 'hello', mapSize: B.mapSize, chunkSize: B.chunkSize, plaza: [B.mapSize / 2, B.mapSize / 2], tick: lastTick }));
+        ws.send(JSON.stringify({ type: 'hello', mapSize: B.mapSize, chunkSize: B.chunkSize, plaza: [B.mapSize / 2, B.mapSize / 2], tick: lastTick, recent }));
       },
       async message(ws, raw) {
         let msg: ClientMsg;
@@ -189,6 +190,8 @@ export async function startGateway(o: GatewayOpts) {
   await sub.subscribe('tick', (msg) => {
     const delta = JSON.parse(msg) as TickDelta;
     lastTick = delta.tick;
+    recent.push(...delta.events.filter((e) => e.type !== 'move'));
+    recent.splice(0, Math.max(0, recent.length - B.recentEvents));
     server.publish('tick', JSON.stringify({ type: 'tick', ...delta }));
   });
 

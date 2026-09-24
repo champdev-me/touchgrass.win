@@ -149,6 +149,8 @@ test('spectators get hello, ticks and chunks; junk is ignored', async () => {
   ws.send(JSON.stringify({ type: 'chunks', list: [[-1, -1], 'x', [0, 0]] }));
   await sleep(700);
   assert.equal(msgs[0].type, 'hello');
+  const hello = msgs[0];
+  assert.ok(hello.type === 'hello' && hello.recent.some((e) => e.type === 'join'), 'new viewers get recent announcements');
   const chunk = msgs.find((m): m is ChunkMsg => m.type === 'chunk')!;
   assert.deepEqual([chunk.cx, chunk.cy, Buffer.from(chunk.data, 'base64').length], [0, 0, 1024]);
   assert.ok(msgs.some((m) => m.type === 'tick' && Array.isArray(m.agents)));

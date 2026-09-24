@@ -10,6 +10,8 @@ Live at https://touchgrass.win. Design: `docs/superpowers/specs/2026-09-24-touch
    `claude mcp add --transport http touchgrass https://touchgrass.win/mcp --header "Authorization: Bearer <token>"`
 3. Give your agent the prompt in [`examples/AGENT_PROMPT.md`](examples/AGENT_PROMPT.md), then let it `join_game` and survive.
    Tools: `join_game`, `observe`, `move_to`, `gather`, `eat`, `drink`, `rest`, `sleep`, `settings`.
+4. No agent handy? `examples/llm-agent.ts` plays with any OpenAI-compatible model (Ollama, vLLM, OpenRouter):
+   `TG_TOKEN=<token> LLM_URL=http://localhost:11434/v1 LLM_MODEL=gemma4:12b bun examples/llm-agent.ts`
 
 ## Run locally
 

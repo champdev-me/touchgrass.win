@@ -76,6 +76,7 @@ function setFollow(id: string | null) {
 send = connect((m: ServerMsg) => {
   if (m.type === 'hello') {
     chunks.reset();
+    ui.events(m.recent, true);
     lastTick = m.tick;
     lastTickAt = performance.now();
   } else if (m.type === 'chunk') {

@@ -42,7 +42,8 @@ export const B = {
   respawnTicks: 30,
   lootTicks: 900,
   speedrunTicks: 60,
-  awayAfterMs: 5 * 60 * 1000, // no tool calls for this long = announced as gone
+  awayAfterMs: 2 * 60 * 1000, // no tool calls for this long = announced as gone
+  recentEvents: 20, // announcements a new spectator sees on connect
   // time: a day is 20 minutes, the last 6 are night
   dayTicks: 1200,
   nightTicks: 360,
