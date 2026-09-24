@@ -50,7 +50,7 @@ test('a world saved by 0.0.1-1 loads with default stats and backfilled nodes', a
   const w = (await loadWorld(r))!;
   const a = w.agents.get('agent_1')!;
   assert.deepEqual([a.health, a.food, a.water, a.energy, a.inventory, a.dead, a.autoEat], [100, 100, 100, 100, {}, false, true]);
-  assert.ok(w.nodes.size > 500, `nodes ${w.nodes.size}`);
+  assert.ok(w.nodes.size > 50, `nodes ${w.nodes.size}`); // old worlds get freshly generated land and nodes
   assert.equal(w.dirtyChunks.size, 4);
   assert.ok(w.observe('agent_1').grid.length > 0);
   await flush(r, w);
@@ -133,27 +133,32 @@ test('berry bushes and trees that the current rules no longer place are pruned o
   await r.close();
 });
 
-test('worlds saved before mountains get them on load; robots inside are walked out', async () => {
+test('worlds saved with older terrain are regenerated once: robots keep their stuff on dry land', async () => {
+  const { generateTerrain } = await import('../engine/terrain.ts');
+  const { walkable } = await import('../engine/terrain.ts');
   const r = await connectRedis(redisUrl(14));
   await r.flushDb();
-  const n = 64, tiles = new Uint8Array(n * n).fill(T.MEADOW);
-  for (let y = 10; y < 40; y++) for (let x = 10; x < 40; x++) tiles[y * n + x] = T.HILLS;
-  const w = new World(tiles, n, () => 0.5);
-  w.nodes.set(w.index(25, 25), { kind: 'rock', left: 3, regrowAt: 0 });
-  await saveTerrain(r, tiles, n);
+  const n = 128, old = new Uint8Array(n * n).fill(T.MEADOW);
+  const w = new World(old, n, () => 0.5);
+  w.nodes.set(5, { kind: 'rock', left: 1, regrowAt: 0 });
+  await saveTerrain(r, old, n);
   await saveAllNodes(r, w);
-  const a = w.register('Climber', 0);
+  const a = w.register('Survivor', 0);
   w.join(a.id, 'scout', null, 0);
-  [a.x, a.y] = [25, 25];
+  a.inventory = { wood: 7 };
+  w.dropLoot(9, { stone: 1 });
+  spawnCreature(w, 'rabbit', [3, 3]);
   await flush(r, w);
-  await r.hDel(K.meta, 'terrainRules');
+  await r.hSet(K.meta, 'terrainRules', '2');
 
-  const back = (await loadWorld(r))!;
+  const back = (await loadWorld(r, 'regen-test'))!;
+  assert.deepEqual(back.tiles, generateTerrain('regen-test', n));
   const b = back.agents.get(a.id)!;
-  assert.equal(back.at(25, 25), T.PEAK);
-  assert.ok(back.at(b.x, b.y) === T.HILLS || back.at(b.x, b.y) === T.MEADOW, `${b.x},${b.y}`);
-  assert.equal(back.nodes.has(back.index(25, 25)), false);
-  const again = (await loadWorld(r))!;
-  assert.equal(again.at(25, 25), T.PEAK); // saved, not recomputed from old terrain
+  assert.ok(walkable(back.at(b.x, b.y)) && walkable(back.at(b.spawn[0], b.spawn[1])));
+  assert.deepEqual(b.inventory, { wood: 7 });
+  assert.deepEqual([back.loot.size, back.creatures.size], [0, 0]);
+  assert.ok(await r.exists('terrain:backup:2'));
+  const again = (await loadWorld(r, 'some-other-seed'))!;
+  assert.deepEqual(again.tiles, back.tiles); // regenerated once, then just loaded
   await r.close();
 });

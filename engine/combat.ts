@@ -83,7 +83,7 @@ export function fightStep(w: World, a: Agent, t: AttackTask): Activity {
     return 'idle';
   }
   if (dist(at, [a.x, a.y]) > B.attackReach) {
-    const path = findPath(w.at, [a.x, a.y], at, w.vision(a) + 2);
+    const path = findPath(w.at, [a.x, a.y], at, w.vision(a) + 2, w.canStep);
     if (!path) {
       w.interrupt(a, 'You cannot reach your target.');
       return 'idle';

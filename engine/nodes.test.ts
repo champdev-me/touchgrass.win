@@ -16,6 +16,7 @@ test('nodes only grow where they belong and are deterministic', () => {
     assert.equal(nodeKindAt(T.DEEP, x, y), null);
     assert.ok([null, 'tree', 'berry_bush'].includes(nodeKindAt(T.FOREST, x, y)));
     assert.ok([null, 'rock'].includes(nodeKindAt(T.HILLS, x, y)));
+    assert.equal(nodeKindAt(T.MOUNTAIN, x, y), null);
   }
   assert.equal(nodeKindAt(T.MEADOW, 17, 42), nodeKindAt(T.MEADOW, 17, 42));
 });
@@ -25,6 +26,7 @@ test('forests are mostly trees; meadows have grass and berries', () => {
   assert.ok(share(T.MEADOW, 'grass') > 0.04);
   assert.ok(Math.abs(share(T.MEADOW, 'berry_bush') - 0.015) < 0.006, String(share(T.MEADOW, 'berry_bush')));
   assert.ok(Math.abs(share(T.FOREST, 'berry_bush') - 0.02) < 0.008, String(share(T.FOREST, 'berry_bush')));
+  assert.ok(Math.abs(share(T.HILLS, 'rock') - 0.25) < 0.03, String(share(T.HILLS, 'rock')));
 });
 
 test('fresh nodes are full and chunks pack and unpack losslessly', () => {

@@ -8,14 +8,14 @@ import { ACHIEVEMENTS } from './achievements.ts';
 import { weaponOf } from './combat.ts';
 import type { World } from './world.ts';
 
-const GRID: Record<number, string> = { [T.DEEP]: '~', [T.SHALLOW]: ',', [T.SAND]: ':', [T.MEADOW]: '.', [T.FOREST]: 'f', [T.HILLS]: '^', [T.RUINS]: 'r', [T.PLAZA]: '#', [T.MOUNTAIN]: 'm', [T.PEAK]: 'm' };
+const GRID: Record<number, string> = { [T.DEEP]: '~', [T.SHALLOW]: ',', [T.SAND]: ':', [T.MEADOW]: '.', [T.FOREST]: 'f', [T.HILLS]: '^', [T.RUINS]: 'r', [T.PLAZA]: '#', [T.MOUNTAIN]: 'm', [T.HIGH]: 'm', [T.PEAK]: 'm' };
 const NODE_CHAR: Record<NodeKind, string> = { tree: 'T', berry_bush: '*', grass: '"', rock: 'o' };
 const LEGEND: Record<string, string> = {
-  '@': 'you', '~': 'deep water (blocked)', m: 'mountain (blocked)', ',': 'shallow water (slow)', ':': 'sand', '.': 'meadow', f: 'forest', '^': 'hills',
+  '@': 'you', '~': 'deep water (blocked)', m: 'mountain (climb one height level per step)', ',': 'shallow water (slow)', ':': 'sand', '.': 'meadow', f: 'forest', '^': 'hills',
   r: 'ruins', '#': 'the Plaza', T: 'tree (wood)', '*': 'berry bush (berries)', '"': 'grass (fiber)', o: 'rock (stone)',
   $: 'loot pile', 'A-Z': 'other agents', '%': 'animal', '&': 'monster', '=': 'Lost Roomba (harmless, eats loot piles)',
 };
-const TERRAIN_NAME: Record<number, string> = { [T.DEEP]: 'deep water', [T.SHALLOW]: 'shallow water', [T.SAND]: 'sand', [T.MEADOW]: 'meadow', [T.FOREST]: 'forest', [T.HILLS]: 'hills', [T.RUINS]: 'ruins', [T.PLAZA]: 'the Plaza', [T.MOUNTAIN]: 'mountain', [T.PEAK]: 'mountain peak' };
+const TERRAIN_NAME: Record<number, string> = { [T.DEEP]: 'deep water', [T.SHALLOW]: 'shallow water', [T.SAND]: 'sand', [T.MEADOW]: 'meadow', [T.FOREST]: 'forest', [T.HILLS]: 'hills', [T.RUINS]: 'ruins', [T.PLAZA]: 'the Plaza', [T.MOUNTAIN]: 'mountain', [T.HIGH]: 'high crags', [T.PEAK]: 'snowy peak' };
 
 const describeTask = (t: Task | null) => {
   if (!t) return null;
@@ -79,6 +79,7 @@ export function buildObservation(w: World, a: Agent) {
       score: { life: a.lifeScore, season: a.seasonScore, best_life: a.bestLife, wallet: a.wallet },
       achievements: `${Object.keys(a.achievements).length}/${ACHIEVEMENTS.length} unlocked`,
       badge: a.badge && a.badge.until >= w.tick ? a.badge.emoji : undefined,
+      altitude: w.height(a.x, a.y),
       weapon: `${weaponOf(a).name} (${weaponOf(a).damage} damage)`,
       in_combat: w.inCombat(a),
     },

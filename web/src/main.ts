@@ -86,7 +86,7 @@ send = connect((m: ServerMsg) => {
     lastTick = m.tick;
     lastTickAt = performance.now();
   } else if (m.type === 'chunk') {
-    chunks.add(m.cx, m.cy, m.data, m.nodes);
+    chunks.add(m.cx, m.cy, m.data, m.nodes, m.heights);
   } else {
     lastTick = m.tick;
     lastTickAt = performance.now();

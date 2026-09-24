@@ -46,7 +46,7 @@ export async function loadProps(): Promise<Models> {
 }
 
 /** One InstancedMesh per model part per chunk keeps draw calls low. Empty nodes are not drawn. */
-export function buildProps(models: Models, tiles: Uint8Array, nodes: ChunkNodes, n: number, x0: number, y0: number): THREE.Group {
+export function buildProps(models: Models, tiles: Uint8Array, levels: Uint8Array, nodes: ChunkNodes, n: number, x0: number, y0: number): THREE.Group {
   const byModel = new Map<string, THREE.Matrix4[]>();
   const greens = new Map<string, THREE.Color[]>();
   const berries: THREE.Matrix4[] = [];
@@ -56,7 +56,7 @@ export function buildProps(models: Models, tiles: Uint8Array, nodes: ChunkNodes,
     const kind = NODE_KINDS[k], x = x0 + (local % n), y = y0 + Math.floor(local / n);
     const r = hash01(y, x), s = SCALE[kind] * (0.85 + r * 0.3);
     q.setFromAxisAngle(up, r * Math.PI * 2);
-    const m = new THREE.Matrix4().compose(new THREE.Vector3(x + 0.5, heightOf(tiles[local]), y + 0.5), q, new THREE.Vector3(s, s, s));
+    const m = new THREE.Matrix4().compose(new THREE.Vector3(x + 0.5, heightOf(tiles[local], levels[local]), y + 0.5), q, new THREE.Vector3(s, s, s));
     const name = MODEL[kind](x, y);
     (byModel.get(name) ?? byModel.set(name, []).get(name)!).push(m);
     (greens.get(name) ?? greens.set(name, []).get(name)!).push(LEAF_GREENS[Math.floor(hash01(x + 7, y + 3) * LEAF_GREENS.length)]);

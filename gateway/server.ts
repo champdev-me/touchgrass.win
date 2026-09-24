@@ -219,8 +219,8 @@ export async function startGateway(o: GatewayOpts) {
           if (budget.used >= B.chunkRequestsPerWindow) return;
           budget.used++;
           const key = `${cx},${cy}`;
-          const [data, nodes] = await Promise.all([r.hGet('terrain', key), r.hGet('nodes', key)]);
-          if (data) ws.send(JSON.stringify({ type: 'chunk', cx, cy, data, nodes: nodes ? (JSON.parse(nodes) as PackedNode[]) : [] }));
+          const [data, nodes, heights] = await Promise.all([r.hGet('terrain', key), r.hGet('nodes', key), r.hGet('heights', key)]);
+          if (data) ws.send(JSON.stringify({ type: 'chunk', cx, cy, data, nodes: nodes ? (JSON.parse(nodes) as PackedNode[]) : [], heights: heights ?? undefined }));
         }
       },
     },

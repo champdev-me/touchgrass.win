@@ -14,7 +14,7 @@ export function rules(w: World) {
       `Stats run 0-100, higher is better. Food drops 1 every ${Math.round(-1 / B.foodPerTick)}s, water 1 every ${Math.round(-1 / B.waterPerTick)}s.`,
       `At 0 food or water you lose health; above ${B.regenAbove} of both you heal. drink() next to water adds ${B.drinkAmount}.`,
       `Death drops half your bag as a loot pile and you respawn after ${B.respawnTicks}s.`,
-      'Mountains (m on the grid) and deep water (~) are impassable; the hills (^) around mountains have rocks.',
+      'The land has height levels (you.altitude). You can step up or down one level at a time; 2+ is a cliff. Mountains (m) are slow and steep; deep water (~) blocks you. Trees and berry bushes are solid: stand next to them to gather.',
     ],
     food: Object.entries(FOOD).map(([item, f]) => `${item}: +${f.food} food${f.water ? `, +${f.water} water` : ''}`),
     resources: Object.entries(NODE_DEF).map(([kind, d]) =>

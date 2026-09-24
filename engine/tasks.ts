@@ -7,7 +7,7 @@ import { fightStep } from './combat.ts';
 import { NODE_DEF } from './nodes.ts';
 import { findPath } from './path.ts';
 import { addScore } from './score.ts';
-import { stepCost } from './terrain.ts';
+import { stepCost, walkable } from './terrain.ts';
 import type { World } from './world.ts';
 
 type GatherTask = Extract<Task, { type: 'gather' }>;
@@ -45,8 +45,16 @@ export function findTarget(w: World, a: Agent, target: GatherTarget): { index: n
   }
   found.sort((p, q) => p.d - q.d);
   for (const f of found.slice(0, 5)) {
-    const path = findPath(w.at, [a.x, a.y], w.xy(f.index), r + 2);
-    if (path) return { index: f.index, path };
+    const [nx, ny] = w.xy(f.index);
+    if (Math.abs(nx - a.x) + Math.abs(ny - a.y) <= 1) return { index: f.index, path: [] }; // already beside it (or on it)
+    // Trees and bushes are solid: stand on a free neighbouring tile and harvest from there.
+    const spots: Vec[] = w.solid(nx, ny) ? [[nx + 1, ny], [nx - 1, ny], [nx, ny + 1], [nx, ny - 1]] : [[nx, ny]];
+    for (const [sx, sy] of spots.sort((p, q) => dist(p, [a.x, a.y]) - dist(q, [a.x, a.y]))) {
+      if (sx === a.x && sy === a.y) return { index: f.index, path: [] };
+      if (!walkable(w.at(sx, sy)) || w.solid(sx, sy)) continue;
+      const path = findPath(w.at, [a.x, a.y], [sx, sy], r + 2, w.canStep);
+      if (path) return { index: f.index, path };
+    }
   }
   return null;
 }

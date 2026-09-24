@@ -2,7 +2,7 @@ import { B } from '../shared/balance.ts';
 import { TERRAIN as T, type Agent, type Vec } from '../shared/types.ts';
 import type { World } from './world.ts';
 
-const CHAR: Record<number, string> = { [T.DEEP]: '~', [T.SHALLOW]: ',', [T.SAND]: ':', [T.MEADOW]: '.', [T.FOREST]: 'f', [T.HILLS]: '^', [T.RUINS]: 'r', [T.PLAZA]: '#', [T.MOUNTAIN]: 'm', [T.PEAK]: 'm' };
+const CHAR: Record<number, string> = { [T.DEEP]: '~', [T.SHALLOW]: ',', [T.SAND]: ':', [T.MEADOW]: '.', [T.FOREST]: 'f', [T.HILLS]: '^', [T.RUINS]: 'r', [T.PLAZA]: '#', [T.MOUNTAIN]: 'm', [T.HIGH]: 'm', [T.PEAK]: 'm' };
 
 export const chunksPerRow = (size: number): number => Math.ceil(size / B.chunkSize);
 

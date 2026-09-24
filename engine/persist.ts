@@ -1,12 +1,13 @@
 import { B } from '../shared/balance.ts';
 import { CHAT_STREAM, recentChat, type Redis } from '../shared/redis.ts';
+import { TERRAIN as T } from '../shared/types.ts';
 import type { Agent, Creature, PackedNode } from '../shared/types.ts';
 import { normalizeAgent } from './agent.ts';
 import { NODE_RULES, chunkOf, generateNodes, nodeKindAt, packChunk, unpackChunk } from './nodes.ts';
-import { TERRAIN_RULES, chunkBytes, raiseMountains, walkable, writeChunk } from './terrain.ts';
+import { TERRAIN_RULES, chunkBytes, generateLand, levelsOf, walkable, writeChunk } from './terrain.ts';
 import { World, type LootPile } from './world.ts';
 
-export const K = { meta: 'meta', terrain: 'terrain', agents: 'agents', nodes: 'nodes', loot: 'loot', firsts: 'firsts', chat: CHAT_STREAM, creatures: 'creatures' } as const;
+export const K = { meta: 'meta', terrain: 'terrain', agents: 'agents', nodes: 'nodes', loot: 'loot', firsts: 'firsts', chat: CHAT_STREAM, creatures: 'creatures', heights: 'heights' } as const;
 
 const chunkKeys = (size: number): string[] => {
   const n = size / B.chunkSize, keys: string[] = [];
@@ -18,13 +19,15 @@ const packed = (w: World, key: string): string => {
   return JSON.stringify(packChunk(w.nodes, cx, cy, w.size));
 };
 
-export async function saveTerrain(r: Redis, tiles: Uint8Array, size: number): Promise<void> {
-  const fields: Record<string, string> = {};
+export async function saveTerrain(r: Redis, tiles: Uint8Array, size: number, heights?: Uint8Array): Promise<void> {
+  const fields: Record<string, string> = {}, levels: Record<string, string> = {};
   for (const key of chunkKeys(size)) {
     const [cx, cy] = key.split(',').map(Number);
     fields[key] = Buffer.from(chunkBytes(tiles, cx, cy, size)).toString('base64');
+    if (heights) levels[key] = Buffer.from(chunkBytes(heights, cx, cy, size)).toString('base64');
   }
   await r.hSet(K.terrain, fields);
+  if (heights) await r.hSet(K.heights, levels);
 }
 
 export async function saveAllNodes(r: Redis, w: World): Promise<void> {
@@ -35,7 +38,7 @@ export async function saveAllNodes(r: Redis, w: World): Promise<void> {
 }
 
 export async function flush(r: Redis, w: World): Promise<void> {
-  const m = r.multi().hSet(K.meta, { tick: String(w.tick), nextId: String(w.nextId), nextMobId: String(w.nextMobId), mapSize: String(w.size), season: '1', nodeRules: String(NODE_RULES), terrainRules: String(TERRAIN_RULES) });
+  const m = r.multi().hSet(K.meta, { tick: String(w.tick), nextId: String(w.nextId), nextMobId: String(w.nextMobId), mapSize: String(w.size), season: '1', seed: w.seed, nodeRules: String(NODE_RULES), terrainRules: String(TERRAIN_RULES) });
   const ids = [...w.dirty];
   const chunks = [...w.dirtyChunks];
   const lootWasDirty = w.lootDirty;
@@ -71,21 +74,32 @@ export async function saveAgentNow(r: Redis, w: World, id: string): Promise<void
   if (a) await r.multi().hSet(K.agents, id, JSON.stringify(a)).hSet(K.meta, 'nextId', String(w.nextId)).exec();
 }
 
-export async function loadWorld(r: Redis): Promise<World | null> {
+export async function loadWorld(r: Redis, seed = 'touchgrass-season-1'): Promise<World | null> {
   const meta = await r.hGetAll(K.meta);
   if (!meta.mapSize) return null;
   const size = Number(meta.mapSize), tiles = new Uint8Array(size * size);
-  for (const [key, b64] of Object.entries(await r.hGetAll(K.terrain))) {
-    const [cx, cy] = key.split(',').map(Number);
-    writeChunk(tiles, cx, cy, Buffer.from(b64, 'base64'), size);
-  }
+  const readChunks = async (key: string, into: Uint8Array) => {
+    const all = await r.hGetAll(key);
+    for (const [k, b64] of Object.entries(all)) {
+      const [cx, cy] = k.split(',').map(Number);
+      writeChunk(into, cx, cy, Buffer.from(b64, 'base64'), size);
+    }
+    return Object.keys(all).length > 0;
+  };
+  await readChunks(K.terrain, tiles);
+  let heights: Uint8Array = new Uint8Array(size * size);
   const oldTerrain = Number(meta.terrainRules ?? 1) < TERRAIN_RULES;
   if (oldTerrain) {
-    raiseMountains(tiles, size); // 2: hill interiors became mountains
-    await saveTerrain(r, tiles, size);
-    await r.hSet(K.meta, 'terrainRules', String(TERRAIN_RULES));
-  }
-  const w = new World(tiles, size);
+    // 3: height levels, mountain ranges, rivers and lakes. Regenerate the land once; keep a backup of the old one.
+    await r.copy(K.terrain, `${K.terrain}:backup:${meta.terrainRules ?? 1}`, { REPLACE: true });
+    const land = generateLand(meta.seed || seed, size);
+    tiles.set(land.tiles);
+    heights = land.heights;
+    await saveTerrain(r, tiles, size, heights);
+    await r.hSet(K.meta, { terrainRules: String(TERRAIN_RULES), seed: meta.seed || seed });
+  } else if (!(await readChunks(K.heights, heights))) heights = levelsOf(tiles);
+  const w = new World(tiles, size, Math.random, heights);
+  w.seed = meta.seed || seed;
   w.tick = Number(meta.tick);
   w.nextId = Number(meta.nextId);
   for (const json of Object.values(await r.hGetAll(K.agents))) {
@@ -97,7 +111,7 @@ export async function loadWorld(r: Redis): Promise<World | null> {
     }
     w.agents.set(a.id, a);
   }
-  const savedNodes = await r.hGetAll(K.nodes);
+  const savedNodes = oldTerrain ? {} : await r.hGetAll(K.nodes); // new land grows fresh nodes
   if (Object.keys(savedNodes).length) {
     for (const [key, json] of Object.entries(savedNodes)) {
       const [cx, cy] = key.split(',').map(Number);
@@ -108,7 +122,7 @@ export async function loadWorld(r: Redis): Promise<World | null> {
     w.nodes = generateNodes(tiles, size);
     for (const key of chunkKeys(size)) w.dirtyChunks.add(key);
   }
-  if (Number(meta.nodeRules ?? 1) < NODE_RULES || oldTerrain) {
+  if (Number(meta.nodeRules ?? 1) < NODE_RULES) {
     // Placement got sparser: drop nodes the current rules no longer place (once, so later planted ones survive)
     for (const [i, node] of w.nodes) {
       const [x, y] = w.xy(i);
@@ -119,9 +133,10 @@ export async function loadWorld(r: Redis): Promise<World | null> {
   }
   for (const [i, node] of w.nodes) if (node.left === 0 && node.regrowAt > 0) w.depleted.add(i);
   if (oldTerrain) {
+    const stuck = (x: number, y: number) => !walkable(w.at(x, y)) || w.at(x, y) === T.SHALLOW || w.solid(x, y);
     for (const a of w.agents.values()) {
-      if (!walkable(w.at(a.x, a.y))) [a.x, a.y] = w.nearestWalkable(a.x, a.y);
-      if (!walkable(w.at(a.spawn[0], a.spawn[1]))) a.spawn = w.nearestWalkable(a.spawn[0], a.spawn[1]);
+      if (stuck(a.x, a.y)) [a.x, a.y] = w.nearestWalkable(a.x, a.y);
+      if (stuck(a.spawn[0], a.spawn[1])) a.spawn = w.nearestWalkable(a.spawn[0], a.spawn[1]);
       w.dirty.add(a.id);
     }
   }
@@ -132,8 +147,9 @@ export async function loadWorld(r: Redis): Promise<World | null> {
   const mobs = await r.get(K.creatures);
   if (mobs) for (const c of JSON.parse(mobs) as Creature[]) w.creatures.set(c.id, c);
   if (oldTerrain) {
-    for (const [id, c] of w.creatures) if (!walkable(w.at(c.x, c.y))) w.creatures.delete(id);
-    for (const i of w.loot.keys()) if (!walkable(w.tiles[i])) w.loot.delete(i);
+    // The land changed under them: creatures respawn near robots and loot piles are gone.
+    w.creatures.clear();
+    w.loot.clear();
     w.creaturesDirty = w.lootDirty = true;
   }
   w.chatLog = (await recentChat(r, B.chatLogKeep)).reverse().map((m) => (m.type === 'chat' ? `${m.name}: ${m.text}` : m.text));

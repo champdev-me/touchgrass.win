@@ -2,14 +2,14 @@ import * as THREE from 'three';
 import { B } from '../../shared/balance.ts';
 import { TERRAIN as T, type PackedNode, type Vec } from '../../shared/types.ts';
 import { buildProps, type ChunkNodes, type Models } from './props.ts';
-import { COLOR, heightOf } from './tiles.ts';
+import { COLOR, heightOf, levelOf } from './tiles.ts';
 
 const VIEW = 5; // chunks around the camera that get meshes
 const BUILDS_PER_FRAME = 4;
 const material = new THREE.MeshLambertMaterial({ vertexColors: true });
 
 /** Merged chunk mesh: a top quad per tile plus side walls where the neighbour is lower. */
-export function buildChunkGeometry(tiles: Uint8Array, n: number, x0: number, y0: number, at: (x: number, y: number) => number): THREE.BufferGeometry {
+export function buildChunkGeometry(tiles: Uint8Array, levels: Uint8Array, n: number, x0: number, y0: number, heightAt: (x: number, y: number) => number): THREE.BufferGeometry {
   const pos: number[] = [], col: number[] = [], c = new THREE.Color();
   const quad = (v: number[][], shade: number) => {
     for (const k of [0, 1, 2, 0, 2, 3]) {
@@ -19,10 +19,10 @@ export function buildChunkGeometry(tiles: Uint8Array, n: number, x0: number, y0:
   };
   for (let j = 0; j < n; j++) {
     for (let i = 0; i < n; i++) {
-      const x = x0 + i, z = y0 + j, t = tiles[j * n + i], h = heightOf(t, x, z);
+      const x = x0 + i, z = y0 + j, t = tiles[j * n + i], h = heightOf(t, levels[j * n + i]);
       c.set(COLOR[t] ?? '#ff00ff');
       quad([[x, h, z], [x, h, z + 1], [x + 1, h, z + 1], [x + 1, h, z]], 0.94 + (((x * 73856093) ^ (z * 19349663)) & 15) / 150);
-      const lo = (nx: number, nz: number) => Math.min(h, heightOf(at(nx, nz), nx, nz));
+      const lo = (nx: number, nz: number) => Math.min(h, heightAt(nx, nz));
       let l = lo(x, z - 1);
       if (l < h) quad([[x + 1, h, z], [x + 1, l, z], [x, l, z], [x, h, z]], 0.8);
       l = lo(x, z + 1);
@@ -47,6 +47,7 @@ export class ChunkView {
   n = B.chunkSize;
   count = B.mapSize / B.chunkSize;
   tiles = new Map<string, Uint8Array>();
+  levels = new Map<string, Uint8Array>();
   meshes = new Map<string, THREE.Group>();
   asked = new Set<string>();
   nodes = new Map<string, ChunkNodes>();
@@ -62,9 +63,10 @@ export class ChunkView {
     this.asked.clear();
   }
 
-  add(cx: number, cy: number, b64: string, packed: PackedNode[]): void {
-    const key = `${cx},${cy}`;
-    this.tiles.set(key, Uint8Array.from(atob(b64), (ch) => ch.charCodeAt(0)));
+  add(cx: number, cy: number, b64: string, packed: PackedNode[], heights?: string): void {
+    const key = `${cx},${cy}`, tiles = Uint8Array.from(atob(b64), (ch) => ch.charCodeAt(0));
+    this.tiles.set(key, tiles);
+    this.levels.set(key, heights ? Uint8Array.from(atob(heights), (ch) => ch.charCodeAt(0)) : tiles.map(levelOf));
     this.nodes.set(key, new Map(packed.map(([local, k, left]) => [local, [k, left] as [number, number]])));
   }
 
@@ -85,8 +87,13 @@ export class ChunkView {
     return t ? t[(y % this.n) * this.n + (x % this.n)] : T.DEEP;
   }
 
+  levelAt(x: number, y: number): number {
+    const l = this.levels.get(`${Math.floor(x / this.n)},${Math.floor(y / this.n)}`);
+    return l ? l[(y % this.n) * this.n + (x % this.n)] : 0;
+  }
+
   heightAt(x: number, y: number): number {
-    return heightOf(this.tileAt(x, y), x, y);
+    return heightOf(this.tileAt(x, y), this.levelAt(x, y));
   }
 
   update(center: THREE.Vector3): void {
@@ -116,7 +123,7 @@ export class ChunkView {
       const old = g.children[1];
       g.remove(old);
       old.traverse((o) => { if (o instanceof THREE.InstancedMesh) o.dispose(); });
-      g.add(buildProps(this.models, this.tiles.get(key)!, this.nodes.get(key) ?? new Map(), this.n, cx * this.n, cy * this.n));
+      g.add(buildProps(this.models, this.tiles.get(key)!, this.levels.get(key)!, this.nodes.get(key) ?? new Map(), this.n, cx * this.n, cy * this.n));
       built++;
     }
     for (let i = 0; i < want.length; i += 64) this.request(want.slice(i, i + 64)); // gateway serves ≤64 per message
@@ -128,8 +135,9 @@ export class ChunkView {
 
   build(key: string, cx: number, cy: number, tiles: Uint8Array): void {
     const x0 = cx * this.n, y0 = cy * this.n, g = new THREE.Group();
-    g.add(new THREE.Mesh(buildChunkGeometry(tiles, this.n, x0, y0, (x, y) => this.tileAt(x, y)), material));
-    g.add(buildProps(this.models, tiles, this.nodes.get(key) ?? new Map(), this.n, x0, y0));
+    const levels = this.levels.get(key)!;
+    g.add(new THREE.Mesh(buildChunkGeometry(tiles, levels, this.n, x0, y0, (x, y) => this.heightAt(x, y)), material));
+    g.add(buildProps(this.models, tiles, levels, this.nodes.get(key) ?? new Map(), this.n, x0, y0));
     this.scene.add(g);
     this.meshes.set(key, g);
   }

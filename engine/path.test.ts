@@ -37,3 +37,11 @@ test('returns null for unreachable, deep-water or too-far targets', () => {
 test('standing on the target is an empty path', () => {
   assert.deepEqual(findPath(mapOf(['..']), [1, 0], [1, 0]), []);
 });
+
+test('climbs one level per step but never a cliff', () => {
+  const at = mapOf(['.....']);
+  const h = [1, 2, 3, 5, 5];
+  const step = (ax: number, _ay: number, bx: number) => Math.abs(h[bx] - h[ax]) <= 1;
+  assert.deepEqual(findPath(at, [0, 0], [2, 0], 128, step), [[1, 0], [2, 0]]);
+  assert.equal(findPath(at, [0, 0], [4, 0], 128, step), null);
+});

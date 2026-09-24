@@ -16,14 +16,14 @@ export const NODE_DEF: Record<NodeKind, { item: string; min: number; max: number
 };
 
 /** Bumped when placement rules change; loadWorld prunes nodes the new rules no longer place, once. */
-export const NODE_RULES = 4; // 2: half the berry bushes, 3: thinner forests, 4: nothing grows on mountains
+export const NODE_RULES = 5; // 2: half the berry bushes, 3: thinner forests, 4: nothing on mountains, 5: more rocks on foothills
 
 /** Which node grows on a tile. Seedless, so worlds saved before nodes existed can be backfilled. */
 export function nodeKindAt(t: number, x: number, y: number): NodeKind | null {
   const r = hash01(x, y);
   if (t === T.FOREST) return r < 0.22 ? 'tree' : r >= 0.4 && r < 0.42 ? 'berry_bush' : null;
   if (t === T.MEADOW) return r < 0.02 ? 'tree' : r < 0.035 ? 'berry_bush' : r >= 0.05 && r < 0.11 ? 'grass' : null;
-  if (t === T.HILLS) return r < 0.12 ? 'rock' : null;
+  if (t === T.HILLS) return r < 0.25 ? 'rock' : null;
   return null;
 }
 

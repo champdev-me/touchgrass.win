@@ -47,8 +47,11 @@ class MinHeap {
   }
 }
 
+/** May a walker step from (ax, ay) to the neighbouring (bx, by)? Heights, trees and such. */
+export type CanStep = (ax: number, ay: number, bx: number, by: number) => boolean;
+
 /** A* over 4-neighbour tiles inside a (2r+1)² box around the start. */
-export function findPath(at: (x: number, y: number) => number, from: Vec, to: Vec, radius: number = B.pathRadius): Vec[] | null {
+export function findPath(at: (x: number, y: number) => number, from: Vec, to: Vec, radius: number = B.pathRadius, canStep?: CanStep): Vec[] | null {
   const [sx, sy] = from, [tx, ty] = to;
   if (Math.abs(tx - sx) > radius || Math.abs(ty - sy) > radius || !walkable(at(tx, ty))) return null;
   const w = radius * 2 + 1, ox = sx - radius, oy = sy - radius;
@@ -67,7 +70,7 @@ export function findPath(at: (x: number, y: number) => number, from: Vec, to: Ve
       const nx = cx + dx, ny = cy + dy;
       if (nx < ox || ny < oy || nx >= ox + w || ny >= oy + w) continue;
       const t = at(nx, ny);
-      if (!walkable(t)) continue;
+      if (!walkable(t) || (canStep && !canStep(cx, cy, nx, ny))) continue;
       const ni = idx(nx, ny), ng = g[cur] + stepCost(t);
       if (ng < g[ni]) {
         g[ni] = ng;

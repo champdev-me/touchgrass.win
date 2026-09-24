@@ -6,7 +6,7 @@ import { adminAction } from './admin.ts';
 import { K, flush, loadWorld, saveAgentNow, saveAllNodes, saveTerrain } from './persist.ts';
 import { generateNodes } from './nodes.ts';
 import { appendReplay } from './replay.ts';
-import { generateTerrain } from './terrain.ts';
+import { generateLand } from './terrain.ts';
 import { GameFail, World } from './world.ts';
 
 export interface EngineOpts {
@@ -20,14 +20,16 @@ export interface EngineOpts {
 
 export async function startEngine(o: EngineOpts) {
   const r = o.redis;
-  let w = await loadWorld(r);
+  let w = await loadWorld(r, o.seed);
   if (w) {
     console.log(`[engine] restored world at tick ${w.tick} with ${w.agents.size} agents`);
   } else {
     const size = o.size ?? B.mapSize;
-    w = new World(generateTerrain(o.seed, size), size);
+    const land = generateLand(o.seed, size);
+    w = new World(land.tiles, size, Math.random, land.heights);
+    w.seed = o.seed;
     w.nodes = generateNodes(w.tiles, size);
-    await saveTerrain(r, w.tiles, size);
+    await saveTerrain(r, w.tiles, size, w.heights);
     await saveAllNodes(r, w);
     await flush(r, w);
     console.log(`[engine] generated a new ${size}x${size} world from seed "${o.seed}" with ${w.nodes.size} resource nodes`);

@@ -21,7 +21,7 @@ export function spawnCreature(w: World, kind: CreatureKind, [x, y]: Vec, pack = 
 /** Nothing stands on deep water or Plaza tiles; monsters also keep 40 tiles from the Plaza. */
 function canStand(w: World, kind: CreatureKind, x: number, y: number): boolean {
   const t = w.at(x, y);
-  if (!walkable(t) || t === T.PLAZA) return false;
+  if (!walkable(t) || t === T.PLAZA || w.solid(x, y)) return false;
   return !CREATURES[kind].monster || dist([x, y], w.plaza) > B.plazaSafeRadius;
 }
 
@@ -48,7 +48,7 @@ function move(w: World, c: Creature, score: (x: number, y: number) => number): v
   let best: Vec | null = null, bs = score(c.x, c.y);
   for (const [dx, dy] of STEPS) {
     const x = c.x + dx, y = c.y + dy;
-    if (!canStand(w, c.kind, x, y)) continue;
+    if (!canStand(w, c.kind, x, y) || !w.canStep(c.x, c.y, x, y)) continue;
     const s = score(x, y);
     if (s < bs) [bs, best] = [s, [x, y]];
   }
@@ -63,7 +63,7 @@ const away = (w: World, c: Creature, [tx, ty]: Vec) => move(w, c, (x, y) => -dis
 function wander(w: World, c: Creature): void {
   if (w.rng() >= B.wanderChance) return;
   const [dx, dy] = STEPS[Math.floor(w.rng() * STEPS.length)];
-  if (canStand(w, c.kind, c.x + dx, c.y + dy)) {
+  if (canStand(w, c.kind, c.x + dx, c.y + dy) && w.canStep(c.x, c.y, c.x + dx, c.y + dy)) {
     c.x += dx;
     c.y += dy;
     w.creaturesDirty = true;

@@ -15,7 +15,7 @@ import { buildObservation } from './observe.ts';
 import { findPath } from './path.ts';
 import { addScore } from './score.ts';
 import { findTarget, runTask } from './tasks.ts';
-import { stepCost, tileAt, walkable } from './terrain.ts';
+import { levelsOf, stepCost, tileAt, walkable } from './terrain.ts';
 
 /** A rule the agent broke; the dispatcher turns it into a GameError instead of a crash. */
 export class GameFail extends Error {
@@ -61,13 +61,29 @@ export class World {
   creaturesDirty = false;
   lastKickNews = -1_000_000; // flush on the next tick instead of waiting for the 5-tick flush
 
-  constructor(tiles: Uint8Array, size: number = B.mapSize, rng: () => number = Math.random) {
+  heights: Uint8Array;
+  seed = ''; // the land's generator seed, kept so migrations can regenerate it
+
+  constructor(tiles: Uint8Array, size: number = B.mapSize, rng: () => number = Math.random, heights: Uint8Array = levelsOf(tiles)) {
     this.tiles = tiles;
+    this.heights = heights;
     this.size = size;
     this.rng = rng;
   }
 
   at = (x: number, y: number): number => tileAt(this.tiles, x, y, this.size);
+
+  height = (x: number, y: number): number => (x < 0 || y < 0 || x >= this.size || y >= this.size ? 0 : this.heights[y * this.size + x]);
+
+  /** Trees and berry bushes are solid; robots and creatures stand next to them. */
+  solid = (x: number, y: number): boolean => {
+    const k = this.nodes.get(y * this.size + x)?.kind;
+    return k === 'tree' || k === 'berry_bush';
+  };
+
+  /** One level up or down per step, and never into a tree. */
+  canStep = (ax: number, ay: number, bx: number, by: number): boolean =>
+    Math.abs(this.height(bx, by) - this.height(ax, ay)) <= B.maxClimb && !this.solid(bx, by);
 
   get plaza(): Vec {
     return [this.size / 2, this.size / 2];
@@ -152,8 +168,9 @@ export class World {
       const deep = this.at(x, y) === T.DEEP;
       throw new GameFail('blocked', deep ? 'That is deep water. Your robot cannot swim that deep.' : 'That is a mountain. Your robot is not a goat.', 'Pick a land or shallow-water tile.');
     }
-    const path = findPath(this.at, [a.x, a.y], [x, y]);
-    if (!path) throw new GameFail('no_path', 'Your robot cannot find a way there.', `Targets must be within ${B.pathRadius} tiles and reachable without crossing deep water.`);
+    if (this.solid(x, y)) throw new GameFail('blocked', 'Something is growing there. Your robot cannot stand inside a tree.', 'Pick a tile next to it.');
+    const path = findPath(this.at, [a.x, a.y], [x, y], B.pathRadius, this.canStep);
+    if (!path) throw new GameFail('no_path', 'Your robot cannot find a way there.', `Targets must be within ${B.pathRadius} tiles and reachable without deep water or cliffs: robots climb one level per step.`);
     a.task = { type: 'move_to', target: [x, y], path };
     this.touch(a);
     this.emit('move', `${a.name} heads to (${x}, ${y}).`, a);
@@ -505,7 +522,7 @@ export class World {
     for (let r = 1; r < 128; r++) {
       for (let dy = -r; dy <= r; dy++) {
         for (let dx = -r; dx <= r; dx++) {
-          if (Math.max(Math.abs(dx), Math.abs(dy)) === r && walkable(this.at(x + dx, y + dy)) && this.at(x + dx, y + dy) !== T.SHALLOW) return [x + dx, y + dy];
+          if (Math.max(Math.abs(dx), Math.abs(dy)) === r && walkable(this.at(x + dx, y + dy)) && this.at(x + dx, y + dy) !== T.SHALLOW && !this.solid(x + dx, y + dy)) return [x + dx, y + dy];
         }
       }
     }
@@ -516,7 +533,7 @@ export class World {
     const [px, py] = this.plaza;
     for (let i = 0; i < 10000; i++) {
       const x = Math.floor(this.rng() * this.size), y = Math.floor(this.rng() * this.size);
-      if (this.at(x, y) === T.MEADOW && dist([x, y], [px, py]) >= B.spawnMinPlazaDist) return [x, y];
+      if (this.at(x, y) === T.MEADOW && !this.solid(x, y) && dist([x, y], [px, py]) >= B.spawnMinPlazaDist) return [x, y];
     }
     // ponytail: tiny test maps have no far meadow; first walkable tile is good enough there
     for (let i = 0; i < this.tiles.length; i++) {

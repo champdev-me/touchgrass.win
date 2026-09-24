@@ -1,9 +1,10 @@
 import { test } from 'bun:test';
 import assert from 'node:assert/strict';
 import { TERRAIN as T } from '../shared/types.ts';
-import { chunkBytes, generateTerrain, raiseMountains, tileAt, walkable, writeChunk } from './terrain.ts';
+import { chunkBytes, generateLand, generateTerrain, tileAt, walkable, writeChunk } from './terrain.ts';
 
-const big = generateTerrain('touchgrass-test');
+const land = generateLand('touchgrass-test');
+const big = land.tiles;
 
 test('same seed gives the same world, a different seed a different one', () => {
   assert.deepEqual(generateTerrain('a', 256), generateTerrain('a', 256));
@@ -31,15 +32,38 @@ test('chunks round-trip', () => {
   assert.deepEqual(copy, big);
 });
 
-test('hill interiors rise into impassable mountains with snowy peaks; foothills stay walkable', () => {
-  const n = 40, tiles = new Uint8Array(n * n).fill(T.MEADOW);
-  for (let y = 10; y < 30; y++) for (let x = 10; x < 30; x++) tiles[y * n + x] = T.HILLS;
-  raiseMountains(tiles, n);
-  const at = (x: number, y: number) => tiles[y * n + x];
-  assert.deepEqual([at(10, 20), at(11, 20), at(12, 20), at(14, 20), at(15, 20), at(20, 20)], [T.HILLS, T.HILLS, T.MOUNTAIN, T.MOUNTAIN, T.PEAK, T.PEAK]);
-  assert.deepEqual([walkable(T.HILLS), walkable(T.MOUNTAIN), walkable(T.PEAK)], [true, false, false]);
-  const again = new Uint8Array(tiles);
-  raiseMountains(again, n);
-  assert.deepEqual(again, tiles); // idempotent, so it can run on every old world once
-  assert.ok(big.includes(T.MOUNTAIN) && big.includes(T.PEAK));
+test('the island has mountain ranges, plains, sand, rivers and lakes', () => {
+  const n = 1024, c = n / 2, count = (t: number) => big.filter((x) => x === t).length;
+  assert.ok(count(T.MOUNTAIN) > 2000 && count(T.HIGH) > 500 && count(T.PEAK) > 100, `${count(T.MOUNTAIN)} ${count(T.HIGH)} ${count(T.PEAK)}`);
+  assert.deepEqual([walkable(T.HILLS), walkable(T.MOUNTAIN), walkable(T.DEEP)], [true, true, false]);
+  assert.ok(count(T.MEADOW) / big.length > 0.2, 'plains');
+  let inlandWater = 0, inlandSand = 0;
+  for (let y = 0; y < n; y++) {
+    for (let x = 0; x < n; x++) {
+      if (Math.max(Math.abs(x - c), Math.abs(y - c)) / c > 0.6) continue; // well away from the coast
+      const t = big[y * n + x];
+      if (t === T.SHALLOW || t === T.DEEP) inlandWater++;
+      if (t === T.SAND) inlandSand++;
+    }
+  }
+  assert.ok(inlandWater > 3000, `rivers and lakes: ${inlandWater}`);
+  assert.ok(inlandSand > 1000, `sandy patches: ${inlandSand}`);
+});
+
+test('height levels: water low, plains at 1, peaks towering; neighbours mostly within one step', () => {
+  const n = 1024, { tiles, heights } = land;
+  assert.equal(heights[0], 0); // the sea
+  let steep = 0, pairs = 0, maxPeak = 0;
+  for (let i = 0; i < tiles.length; i++) {
+    const t = tiles[i];
+    if (t === T.DEEP) assert.ok(heights[i] <= 4, `deep water at ${heights[i]}`); // the sea is 0; mountain lakes sit a little higher
+    if (t === T.MEADOW || t === T.FOREST) assert.ok(heights[i] >= 1 && heights[i] <= 2, `plains at ${heights[i]}`);
+    if (t === T.PEAK) maxPeak = Math.max(maxPeak, heights[i]);
+    if (i % n < n - 1 && walkable(t) && walkable(tiles[i + 1]) && heights[i] < 5 && heights[i + 1] < 5) { // lowlands: mountains may have cliffs
+      pairs++;
+      if (Math.abs(heights[i] - heights[i + 1]) > 1) steep++;
+    }
+  }
+  assert.ok(maxPeak >= 18, `peaks reach ${maxPeak}`);
+  assert.ok(steep / pairs < 0.01, `lowland cliffs are rare: ${steep}/${pairs}`);
 });

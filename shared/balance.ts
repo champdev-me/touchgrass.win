@@ -10,8 +10,8 @@ export const B = {
   scoutVision: 15,
   nightVisionFactor: 0.5,
   plazaHalf: 20,
-  mountainFrom: 3, // hill tiles this far from the hill edge become mountains
-  peakFrom: 6, // ...and snowy peaks from here
+  maxClimb: 1, // height levels a robot or creature can step up or down in one move
+  rivers: 14, // per 1024x1024 map
   spawnMinPlazaDist: 50,
   inboxMax: 20,
   doCooldownMs: 5000,

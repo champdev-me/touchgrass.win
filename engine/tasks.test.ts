@@ -28,7 +28,7 @@ test('gather walks to the nearest node, harvests every 2 ticks, and stops at unt
   bush(w, 2, 0);
   w.gather(a.id, 'berry_bush', 3);
   steps(w, 7);
-  assert.deepEqual([a.x, a.y, a.inventory.berries, w.nodes.get(w.index(2, 0))!.left, a.task], [2, 0, 3, 2, null]);
+  assert.deepEqual([a.x, a.y, a.inventory.berries, w.nodes.get(w.index(2, 0))!.left, a.task], [1, 0, 3, 2, null]); // bushes are solid: it stops beside it
   assert.equal(w.observe(a.id).inbox.at(-1), 'Task done: gathered 3 berries.');
   assert.equal(a.stats['gather:berries'], 3);
 });
