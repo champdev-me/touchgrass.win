@@ -3,7 +3,7 @@ import { dist } from '../shared/geo.ts';
 import { FOOD, room, slotsOf, type Inventory } from '../shared/items.ts';
 import { CREATURES } from '../shared/creatures.ts';
 import { timeOf } from '../shared/time.ts';
-import { GATHER_TARGETS, ROLES, TERRAIN as T, type Agent, type AgentView, type Bubble, type Creature, type CreatureView, type GameEvent, type GatherTarget, type Role, type TickDelta, type Vec } from '../shared/types.ts';
+import { GATHER_TARGETS, ROLES, TERRAIN as T, type Agent, type AgentView, type Bubble, type Creature, type CreatureView, type Structure, type StructureView, type GameEvent, type GatherTarget, type Role, type TickDelta, type Vec } from '../shared/types.ts';
 import { checkAchievements } from './achievements.ts';
 import { AGENT_COLORS, normalizeAgent } from './agent.ts';
 import { BUFFET_SUFFIX, say } from './lines.ts';
@@ -59,7 +59,9 @@ export class World {
   creatures = new Map<string, Creature>();
   nextMobId = 1;
   creaturesDirty = false;
-  lastKickNews = -1_000_000; // flush on the next tick instead of waiting for the 5-tick flush
+  lastKickNews = -1_000_000;
+  structures = new Map<number, Structure>();
+  structuresDirty = false; // flush on the next tick instead of waiting for the 5-tick flush
 
   heights: Uint8Array;
   seed = ''; // the land's generator seed, kept so migrations can regenerate it
@@ -77,8 +79,8 @@ export class World {
 
   /** Trees and berry bushes are solid; robots and creatures stand next to them. */
   solid = (x: number, y: number): boolean => {
-    const k = this.nodes.get(y * this.size + x)?.kind;
-    return k === 'tree' || k === 'berry_bush';
+    const i = y * this.size + x, k = this.nodes.get(i)?.kind;
+    return k === 'tree' || k === 'berry_bush' || this.structures.has(i);
   };
 
   /** One level up or down per step, and never into a tree. */
@@ -339,7 +341,7 @@ export class World {
     const nodes = this.nodeChanges;
     this.events = [];
     this.nodeChanges = [];
-    return { tick: this.tick, agents: this.views(), events, nodes, loot: [...this.loot.keys()].map((i) => this.xy(i)), creatures: this.creatureViews() };
+    return { tick: this.tick, agents: this.views(), events, nodes, loot: [...this.loot.keys()].map((i) => this.xy(i)), creatures: this.creatureViews(), structures: this.structureViews() };
   }
 
   stepAgent(a: Agent, dayTick: number): void {
@@ -348,6 +350,7 @@ export class World {
       return;
     }
     if (dayTick === 0 && a.task?.type === 'sleep') this.interrupt(a, 'The sun woke you up.');
+    if (timeOf(this.tick).phase === 'night' && (a.inventory.torch ?? 0) > 0) a.wear.torch = (a.wear.torch ?? 600) - 1; // Task 3: useGear
     const charging = a.autoFlee && a.task?.type !== 'attack' && a.task?.type !== 'flee' ? this.chargingAt(a) : null;
     if (charging) {
       a.task = { type: 'flee', from: charging.id }; // reflex; attack() or settings(auto_flee=false) to stand and fight
@@ -403,6 +406,26 @@ export class World {
     pile.expiresAt = this.tick + B.lootTicks;
     this.loot.set(i, pile);
     this.lootDirty = true;
+  }
+
+  stationNear(a: Agent, kind: string): boolean {
+    for (const [i, s] of this.structures) {
+      if (s.kind !== kind || dist(this.xy(i), [a.x, a.y]) > B.stationRange) continue;
+      if (kind !== 'campfire' || s.litUntil > this.tick) return true;
+    }
+    return false;
+  }
+
+  /** Campfires (and robots carrying torches at night) keep monsters from appearing. */
+  lit(x: number, y: number): boolean {
+    for (const [i, s] of this.structures) if (s.kind === 'campfire' && s.litUntil > this.tick && dist(this.xy(i), [x, y]) <= B.campfireLight) return true;
+    if (timeOf(this.tick).phase !== 'night') return false;
+    for (const a of this.agents.values()) if (a.joined && !a.dead && (a.inventory.torch ?? 0) > 0 && dist([a.x, a.y], [x, y]) <= B.torchLight) return true;
+    return false;
+  }
+
+  structureViews(): StructureView[] {
+    return [...this.structures].map(([i, s]) => [...this.xy(i), s.kind, s.kind === 'campfire' && s.litUntil > this.tick]);
   }
 
   creatureViews(): CreatureView[] {

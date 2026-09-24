@@ -1,4 +1,5 @@
 import type { CreatureKind } from './creatures.ts';
+import type { StructureKind } from './items.ts';
 
 export const TERRAIN = { DEEP: 0, SHALLOW: 1, SAND: 2, MEADOW: 3, FOREST: 4, HILLS: 5, RUINS: 6, PLAZA: 7, MOUNTAIN: 8, PEAK: 9, HIGH: 10 } as const;
 export type Terrain = (typeof TERRAIN)[keyof typeof TERRAIN];
@@ -139,6 +140,13 @@ export interface Creature {
   hitAt: number; // tick of its last bite
 }
 
+export interface Structure {
+  kind: StructureKind;
+  owner: string; // agent id
+  litUntil: number; // tick; campfires only
+}
+export type StructureView = [number, number, StructureKind, boolean]; // x, y, kind, lit
+
 export interface CreatureView {
   id: string;
   kind: CreatureKind;
@@ -167,6 +175,7 @@ export interface TickDelta {
   nodes: [number, number][]; // [global tile index, units left] changed this tick
   loot: Vec[]; // every loot pile currently on the map
   creatures: CreatureView[];
+  structures: StructureView[];
 }
 
 export type ServerMsg =

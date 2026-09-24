@@ -42,6 +42,10 @@ export const B = {
   inventorySlots: 12,
   stackSize: 20, // gear (tools, weapons, armor) never stacks
   backpackSlots: 6,
+  stationRange: 2,
+  campfireTicks: 600, // lit this long when built, +this per fuel (1 wood)
+  campfireLight: 6,
+  torchLight: 3,
   startGold: 10,
   gatherUntilFull: 9999,
   // death

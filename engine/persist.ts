@@ -2,7 +2,7 @@ import { B } from '../shared/balance.ts';
 import { trimBag } from '../shared/items.ts';
 import { CHAT_STREAM, recentChat, type Redis } from '../shared/redis.ts';
 import { TERRAIN as T } from '../shared/types.ts';
-import type { Agent, Creature, PackedNode } from '../shared/types.ts';
+import type { Agent, Creature, PackedNode, Structure } from '../shared/types.ts';
 import { normalizeAgent } from './agent.ts';
 import { NODE_RULES, chunkOf, generateNodes, nodeKindAt, packChunk, unpackChunk } from './nodes.ts';
 import { TERRAIN_RULES, chunkBytes, generateLand, levelsOf, walkable, writeChunk } from './terrain.ts';
@@ -10,7 +10,7 @@ import { World, type LootPile } from './world.ts';
 
 export const BAG_RULES = 2; // 2: small bags
 
-export const K = { meta: 'meta', terrain: 'terrain', agents: 'agents', nodes: 'nodes', loot: 'loot', firsts: 'firsts', chat: CHAT_STREAM, creatures: 'creatures', heights: 'heights' } as const;
+export const K = { meta: 'meta', terrain: 'terrain', agents: 'agents', nodes: 'nodes', loot: 'loot', firsts: 'firsts', chat: CHAT_STREAM, creatures: 'creatures', heights: 'heights', structures: 'structures' } as const;
 
 const chunkKeys = (size: number): string[] => {
   const n = size / B.chunkSize, keys: string[] = [];
@@ -54,6 +54,9 @@ export async function flush(r: Redis, w: World): Promise<void> {
   const firstsWasDirty = w.firstsDirty;
   if (firstsWasDirty && Object.keys(w.firsts).length) m.hSet(K.firsts, w.firsts);
   w.firstsDirty = false;
+  const structuresWereDirty = w.structuresDirty;
+  if (structuresWereDirty) m.set(K.structures, JSON.stringify([...w.structures]));
+  w.structuresDirty = false;
   const creaturesWereDirty = w.creaturesDirty;
   if (creaturesWereDirty) m.set(K.creatures, JSON.stringify([...w.creatures.values()]));
   w.creaturesDirty = false;
@@ -68,6 +71,7 @@ export async function flush(r: Redis, w: World): Promise<void> {
     w.lootDirty ||= lootWasDirty;
     w.firstsDirty ||= firstsWasDirty;
     w.creaturesDirty ||= creaturesWereDirty;
+    w.structuresDirty ||= structuresWereDirty;
     throw e;
   }
 }
@@ -154,6 +158,8 @@ export async function loadWorld(r: Redis, seed = 'touchgrass-season-1'): Promise
     }
   }
   w.firsts = await r.hGetAll(K.firsts);
+  const st = await r.get(K.structures);
+  if (st) w.structures = new Map(JSON.parse(st) as [number, Structure][]);
   w.nextMobId = Number(meta.nextMobId) || 1;
   const mobs = await r.get(K.creatures);
   if (mobs) for (const c of JSON.parse(mobs) as Creature[]) w.creatures.set(c.id, c);

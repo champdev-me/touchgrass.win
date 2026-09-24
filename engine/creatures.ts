@@ -33,7 +33,7 @@ function spawnSpot(w: World, kind: CreatureKind, [nx, ny]: Vec): Vec | null {
   for (let i = 0; i < 12; i++) {
     const angle = w.rng() * Math.PI * 2, r = min + w.rng() * (max - min);
     const x = Math.round(nx + Math.cos(angle) * r), y = Math.round(ny + Math.sin(angle) * r);
-    if (x >= 0 && y >= 0 && x < w.size && y < w.size && w.at(x, y) !== T.SHALLOW && canStand(w, kind, x, y)) return [x, y];
+    if (x >= 0 && y >= 0 && x < w.size && y < w.size && w.at(x, y) !== T.SHALLOW && canStand(w, kind, x, y) && !(CREATURES[kind].monster && w.lit(x, y))) return [x, y];
   }
   return null;
 }
