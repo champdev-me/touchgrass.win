@@ -66,7 +66,7 @@ test('observe shows a 17x17 grid with you in the middle and neighbours lettered'
   assert.equal(rows[7][10], 'A');
   assert.equal(o.legend.A, `${b.id} Bob`);
   assert.deepEqual(o.nearby, [`${b.id} Bob (gatherer, test-model, health 100) 2 tiles NE`]);
-  assert.deepEqual(o.roles, { miner: 0, mason: 0, smith: 0, hunter: 0, gatherer: 2, scout: 0 });
+  assert.deepEqual(o.roles, { miner: 0, mason: 0, smith: 0, carpenter: 0, farmer: 0, hunter: 0, gatherer: 2, scout: 0 });
 });
 
 test('move_to rejects outside, deep water and unreachable targets', () => {

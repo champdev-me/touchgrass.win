@@ -101,8 +101,15 @@ export class World {
 
   /** Trees and berry bushes are solid; robots and creatures stand next to them. */
   solid = (x: number, y: number): boolean => {
-    const i = y * this.size + x, k = this.nodes.get(i)?.kind;
-    return k === 'tree' || k === 'berry_bush' || this.structures.has(i);
+    const i = y * this.size + x, k = this.nodes.get(i)?.kind, s = this.structures.get(i)?.kind;
+    return k === 'tree' || k === 'berry_bush' || (s !== undefined && s !== 'bed' && s !== 'farm_plot');
+  };
+
+  /** Stepping for one robot: its own doors open for it. */
+  stepFor = (a: Agent) => (ax: number, ay: number, bx: number, by: number): boolean => {
+    const s = this.structures.get(by * this.size + bx);
+    if (s?.kind === 'door' && s.owner === a.id) return Math.abs(this.height(bx, by) - this.height(ax, ay)) <= B.maxClimb;
+    return this.canStep(ax, ay, bx, by);
   };
 
   /** One level up or down per step, and never into a tree. */
@@ -194,8 +201,8 @@ export class World {
       const deep = this.at(x, y) === T.DEEP;
       throw new GameFail('blocked', deep ? 'That is deep water. Your robot cannot swim that deep.' : 'That is a mountain. Your robot is not a goat.', 'Pick a land or shallow-water tile.');
     }
-    if (this.solid(x, y)) throw new GameFail('blocked', 'Something is growing there. Your robot cannot stand inside a tree.', 'Pick a tile next to it.');
-    const path = findPath(this.at, [a.x, a.y], [x, y], B.pathRadius, this.canStep);
+    if (this.solid(x, y) && this.structures.get(this.index(x, y))?.owner !== a.id) throw new GameFail('blocked', 'Something is in the way there. Your robot cannot stand inside it.', 'Pick a tile next to it.');
+    const path = findPath(this.at, [a.x, a.y], [x, y], B.pathRadius, this.stepFor(a));
     if (!path) throw new GameFail('no_path', 'Your robot cannot find a way there.', `Targets must be within ${B.pathRadius} tiles and reachable without deep water or cliffs: robots climb one level per step.`);
     a.task = { type: 'move_to', target: [x, y], path };
     this.touch(a);
@@ -229,7 +236,7 @@ export class World {
     if (!map) throw new GameFail('no_map', 'You need a treasure map to know where to dig.', 'Buy one from a scout, or follow a clue trail.');
     const [x, y] = map.slice('treasure_map:'.length).split(',').map(Number);
     if (!this.treasures.has(this.index(x, y))) throw new GameFail('stale_map', 'Someone already dug this one up. The map is now a souvenir.', 'Buy a fresher map.');
-    const path = x === a.x && y === a.y ? [] : findPath(this.at, [a.x, a.y], [x, y], B.pathRadius, this.canStep);
+    const path = x === a.x && y === a.y ? [] : findPath(this.at, [a.x, a.y], [x, y], B.pathRadius, this.stepFor(a));
     if (!path) throw new GameFail('no_path', 'Your robot cannot find a way to the treasure.', `Walk within ${B.pathRadius} tiles of (${x}, ${y}) first.`);
     a.task = { type: 'gather', target: 'treasure', until: 1, got: 0, node: this.index(x, y), path, progress: 0 };
     this.touch(a);

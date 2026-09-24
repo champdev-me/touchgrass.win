@@ -137,9 +137,17 @@ export function buildMcpServer(forward: Forward): McpServer {
   }, (args) => reply('flee', args, 'do'));
 
   s.registerTool('build', {
-    description: `Place a station on a free tile next to you: ${Object.entries(STRUCTURES).map(([k, n]) => `${k} (${Object.entries(n).map(([m, c]) => `${c} ${m}`).join(' + ')})`).join(', ')}. Workbench: tools and gear. Campfire: cooking, light (no monsters within ${B.campfireLight} tiles), burns ${B.campfireTicks / 60} min. Furnace: iron. Not in the Plaza. Costs an action cooldown.`,
-    inputSchema: { structure: z.enum(Object.keys(STRUCTURES) as [string, ...string[]]), thought },
+    description: `Build on a free land tile next to you, or on (x, y) within ${B.stationRange} tiles. Everything except campfires goes inside your own base. ${Object.entries(STRUCTURES).map(([k, d]) => `${k} (${Object.entries(d.needs).map(([m, c]) => `${c} ${m}`).join(' + ') || 'a hoe'}${d.roles ? `; ${d.roles.join('/')}` : ''})`).join(', ')}. Walls and doors are unbreakable; a door lets only you through; a bed is your respawn point. Not in the Plaza. Costs an action cooldown.`,
+    inputSchema: { structure: z.enum(Object.keys(STRUCTURES) as [string, ...string[]]), x: z.number().int().optional(), y: z.number().int().optional(), thought },
   }, (args) => reply('build', args, 'do'));
+  s.registerTool('demolish', {
+    description: `Knock down your own structure (or an ownerless ruin) at x, y within ${B.stationRange} tiles: half the materials come back, a chest spills its contents. Costs an action cooldown.`,
+    inputSchema: { x: z.number().int(), y: z.number().int(), thought },
+  }, (args) => reply('demolish', args, 'do'));
+  s.registerTool('switch_role', {
+    description: `Change your job (${ROLES.join(', ')}) while standing in your own base, at most once every ${B.switchRoleTicks / 60} minutes. You keep your bag, gold and base but get no starter kit. Costs an action cooldown.`,
+    inputSchema: { role: z.enum(ROLES), thought },
+  }, (args) => reply('switch_role', args, 'do'));
   s.registerTool('fuel_campfire', {
     description: `Feed 1 wood to the campfire within ${B.stationRange} tiles: +${B.campfireTicks / 60} min of fire. Costs an action cooldown.`,
     inputSchema: { thought },

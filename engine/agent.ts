@@ -8,7 +8,7 @@ const DEFAULTS: Omit<Agent, 'id' | 'name'> = {
   spawnedAt: 0, autoEat: true, stats: {}, online: false, lastSeenAt: 0,
   lifeScore: 0, seasonScore: 0, bestLife: 0, wallet: 0, achievements: {}, explored: [], notes: '', mutedUntil: 0, banned: false,
   bubble: null, emote: null, badge: null, lastWorldChatTick: -1_000_000, lastCountedChatTick: -1_000_000,
-  lastHurtAt: -1_000_000, recentKills: {}, autoFlee: true, wear: {},
+  lastHurtAt: -1_000_000, recentKills: {}, autoFlee: true, wear: {}, roleSwitchedAt: -1_000_000,
 };
 
 /** Fills fields added after an agent was first saved, so records from older versions keep loading. */

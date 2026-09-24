@@ -21,6 +21,7 @@ export const ITEMS: Record<string, ItemDef> = {
   wood: { kind: 'material' }, stone: { kind: 'material' }, fiber: { kind: 'material' }, hide: { kind: 'material' },
   iron_ore: { kind: 'material' }, iron: { kind: 'material' }, crystal: { kind: 'material' },
   mud: { kind: 'material' }, gem: { kind: 'material' }, herb: { kind: 'material' }, brick: { kind: 'material' },
+  wheat: { kind: 'material' }, wheat_seed: { kind: 'material' }, berry_seed: { kind: 'material' },
   bandage: { kind: 'food' },
   berries: { kind: 'food' }, apple: { kind: 'food' }, meat: { kind: 'food' }, battery: { kind: 'food' }, cooked_meat: { kind: 'food' },
   grass_salad: { kind: 'food' }, marshmallow: { kind: 'food' }, roasted_marshmallow: { kind: 'food' },
@@ -39,6 +40,7 @@ export const ITEMS: Record<string, ItemDef> = {
   waterskin: { kind: 'gear', uses: 5 }, // drinks; refills at water
   backpack: { kind: 'gear' },
   lucky_charm: { kind: 'gear' }, // a chance of double yield on any gather
+  hoe: { kind: 'tool', uses: 50 }, // one use per tilled farm plot
 };
 
 export const FOOD: Record<string, { food: number; water: number; energy?: number; health?: number; tummy?: boolean }> = {
@@ -82,11 +84,17 @@ export const RECIPES: Record<string, { station: Station; needs: Inventory; roles
 export const WEAPONS: Record<string, number> = Object.fromEntries(Object.entries(ITEMS).flatMap(([k, d]) => (d.damage ? [[k, d.damage]] : [])));
 
 
-export type StructureKind = 'workbench' | 'campfire' | 'furnace' | 'kiln' | 'chest';
+export type StructureKind = 'workbench' | 'campfire' | 'furnace' | 'kiln' | 'chest' | 'wood_wall' | 'stone_wall' | 'brick_wall' | 'door' | 'bed' | 'farm_plot';
 export const STRUCTURES: Record<StructureKind, { needs: Inventory; roles?: Role[] }> = {
   chest: { needs: { wood: 4 } },
   campfire: { needs: { wood: 5, stone: 3 } },
-  workbench: { needs: { wood: 6, stone: 2 }, roles: ['smith'] },
+  workbench: { needs: { wood: 6, stone: 2 }, roles: ['carpenter'] },
+  wood_wall: { needs: { wood: 4 }, roles: ['carpenter'] },
+  stone_wall: { needs: { stone: 4 }, roles: ['mason'] },
+  brick_wall: { needs: { brick: 4 }, roles: ['mason'] },
+  door: { needs: { wood: 6 }, roles: ['carpenter'] },
+  bed: { needs: { wood: 10, fiber: 10 }, roles: ['carpenter'] },
+  farm_plot: { needs: {}, roles: ['farmer'] }, // tilled with a hoe
   kiln: { needs: { stone: 8 }, roles: ['mason'] },
   furnace: { needs: { stone: 4, brick: 6 }, roles: ['mason'] },
 };
@@ -96,6 +104,7 @@ export const isStructure = (s: string): s is StructureKind => s in STRUCTURES;
 export const KITS: Record<Role, Inventory> = {
   miner: { stone_pickaxe: 1 }, mason: { stone_pickaxe: 1 }, smith: { wood: 6, stone: 2 },
   hunter: { stone_spear: 1 }, gatherer: { stone_axe: 1 }, scout: { torch: 1 },
+  carpenter: { wood: 10 }, farmer: { hoe: 1, wheat_seed: 3 },
 };
 
 const GEAR: ItemKind[] = ['tool', 'weapon', 'armor', 'gear'];

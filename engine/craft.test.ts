@@ -13,6 +13,11 @@ function robot(w: World, at: Vec, bag: Record<string, number> = {}, role: Role =
   w.join(a.id, role, null, 0);
   [a.x, a.y] = at;
   a.inventory = bag;
+  // a roomy test base around the robot, unless it would overlap a neighbour's
+  const mine = { owner: a.id, x0: at[0] - 6, y0: at[1] - 6, x1: at[0] + 6, y1: at[1] + 6, flag: at };
+  const clash = [...w.bases.values()].some((b) => b.owner !== a.id && b.x0 <= mine.x1 && mine.x0 <= b.x1 && b.y0 <= mine.y1 && mine.y0 <= b.y1);
+  if (clash) w.bases.delete(a.id);
+  else w.bases.set(a.id, mine);
   return a;
 }
 const failCode = (fn: () => unknown) => {
@@ -26,12 +31,15 @@ const failCode = (fn: () => unknown) => {
 
 test('hand recipes work anywhere; station recipes need the station within 2 tiles', () => {
   const w = world();
-  const a = robot(w, [10, 10], { wood: 20, stone: 10, fiber: 10 }, 'smith');
+  const a = robot(w, [10, 10], { wood: 20, stone: 10, fiber: 10 }, 'carpenter');
   assert.deepEqual(craft(w, a.id, 'torch', 2).crafted, 'torch');
   assert.equal(a.inventory.torch, 2);
+  a.role = 'smith';
   assert.equal(failCode(() => craft(w, a.id, 'stone_axe')), 'no_station');
+  a.role = 'carpenter';
   build(w, a.id, 'workbench');
   assert.equal(a.inventory.wood, 20 - 2 - 6);
+  a.role = 'smith';
   craft(w, a.id, 'stone_axe');
   assert.equal(a.inventory.stone_axe, 1);
   a.x = 20;
@@ -76,8 +84,7 @@ test('iron comes from a mason furnace; iron gear needs no blueprint any more', (
   const a = robot(w, [10, 11], { stone: 2, wood: 10, iron_ore: 3 }, 'smith');
   craft(w, a.id, 'iron', 3);
   assert.equal(a.inventory.iron, 3);
-  a.inventory.wood += 6;
-  build(w, a.id, 'workbench');
+  w.structures.set(w.index(12, 11), { kind: 'workbench', owner: m.id, litUntil: 0 }); // a carpenter's work
   craft(w, a.id, 'frying_pan');
   assert.equal(a.inventory.frying_pan, 1);
 });
@@ -101,14 +108,11 @@ test('only smiths craft at the workbench; anyone crafts by hand and cooks', () =
   assert.equal(h.inventory.club, 1);
 });
 
-test('builds: chests for anyone (max 3), kiln and furnace for masons, workbench for smiths', () => {
+test('builds: chests for anyone and as many as you like, furnaces for masons, workbenches for carpenters', () => {
   const w = world();
   const g = robot(w, [10, 10], { wood: 20 }, 'gatherer');
-  for (let i = 0; i < 3; i++) {
-    build(w, g.id, 'chest');
-    g.x += 3;
-  }
-  assert.equal(failCode(() => build(w, g.id, 'chest')), 'too_many_chests');
+  for (let i = 0; i < 4; i++) build(w, g.id, 'chest');
+  assert.equal([...w.structures.values()].filter((st) => st.kind === 'chest').length, 4);
   const s = robot(w, [30, 30], { stone: 10, brick: 6 }, 'smith');
   assert.equal(failCode(() => build(w, s.id, 'furnace')), 'wrong_role');
   assert.equal(failCode(() => build(w, g.id, 'workbench')), 'wrong_role');

@@ -2,6 +2,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import type { GameError, Vec } from '../shared/types.ts';
+import { username } from './names.ts';
 
 const BASE = process.env.TG_URL ?? 'http://localhost:3000';
 const COUNT = Number(process.env.BOTS ?? 10);
@@ -39,7 +40,7 @@ async function tokens(): Promise<string[]> {
   while (saved.length < COUNT) {
     const res = await fetch(`${BASE}/signup`, {
       method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ name: `Bot ${Math.random().toString(36).slice(2, 7)}` }),
+      body: JSON.stringify({ name: username() }),
     });
     const body = (await res.json()) as { token: string; message?: string };
     if (!res.ok) throw new Error(`signup failed: ${body.message}`);

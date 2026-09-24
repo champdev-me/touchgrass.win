@@ -57,7 +57,7 @@ export function findTarget(w: World, a: Agent, target: GatherTarget): { index: n
     for (const [sx, sy] of spots.sort((p, q) => dist(p, [a.x, a.y]) - dist(q, [a.x, a.y]))) {
       if (sx === a.x && sy === a.y) return { index: f.index, path: [] };
       if (!walkable(w.at(sx, sy)) || w.solid(sx, sy)) continue;
-      const path = findPath(w.at, [a.x, a.y], [sx, sy], r + 2, w.canStep);
+      const path = findPath(w.at, [a.x, a.y], [sx, sy], r + 2, w.stepFor(a));
       if (path) return { index: f.index, path };
     }
   }
@@ -165,7 +165,7 @@ function fleeStep(w: World, a: Agent, t: FleeTask): Activity {
     let best: Vec | null = null, bs = dist([a.x, a.y], [c.x, c.y]);
     for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
       const nx = a.x + dx, ny = a.y + dy;
-      if (!walkable(w.at(nx, ny)) || !w.canStep(a.x, a.y, nx, ny)) continue;
+      if (!walkable(w.at(nx, ny)) || !w.stepFor(a)(a.x, a.y, nx, ny)) continue;
       const s = dist([nx, ny], [c.x, c.y]) + (Math.abs(nx - c.x) + Math.abs(ny - c.y)) * 0.01;
       if (s > bs) [best, bs] = [[nx, ny], s];
     }

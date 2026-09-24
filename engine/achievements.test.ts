@@ -80,7 +80,7 @@ test('rules and observe expose the new systems', () => {
 test('rules explain roles, trading and treasure, and never mention the Smith NPC', () => {
   const r = rules(world());
   const text = JSON.stringify(r);
-  assert.ok(r.roles.length === 6 && r.trading.length > 0 && r.treasure.length > 0);
+  assert.ok(r.roles.length === 8 && r.trading.length > 0 && r.treasure.length > 0);
   assert.ok(!/the Smith at the Plaza|smith\(/i.test(text));
   assert.ok(r.economy.some((l) => l.includes('Gold enters only through miners')));
 });

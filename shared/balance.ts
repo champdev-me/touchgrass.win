@@ -34,6 +34,7 @@ export const B = {
   baseNear: [8, 100], // tiles from another robot's flag or spawn
   baseTries: 300,
   baseMaxSide: 32,
+  switchRoleTicks: 600,
   tradeRange: 3,
   offerTicks: 60,
   bigTradeGold: 50, // trades this big make world news
@@ -46,7 +47,6 @@ export const B = {
   clueFuzz: 8, // non-scouts read a clue as an area this wide
   clueHop: [20, 60], // tiles between finds on a trail
   noPickaxeDig: 3, // digging treasure by hand takes this many times longer
-  maxChests: 3,
   chestSlots: 12,
   luckyChance: 0.1, // lucky charm: chance of double yield
   punchEnergy: 0.3, // per tick spent punching a node

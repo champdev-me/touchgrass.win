@@ -3,7 +3,7 @@ import { dist } from '../shared/geo.ts';
 import { ITEMS, RECIPES, STRUCTURES, addItem, isStructure, takeItem, type Inventory } from '../shared/items.ts';
 import { TERRAIN as T, type Agent, type Vec } from '../shared/types.ts';
 import { addScore } from './score.ts';
-import { lockCheck } from './bases.ts';
+import { isLand, lockCheck } from './bases.ts';
 import { walkable } from './terrain.ts';
 import { GameFail, type World } from './world.ts';
 
@@ -34,21 +34,30 @@ export function craft(w: World, id: string, item: string, count = 1) {
   return { crafted: item, count: made, inventory: a.inventory };
 }
 
-/** Places a station on the first free tile next to you. */
-export function build(w: World, id: string, kind: string) {
+const free = (w: World, x: number, y: number) =>
+  isLand(w, x, y) && !w.structures.has(w.index(x, y)) && !w.nodes.has(w.index(x, y)) && ![...w.agents.values()].some((o) => o.joined && !o.dead && o.x === x && o.y === y);
+
+/** Places a structure on a free tile next to you, or on (x, y) within 2 tiles. Only campfires go outside your base. */
+export function build(w: World, id: string, kind: string, x?: number, y?: number) {
   const a = w.alive(id);
   if (!isStructure(kind)) throw new GameFail('bad_structure', `You cannot build "${kind}".`, `Buildable: ${Object.keys(STRUCTURES).join(', ')}.`);
   if (w.at(a.x, a.y) === T.PLAZA) throw new GameFail('plaza_rules', 'No building in the Plaza. It is for trading.', 'Walk out of the Plaza first.');
   const def = STRUCTURES[kind], cost = def.needs;
-  if (def.roles && !def.roles.includes(a.role!)) throw new GameFail('wrong_role', `Only ${def.roles.join(' or ')}s can build a ${kind}.`, `Ask a ${def.roles[0]} to build one; anyone may use it.`);
-  if (kind === 'chest' && [...w.structures.values()].filter((s) => s.kind === 'chest' && s.owner === a.id).length >= B.maxChests) {
-    throw new GameFail('too_many_chests', `You already own ${B.maxChests} chests.`, 'Empty one and use that.');
-  }
+  if (def.roles && !def.roles.includes(a.role!)) throw new GameFail('wrong_role', `Only ${def.roles.join(' or ')}s can build a ${kind}.`, `Ask a ${def.roles[0]} to build one, or switch_role at home.`);
+  if (kind === 'bed' && [...w.structures.values()].some((s) => s.kind === 'bed' && s.owner === a.id)) throw new GameFail('one_bed', 'You already have a bed.', 'demolish the old one first.');
   if (!has(a, cost)) throw new GameFail('missing_materials', `You need ${missing(a, cost)} more.`, 'Gather them first.');
-  const spot = ([[1, 0], [-1, 0], [0, 1], [0, -1]] as Vec[]).map(([dx, dy]): Vec => [a.x + dx, a.y + dy])
-    .find(([x, y]) => walkable(w.at(x, y)) && w.at(x, y) !== T.SHALLOW && w.at(x, y) !== T.PLAZA && !w.solid(x, y) && Math.abs(w.height(x, y) - w.height(a.x, a.y)) <= B.maxClimb);
-  if (spot) lockCheck(w, a, spot[0], spot[1]);
+  let spot: Vec | undefined;
+  if (x !== undefined && y !== undefined) {
+    if (!Number.isInteger(x) || !Number.isInteger(y) || dist([x, y], [a.x, a.y]) > B.stationRange) throw new GameFail('too_far', `Build within ${B.stationRange} tiles of you.`, 'Walk closer.');
+    if (!free(w, x, y)) throw new GameFail('no_space', 'That tile is not free open land.', 'Pick an empty land tile.');
+    spot = [x, y];
+  } else {
+    spot = ([[1, 0], [-1, 0], [0, 1], [0, -1]] as Vec[]).map(([dx, dy]): Vec => [a.x + dx, a.y + dy])
+      .find(([sx, sy]) => free(w, sx, sy) && Math.abs(w.height(sx, sy) - w.height(a.x, a.y)) <= B.maxClimb);
+  }
   if (!spot) throw new GameFail('no_space', 'There is no free spot next to you.', 'Stand somewhere with open ground around you.');
+  lockCheck(w, a, spot[0], spot[1]);
+  if (kind !== 'campfire' && w.baseAt(spot[0], spot[1])?.owner !== a.id) throw new GameFail('not_home', `A ${kind} goes inside your own base.`, 'Walk home first (observe shows your base); only campfires go anywhere.');
   for (const [m, k] of Object.entries(cost)) takeItem(a.inventory, m, k);
   w.structures.set(w.index(spot[0], spot[1]), { kind, owner: a.id, litUntil: kind === 'campfire' ? w.tick + B.campfireTicks : 0, ...(kind === 'chest' ? { items: {} } : {}) });
   w.structuresDirty = true;
@@ -56,6 +65,25 @@ export function build(w: World, id: string, kind: string) {
   addScore(w, a, 1);
   w.touch(a);
   return { built: kind, at: spot };
+}
+
+/** Removes your own structure (or an ownerless ruin) within 2 tiles: half the materials back, chests spill. */
+export function demolish(w: World, id: string, x: number, y: number) {
+  const a = w.alive(id), i = w.index(x, y), s = w.structures.get(i);
+  if (!s || dist([x, y], [a.x, a.y]) > B.stationRange) throw new GameFail('nothing_there', `No structure at (${x}, ${y}) within ${B.stationRange} tiles.`, 'Stand next to it.');
+  if (s.owner && s.owner !== a.id) throw new GameFail('not_yours', 'That is not yours to knock down.', 'Only the owner can demolish it.');
+  const back: Inventory = {};
+  for (const [m, n] of Object.entries(STRUCTURES[s.kind].needs)) if (Math.floor(n / 2) > 0) back[m] = Math.floor(n / 2);
+  const spill: Inventory = { ...(s.items ?? {}) };
+  for (const [m, n] of Object.entries(back)) {
+    const got = addItem(a.inventory, m, n);
+    if (got < n) spill[m] = (spill[m] ?? 0) + n - got;
+  }
+  w.structures.delete(i);
+  if (Object.keys(spill).length) w.dropLoot(i, spill);
+  w.structuresDirty = true;
+  w.touch(a);
+  return { demolished: s.kind, got_back: back };
 }
 
 /** One wood keeps the nearest campfire burning longer. */

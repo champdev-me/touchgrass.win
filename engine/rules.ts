@@ -29,7 +29,7 @@ export function rules(w: World) {
     ],
     crafting: [
       ...Object.entries(RECIPES).map(([item, r]) => `${item}: ${r.station}, ${Object.entries(r.needs).map(([m, n]) => `${n} ${m}`).join(' + ')}${r.roles ? ` (${r.roles.join(', ')})` : ''}`),
-      `stations (build): ${Object.entries(STRUCTURES).map(([k, d]) => `${k} = ${Object.entries(d.needs).map(([m, c]) => `${c} ${m}`).join(' + ')}${d.roles ? ` (${d.roles.join(', ')})` : ''}`).join('; ')}. Chests: max ${B.maxChests} each, ${B.chestSlots} slots, owner only. Use them within ${B.stationRange} tiles; a campfire burns ${B.campfireTicks / 60} min per wood.`,
+      `stations (build): ${Object.entries(STRUCTURES).map(([k, d]) => `${k} = ${Object.entries(d.needs).map(([m, c]) => `${c} ${m}`).join(' + ')}${d.roles ? ` (${d.roles.join(', ')})` : ''}`).join('; ')}. Chests: as many as you like, ${B.chestSlots} slots each, owner only. Everything but campfires goes inside your own base. Use them within ${B.stationRange} tiles; a campfire burns ${B.campfireTicks / 60} min per wood.`,
     ],
     tools: [
       'By hand: trees and rocks 3 ticks per unit, iron veins and crystals 4 (and they need a pickaxe). A stone tool halves that, iron halves it again.',

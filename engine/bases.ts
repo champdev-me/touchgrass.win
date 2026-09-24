@@ -1,6 +1,6 @@
 import { B } from '../shared/balance.ts';
 import { dist } from '../shared/geo.ts';
-import { TERRAIN as T, type Agent, type Base, type Vec } from '../shared/types.ts';
+import { ROLES, TERRAIN as T, type Agent, type Base, type Role, type Vec } from '../shared/types.ts';
 import { walkable } from './terrain.ts';
 import { GameFail, type World } from './world.ts';
 
@@ -27,8 +27,9 @@ export function placeBase(w: World, a: Agent): Base | null {
   const [lo, hi] = anchors.length ? B.baseNear : B.firstBaseFromPlaza;
   const tries: { c: Vec; r: number }[] = [];
   for (let i = 0; i < B.baseTries; i++) {
-    const from = anchors.length ? anchors[Math.floor(w.rng() * anchors.length)] : w.plaza;
-    const ang = w.rng() * Math.PI * 2, r = lo + w.rng() * (hi - lo);
+    const from = anchors.length ? anchors[(i + Math.floor(w.rng() * anchors.length)) % anchors.length] : w.plaza;
+    // golden-angle sweep plus noise: tries spread out even when the rng repeats itself
+    const ang = i * 2.39996 + w.rng() * Math.PI * 2, r = lo + ((i * 0.618034 + w.rng()) % 1) * (hi - lo);
     tries.push({ c: [Math.round(from[0] + Math.cos(ang) * r), Math.round(from[1] + Math.sin(ang) * r)], r });
   }
   tries.sort((p, q) => p.r - q.r); // nearest first: neighbourhoods stay tight
@@ -103,4 +104,19 @@ export function baseLines(w: World, a: Agent) {
     base: b ? { from: [b.x0, b.y0] as Vec, to: [b.x1, b.y1] as Vec, flag: b.flag, area: areaOf(b), next_strip_price: { n: stripPrice(b, 'n'), e: stripPrice(b, 'e'), s: stripPrice(b, 's'), w: stripPrice(b, 'w') } } : null,
     standing_in: !here ? null : here.owner === a.id ? 'your base' : `${w.agents.get(here.owner)?.name ?? 'someone'}'s base`,
   };
+}
+
+/** Change jobs at home, at most once per switchRoleTicks; the new role brings no kit. */
+export function switchRole(w: World, id: string, role: string) {
+  const a = w.alive(id);
+  if (!(ROLES as readonly string[]).includes(role)) throw new GameFail('bad_role', `There is no "${role}" job.`, `Roles: ${ROLES.join(', ')}.`);
+  if (w.baseAt(a.x, a.y)?.owner !== a.id) throw new GameFail('not_home', 'You can only switch jobs at home.', 'Walk into your own base first.');
+  const wait = a.roleSwitchedAt + B.switchRoleTicks - w.tick;
+  if (wait > 0) throw new GameFail('too_soon', `You switched jobs recently. Wait ${wait}s.`, 'Commit to the bit for a while.');
+  a.role = role as Role;
+  a.roleSwitchedAt = w.tick;
+  w.dirty.add(a.id);
+  w.emit('role', `${a.name} is a ${role} now.`, a);
+  w.touch(a);
+  return { role };
 }
