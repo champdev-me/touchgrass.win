@@ -99,3 +99,52 @@ test('joining is announced; tick deltas list joined agents only', () => {
   assert.match(d.events[0].text, /Grasslord has entered the grass/);
   assert.equal(w.step().events.length, 0);
 });
+
+test('new agents start healthy with an empty bag', () => {
+  const w = worldOf(open(10));
+  const a = w.register('Fresh', 0);
+  assert.deepEqual([a.health, a.food, a.water, a.energy, a.inventory, a.autoEat], [100, 100, 100, 100, {}, true]);
+});
+
+test('observe shows stats, time, resources and drink spots', () => {
+  const w = worldOf(Array.from({ length: 20 }, (_, y) => (y === 15 ? '~'.repeat(20) : '.'.repeat(20))));
+  const a = joined(w, 'Looker', [10, 10]);
+  w.nodes.set(w.index(12, 10), { kind: 'berry_bush', left: 5, regrowAt: 0 });
+  const o = w.observe(a.id);
+  assert.equal(o.grid.map((r) => r.split(' '))[8][10], '*');
+  assert.match(o.resources[0], /^berry_bush \(5 left\) at \(12, 10\), 2 tiles E$/);
+  assert.ok(o.resources.some((r) => /^drink spot at \(\d+, 14\)/.test(r)), o.resources.join(' | '));
+  assert.deepEqual([o.you.health, o.you.food, o.you.slots, o.time.phase], [100, 100, '0/20', 'day']);
+});
+
+test('vision halves at night', () => {
+  const w = worldOf(open(30));
+  const a = joined(w, 'Owl', [15, 15]);
+  w.tick = 900;
+  assert.equal(w.observe(a.id).grid.length, 9);
+  assert.equal(w.observe(a.id).time.phase, 'night');
+});
+
+test('eat and drink need the right conditions', () => {
+  const w = worldOf(['...~', '....', '....', '....']);
+  const a = joined(w, 'Snacker', [0, 3]);
+  assert.equal(failCode(() => w.eatItem(a.id, 'berries')), 'not_carrying');
+  assert.equal(failCode(() => w.eatItem(a.id, 'wood')), 'not_food');
+  assert.equal(failCode(() => w.drink(a.id)), 'no_water');
+  a.inventory = { berries: 1 };
+  a.food = 50;
+  a.water = 50;
+  w.eatItem(a.id, 'berries');
+  assert.deepEqual([a.food, a.water, a.inventory], [58, 52, {}]);
+  [a.x, a.y] = [2, 0];
+  w.drink(a.id);
+  assert.equal(a.water, 82);
+});
+
+test('settings toggles auto-eat', () => {
+  const w = worldOf(open(5));
+  const a = joined(w);
+  assert.deepEqual(w.settings(a.id, false), { auto_eat: false });
+  assert.deepEqual(w.settings(a.id, 'nope'), { auto_eat: false });
+  assert.equal(a.autoEat, false);
+});
