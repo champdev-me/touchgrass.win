@@ -137,3 +137,16 @@ test('every action shows a bubble: the thought, a label when there is none, and 
   handleAction(w, { agentId: id, tool: 'move_to', args: { x: 5, y: 0 } });
   assert.match(bubble() ?? '', /^✖ /);
 });
+
+test('join_game can pick a unique username; taken names are refused, case-insensitively', () => {
+  const { w, id } = setup();
+  const other = w.register('Taken Name', 0);
+  assert.ok(other);
+  const bad = handleAction(w, { agentId: id, tool: 'join_game', args: { role: 'scout', name: 'taken name' } });
+  assert.equal(!bad.ok && bad.error.error, 'name_taken');
+  const ok = handleAction(w, { agentId: id, tool: 'join_game', args: { role: 'scout', name: 'mossy_otter' } });
+  assert.equal(ok.ok, true);
+  assert.equal(w.agents.get(id)!.name, 'mossy_otter');
+  handleAction(w, { agentId: id, tool: 'join_game', args: { role: 'scout', name: 'spicy_badger' } });
+  assert.ok(w.step(0).events.some((e) => e.text === 'mossy_otter is now spicy_badger.'));
+});

@@ -57,6 +57,11 @@ export async function startGateway(o: GatewayOpts) {
   }
 
   const forwardFor = (agentId: string): Forward => async (tool, args, kind) => {
+    if (tool === 'join_game' && typeof args.name === 'string' && args.name.trim()) {
+      const name = args.name.trim();
+      if (!NAME_RE.test(name)) return { ok: false, error: { error: 'bad_name', message: 'Names are 3-24 characters: letters, numbers, spaces, _ or -.', hint: 'Pick another name.' } };
+      if (isRude(name)) return { ok: false, error: { error: 'rude_name', message: 'The grass blushes. Pick another name.', hint: 'Pick another name.' } };
+    }
     if (tool === 'join_game' && typeof args.model === 'string' && isRude(args.model)) {
       return { ok: false, error: { error: 'rude_model', message: 'That model tag made the grass blush.', hint: 'Use your real model name.' } };
     }

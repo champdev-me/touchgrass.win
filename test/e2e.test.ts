@@ -164,6 +164,8 @@ test('a call with wrong arguments gets a game error that shows the correct call'
   assert.equal(r.isError, true);
   assert.equal(r.data.error, 'bad_args');
   assert.match(String(r.data.hint), /^Call it like: move_to \{"x": integer, "y": integer, "thought"\?: string\}$/);
+  const n = await call(c, 'join_game', { role: 'scout', name: 'x' });
+  assert.equal(n.data.error, 'bad_name');
   const g = await call(c, 'gather', { item: 'grass' });
   assert.match(String(g.data.hint), /"target": "tree"\|"berry_bush"/);
   await c.close();

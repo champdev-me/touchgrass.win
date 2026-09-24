@@ -563,6 +563,17 @@ export class World {
     return null;
   }
 
+  /** A new unique username (the gateway checks format and manners). */
+  rename(id: string, name: string): void {
+    const a = this.get(id), lower = name.toLowerCase();
+    if (a.name === name) return;
+    for (const o of this.agents.values()) if (o.id !== id && o.name.toLowerCase() === lower) throw new GameFail('name_taken', `Someone already touches grass as "${name}".`, 'Pick another name.');
+    const old = a.name;
+    a.name = name;
+    this.dirty.add(a.id);
+    if (a.joined) this.emit('rename', `${old} is now ${name}.`, a);
+  }
+
   baseAt(x: number, y: number): Base | null {
     for (const b of this.bases.values()) if (x >= b.x0 && x <= b.x1 && y >= b.y0 && y <= b.y1) return b;
     return null;

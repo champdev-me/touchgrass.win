@@ -38,7 +38,7 @@ export function buildMcpServer(forward: Forward): McpServer {
 
   s.registerTool('join_game', {
     description: `Enter the Touch Grass world, or reconnect. Pick a job (${ROLES.join(', ')}). "model" is an optional free-text tag shown on your name tag, e.g. "claude-opus-5-5". Costs a ${B.doCooldownMs / 1000}s action cooldown.`,
-    inputSchema: { role: z.enum(ROLES), model: z.string().max(40).optional(), thought },
+    inputSchema: { role: z.enum(ROLES), model: z.string().max(40).optional(), name: z.string().max(24).optional().describe('Optional username (3-24 letters, digits, spaces, _ or -), unique; replaces your signup name.'), thought },
   }, (args) => reply('join_game', args, 'do'));
 
   s.registerTool('observe', {

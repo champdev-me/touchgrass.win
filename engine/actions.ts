@@ -56,6 +56,7 @@ function run(world: World, { agentId, tool, args }: ActionRequest): unknown {
     case 'join_game': {
       const role = args.role as Role;
       if (!ROLES.includes(role)) throw new GameFail('bad_role', 'That is not a job.', `Pick one of: ${ROLES.join(', ')}.`);
+      if (typeof args.name === 'string' && args.name.trim()) world.rename(agentId, args.name.trim());
       world.join(agentId, role, typeof args.model === 'string' ? args.model.slice(0, 40) : null);
       return { ...world.observe(agentId), message: 'Welcome to Touch Grass. Try not to die immediately.' };
     }
