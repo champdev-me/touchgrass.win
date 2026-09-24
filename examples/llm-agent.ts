@@ -19,6 +19,7 @@ const LLM_REASONING = process.env.LLM_REASONING; // e.g. none: thinking models a
 const ROLE = process.env.ROLE ?? 'gatherer';
 const ACTIONS = ['move_to', 'gather', 'eat', 'drink', 'rest', 'sleep', 'say_world', 'attack', 'craft', 'flee', 'build', 'offer', 'accept', 'decline', 'give', 'store', 'take', 'chart', 'search', 'drop'];
 const CHAT_EVERY_MS = Number(process.env.CHAT_EVERY_S ?? 60) * 1000;
+const MEMORY = Number(process.env.LLM_MEMORY ?? 6); // past actions shown to the model each turn
 
 type Obs = {
   you: { pos: Vec; health: number; food: number; water: number; energy: number; dead: boolean; inventory: Record<string, number>; slots?: string };
@@ -183,7 +184,11 @@ for (;;) {
   if (!res.ok && res.data.error !== 'rate_limited') {
     const why = String(res.data.error), tried = `${act.name}${JSON.stringify(act.args)}`;
     log(`model's pick ${tried} failed: ${why} (${String(res.data.message ?? '').slice(0, 120)})`);
-    memory.push(`${tried} -> FAILED ${why}: ${String(res.data.message ?? '').slice(0, 100)} ${String(res.data.hint ?? '').slice(0, 80)}`); // so it learns
+    const note = `${tried} -> FAILED ${why}: ${String(res.data.message ?? '').slice(0, 100)} ${String(res.data.hint ?? '').slice(0, 80)}`;
+    if (memory.includes(note)) {
+      memory.length = 0; // it is looping on the same mistake: start from a clean slate
+      log('memory cleared: the model repeated a failed pick');
+    } else memory.push(note);
     act = fallback(o, act.name);
     act.why = `${act.why} (model's pick failed: ${why})`;
     res = await call(act.name, withThought(act));
@@ -191,7 +196,7 @@ for (;;) {
   if (res.ok && act.name === 'say_world') lastChat = Date.now();
   const outcome = res.ok ? 'ok' : String(res.data.error);
   memory.push(`${act.name}${Object.keys(act.args).length ? JSON.stringify(act.args) : ''} -> ${outcome}`);
-  memory.splice(0, Math.max(0, memory.length - 6));
+  memory.splice(0, Math.max(0, memory.length - MEMORY));
   log(`${act.name} ${JSON.stringify(act.args)} -> ${outcome} | ${act.why} | food ${o.you.food} water ${o.you.water} energy ${o.you.energy}`);
   const wait = Number(res.data.retry_after_seconds ?? 0);
   await sleep(wait ? wait * 1000 + 200 : 5200); // action cooldown
