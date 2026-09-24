@@ -102,7 +102,12 @@ export function buildObservation(w: World, a: Agent) {
     ],
     resources,
     landmarks: [`the Plaza (${px}, ${py}) is ${dist([px, py], here)} tiles ${compass(px - a.x, py - a.y)}; robots meet here to trade`],
-    stations: stations.map(({ at: [x, y], s }) => `${s.kind}${s.kind === 'campfire' ? (s.litUntil > w.tick ? ' (lit)' : ' (out)') : ''} ${where(x, y)}`),
+    stations: stations.map(({ at: [x, y], s }) => {
+      if (s.kind !== 'chest') return `${s.kind}${s.kind === 'campfire' ? (s.litUntil > w.tick ? ' (lit)' : ' (out)') : ''} ${where(x, y)}`;
+      const items = Object.entries(s.items ?? {});
+      const mine = `yours, ${slotsUsed(s.items ?? {})}/${B.chestSlots} slots${items.length ? `: ${items.map(([i, n]) => `${i} ${n}`).join(', ')}` : ', empty'}`;
+      return `chest (${s.owner === a.id ? mine : `${w.agents.get(s.owner)?.name ?? 'someone'}'s, locked`}) ${where(x, y)}`;
+    }),
     inbox,
     world_chat: w.chatLog.slice(-B.chatHistory),
     roles: w.census(),

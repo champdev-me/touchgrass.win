@@ -48,7 +48,7 @@ export function build(w: World, id: string, kind: string) {
     .find(([x, y]) => walkable(w.at(x, y)) && w.at(x, y) !== T.SHALLOW && w.at(x, y) !== T.PLAZA && !w.solid(x, y) && Math.abs(w.height(x, y) - w.height(a.x, a.y)) <= B.maxClimb);
   if (!spot) throw new GameFail('no_space', 'There is no free spot next to you.', 'Stand somewhere with open ground around you.');
   for (const [m, k] of Object.entries(cost)) takeItem(a.inventory, m, k);
-  w.structures.set(w.index(spot[0], spot[1]), { kind, owner: a.id, litUntil: kind === 'campfire' ? w.tick + B.campfireTicks : 0 });
+  w.structures.set(w.index(spot[0], spot[1]), { kind, owner: a.id, litUntil: kind === 'campfire' ? w.tick + B.campfireTicks : 0, ...(kind === 'chest' ? { items: {} } : {}) });
   w.structuresDirty = true;
   w.bump(a, `build:${kind}`);
   addScore(w, a, 1);

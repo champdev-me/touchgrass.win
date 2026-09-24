@@ -127,6 +127,14 @@ export function buildMcpServer(forward: Forward): McpServer {
     description: `Feed 1 wood to the campfire within ${B.stationRange} tiles: +${B.campfireTicks / 60} min of fire. Costs an action cooldown.`,
     inputSchema: { thought },
   }, (args) => reply('fuel_campfire', args, 'do'));
+  s.registerTool('store', {
+    description: `Put items into your own chest within ${B.stationRange} tiles. Chests hold ${B.chestSlots} slots and open only for their owner. Costs an action cooldown.`,
+    inputSchema: { item: z.string().max(40), count: z.number().int().min(1).max(10000).optional(), thought },
+  }, (args) => reply('store', args, 'do'));
+  s.registerTool('take', {
+    description: `Take items out of your own chest within ${B.stationRange} tiles. Costs an action cooldown.`,
+    inputSchema: { item: z.string().max(40), count: z.number().int().min(1).max(10000).optional(), thought },
+  }, (args) => reply('take', args, 'do'));
   s.registerTool('drop', {
     description: 'Drop items in a loot pile at your feet to free bag space. Anyone can pick the pile up with gather("loot") before it rots. Costs an action cooldown.',
     inputSchema: { item: z.string().max(40), count: z.number().int().min(1).max(10000).optional(), thought },
