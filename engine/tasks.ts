@@ -1,7 +1,7 @@
 import { B } from '../shared/balance.ts';
 import { dist } from '../shared/geo.ts';
 import { addItem, room } from '../shared/items.ts';
-import { dig, mapOf } from './treasure.ts';
+import { dig, findClue, mapOf } from './treasure.ts';
 import type { Agent, GatherTarget, Task, Vec } from '../shared/types.ts';
 import type { Activity } from './body.ts';
 import { fightStep } from './combat.ts';
@@ -112,7 +112,7 @@ function gatherStep(w: World, a: Agent, t: GatherTask): Activity {
       return 'idle';
     }
     a.energy = Math.max(0, a.energy - B.punchEnergy);
-    if (++t.progress < B.treasureDigTicks) return 'busy';
+    if (++t.progress < B.treasureDigTicks * (bestTool(a, 'iron_vein') ? 1 : B.noPickaxeDig)) return 'busy';
     const [x, y] = w.xy(t.node);
     if (!(a.inventory[mapOf(x, y)] ?? 0)) {
       w.interrupt(a, 'You lost the map. Where was it again?');
@@ -198,6 +198,7 @@ function harvest(w: World, a: Agent, t: GatherTask): Activity {
       return 'idle';
     }
     w.takeFromNode(t.node, node);
+    if ((node.kind === 'tree' || node.kind === 'grass' || node.kind === 'rock') && w.rng() < B.clueChance) findClue(w, a);
     t.got += got;
     w.bump(a, `gather:${def.item}`);
     const before = a.stats.gathered ?? 0;

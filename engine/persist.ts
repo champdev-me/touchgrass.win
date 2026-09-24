@@ -3,6 +3,7 @@ import { trimBag } from '../shared/items.ts';
 import { CHAT_STREAM, recentChat, type Redis } from '../shared/redis.ts';
 import { TERRAIN as T } from '../shared/types.ts';
 import type { Agent, Creature, NodeKind, PackedNode, Structure } from '../shared/types.ts';
+import type { Clue } from './treasure.ts';
 import { normalizeAgent } from './agent.ts';
 import { NODE_RULES, chunkOf, fullAmount, generateNodes, nodeKindAt, packChunk, unpackChunk } from './nodes.ts';
 import { TERRAIN_RULES, chunkBytes, generateLand, levelsOf, walkable, writeChunk } from './terrain.ts';
@@ -11,7 +12,7 @@ import { World, type LootPile } from './world.ts';
 export const BAG_RULES = 2; // 2: small bags
 export const ECON_RULES = 1; // 1: the Smith retired, robots trade with robots
 
-export const K = { meta: 'meta', terrain: 'terrain', agents: 'agents', nodes: 'nodes', loot: 'loot', firsts: 'firsts', chat: CHAT_STREAM, creatures: 'creatures', heights: 'heights', structures: 'structures', market: 'market', treasures: 'treasures' } as const;
+export const K = { meta: 'meta', terrain: 'terrain', agents: 'agents', nodes: 'nodes', loot: 'loot', firsts: 'firsts', chat: CHAT_STREAM, creatures: 'creatures', heights: 'heights', structures: 'structures', market: 'market', treasures: 'treasures', clues: 'clues' } as const;
 
 const chunkKeys = (size: number): string[] => {
   const n = size / B.chunkSize, keys: string[] = [];
@@ -55,8 +56,9 @@ export async function flush(r: Redis, w: World): Promise<void> {
   const firstsWasDirty = w.firstsDirty;
   if (firstsWasDirty && Object.keys(w.firsts).length) m.hSet(K.firsts, w.firsts);
   w.firstsDirty = false;
-  const treasuresWereDirty = w.treasuresDirty;
-  if (treasuresWereDirty) m.set(K.treasures, JSON.stringify([...w.treasures]));
+  const treasuresWereDirty = w.treasuresDirty || w.cluesDirty;
+  if (treasuresWereDirty) m.set(K.treasures, JSON.stringify([...w.treasures])).set(K.clues, JSON.stringify({ next: w.nextClueId, all: [...w.clues] }));
+  w.cluesDirty = false;
   w.treasuresDirty = false;
   const structuresWereDirty = w.structuresDirty;
   if (structuresWereDirty) m.set(K.structures, JSON.stringify([...w.structures]));
@@ -185,6 +187,11 @@ export async function loadWorld(r: Redis, seed = 'touchgrass-season-1'): Promise
   }
   const tr = await r.get(K.treasures); // the gateway never reads this key
   if (tr) w.treasures = new Map(JSON.parse(tr) as [number, { loot: number }][]);
+  const cl = await r.get(K.clues);
+  if (cl) {
+    const saved = JSON.parse(cl) as { next: number; all: [string, Clue][] };
+    [w.nextClueId, w.clues] = [saved.next, new Map(saved.all)];
+  }
   const st = await r.get(K.structures);
   if (st) w.structures = new Map(JSON.parse(st) as [number, Structure][]);
   w.nextMobId = Number(meta.nextMobId) || 1;

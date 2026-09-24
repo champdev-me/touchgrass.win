@@ -4,14 +4,14 @@ import { startAttack } from './combat.ts';
 import { build, craft, fuel } from './craft.ts';
 import { store, take } from './chest.ts';
 import { accept, decline, drop, give, offer } from './trade.ts';
-import { chart } from './treasure.ts';
+import { chart, search } from './treasure.ts';
 import { renderMap } from './explore.ts';
 import { rules } from './rules.ts';
 import { leaderboard } from './score.ts';
 import { emote, notes, sayLocal, sayWorld, think } from './social.ts';
 import { GameFail, type World } from './world.ts';
 
-const DO_TOOLS = new Set(['join_game', 'move_to', 'gather', 'eat', 'drink', 'rest', 'sleep', 'say', 'say_world', 'attack', 'craft', 'flee', 'build', 'fuel_campfire', 'give', 'store', 'take', 'offer', 'accept', 'decline', 'chart', 'drop']);
+const DO_TOOLS = new Set(['join_game', 'move_to', 'gather', 'eat', 'drink', 'rest', 'sleep', 'say', 'say_world', 'attack', 'craft', 'flee', 'build', 'fuel_campfire', 'give', 'store', 'take', 'offer', 'accept', 'decline', 'chart', 'search', 'drop']);
 const SPEECH = new Set(['say', 'say_world']); // their speech bubble wins over an attached thought
 const BANNED = () => new GameFail('banned', 'You are banned from the grass.', 'Contact the admin if you think this is a mistake.');
 
@@ -96,6 +96,8 @@ function run(world: World, { agentId, tool, args }: ActionRequest): unknown {
       return withView(decline(world, agentId, String(args.offer ?? '')));
     case 'chart':
       return withView(chart(world, agentId, Number(args.x), Number(args.y)));
+    case 'search':
+      return withView(search(world, agentId));
     case 'drop':
       return withView(drop(world, agentId, String(args.item ?? ''), Number(args.count ?? 1)));
     case 'give':

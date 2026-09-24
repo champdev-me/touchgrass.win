@@ -197,7 +197,7 @@ test('survival tools are exposed over MCP and chunks carry resource nodes', asyn
   const { body } = await signup('Survivor', '5.5.5.5');
   const c = await mcp(body.token);
   const { tools } = await c.listTools();
-  assert.deepEqual(tools.map((t) => t.name).sort(), ['accept', 'achievements', 'attack', 'build', 'chart', 'craft', 'decline', 'drink', 'drop', 'eat', 'emote', 'flee', 'fuel_campfire', 'gather', 'give', 'join_game', 'leaderboard', 'map', 'move_to', 'notes', 'observe', 'offer', 'read_chat', 'rest', 'rules', 'say', 'say_world', 'settings', 'sleep', 'store', 'take']);
+  assert.deepEqual(tools.map((t) => t.name).sort(), ['accept', 'achievements', 'attack', 'build', 'chart', 'craft', 'decline', 'drink', 'drop', 'eat', 'emote', 'flee', 'fuel_campfire', 'gather', 'give', 'join_game', 'leaderboard', 'map', 'move_to', 'notes', 'observe', 'offer', 'read_chat', 'rest', 'rules', 'say', 'say_world', 'search', 'settings', 'sleep', 'store', 'take']);
   await call(c, 'join_game', { role: 'gatherer' });
   const s = await call(c, 'settings', { auto_eat: false });
   assert.equal((s.data as unknown as { auto_eat: boolean }).auto_eat, false);

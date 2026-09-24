@@ -14,7 +14,7 @@ import { chunksPerRow, dominantTerrain, explore } from './explore.ts';
 import { NODE_DEF, chunkOf, fullAmount, wrongRole, type ResourceNode } from './nodes.ts';
 import { buildObservation } from './observe.ts';
 import { expireOffers, type Offer } from './trade.ts';
-import { spawnTreasures } from './treasure.ts';
+import { spawnTreasures, type Clue } from './treasure.ts';
 import { findPath } from './path.ts';
 import { addScore } from './score.ts';
 import { findTarget, runTask } from './tasks.ts';
@@ -57,6 +57,9 @@ export class World {
   treasures = new Map<number, { loot: number }>(); // tile -> buried treasure; scouts only, never broadcast
   treasuresDirty = false;
   treasureTarget: number = B.treasureCount;
+  clues = new Map<string, Clue>(); // clue item -> where its next find lies
+  nextClueId = 1;
+  cluesDirty = false;
   nextOfferId = 1;
   lootDirty = false;
   chatLog: string[] = [];
@@ -207,14 +210,12 @@ export class World {
     return { target, until: want === B.gatherUntilFull ? 'bag full' : want, walk_steps: found.path.length };
   }
 
-  /** Miners with a treasure map walk to the spot and dig. */
+  /** Whoever holds a treasure map walks to the spot and digs (slowly without a pickaxe). */
   private digFor(a: Agent) {
-    if (a.role !== 'miner') throw new GameFail('wrong_role', 'Only miners dig treasure. Scouts find it, miners get it out.', 'Sell the map to a miner.');
     const map = Object.keys(a.inventory).find(isMap);
-    if (!map) throw new GameFail('no_map', 'You need a treasure map to know where to dig.', 'Buy one from a scout.');
+    if (!map) throw new GameFail('no_map', 'You need a treasure map to know where to dig.', 'Buy one from a scout, or follow a clue trail.');
     const [x, y] = map.slice('treasure_map:'.length).split(',').map(Number);
     if (!this.treasures.has(this.index(x, y))) throw new GameFail('stale_map', 'Someone already dug this one up. The map is now a souvenir.', 'Buy a fresher map.');
-    if (!bestTool(a, 'iron_vein')) throw new GameFail('needs_pickaxe', 'You need a pickaxe to dig treasure.', 'Buy one from a smith.');
     const path = x === a.x && y === a.y ? [] : findPath(this.at, [a.x, a.y], [x, y], B.pathRadius, this.canStep);
     if (!path) throw new GameFail('no_path', 'Your robot cannot find a way to the treasure.', `Walk within ${B.pathRadius} tiles of (${x}, ${y}) first.`);
     a.task = { type: 'gather', target: 'treasure', until: 1, got: 0, node: this.index(x, y), path, progress: 0 };

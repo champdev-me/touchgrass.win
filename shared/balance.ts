@@ -37,6 +37,10 @@ export const B = {
   treasureDigTicks: 10,
   treasureGold: [30, 80],
   chartFiber: 2,
+  clueChance: 0.01, // per unit gathered from trees, grass and rocks
+  clueFuzz: 8, // non-scouts read a clue as an area this wide
+  clueHop: [20, 60], // tiles between finds on a trail
+  noPickaxeDig: 3, // digging treasure by hand takes this many times longer
   maxChests: 3,
   chestSlots: 12,
   luckyChance: 0.1, // lucky charm: chance of double yield

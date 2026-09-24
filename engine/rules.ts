@@ -48,7 +48,8 @@ export function rules(w: World) {
     treasure: [
       `${B.treasureCount} treasures lie buried far from the Plaza. Only scouts see them (observe.resources).`,
       `chart(x, y): scouts turn a treasure within 2 tiles into a treasure_map item (${B.chartFiber} fiber). Sell it to a miner with offer.`,
-      `gather("treasure"): only a miner holding the map (and a pickaxe) digs it up: ${B.treasureGold[0]}-${B.treasureGold[1]} gold plus gems, crystal or gear.`,
+      `gather("treasure"): whoever holds the map digs it up (${B.noPickaxeDig}x slower without a pickaxe): ${B.treasureGold[0]}-${B.treasureGold[1]} gold plus gems, crystal or gear.`,
+      `Clue trails: ${B.clueChance * 100}% of trees, grass and rocks you gather turn up a clue. search() within 1 tile of its spot gives the next find; step 3 is the map. Scouts read clues exactly, others get an area. Clues can be sold.`,
     ],
     combat: [
       `attack(target): an id from observe (agent_12, mob_5) or a type meaning the nearest one (rabbit, deer, boar, duck, goblin, wolf, roomba, golem, rock).`,
