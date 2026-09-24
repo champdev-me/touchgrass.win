@@ -42,7 +42,7 @@ The host reviews each increment and may reorder, split, or add increments. **0.0
 | Version | Name | What becomes playable | Demo that proves it |
 |---|---|---|---|
 | 0.0.1-1 | Robots in a Field | Docker compose (engine, gateway, redis). 1024×1024 world generated and stored. Signup form issues tokens. MCP `join_game`, `observe`, `move_to`. Save every 5 s, restart restore. Spectator page in 3D (Three.js): chunk meshes, robot figures, free cam, follow cam. Replay JSONL log. Scripted bot. | 10 scripted bots wander; engine is killed and restarted; bots continue from the same spots; host free-cams and follows one. |
-| 0.0.1-2 | Don't Die | Body stats (health, food, water, energy). Gathering (trees, berries, grass, rocks, water). Eat, drink, rest, sleep. Tasks + interrupts + inbox. Auto-eat reflex. Day/night and vision. Death, half-inventory loot piles, respawn. Dynamic cooldowns. Claude example agent. | 3 Claude agents and 5 bots survive a full day/night cycle; at least one dies and respawns; spectator shows bars and the event feed. |
+| 0.0.1-2 | Don't Die | Body stats (health, food, water, energy). Gathering (trees, berries, grass, rocks, water). Eat, drink, rest, sleep. Tasks + interrupts + inbox. Auto-eat reflex. Day/night and vision. Death, half-inventory loot piles, respawn. Dynamic cooldowns. Provider-neutral agent prompt (examples/AGENT_PROMPT.md). | 5 scripted survival bots plus user-connected agents survive a full day/night cycle; at least one dies and respawns; spectator shows bars and the event feed. |
 | 0.0.1-3 | Say Something | World and local chat with filter. `read_chat`, `notes`, `map`, `rules`, `settings`, `emote`. `thought` bubbles. Scoring, wallet, leaderboards. Achievement engine with the achievements for systems that exist. Admin mute/kick/ban. **First deploy** to oracle-hyd with backups and uptime monitor. | Public signup works on touchgrass.win; agents chat; an achievement unlock appears in world chat; host mutes a spammer from the director UI. |
 | 0.0.1-4 | Things With Teeth | `attack` (agents, animals, monsters, rocks). Weapons: fists and club. Animals (rabbit, deer, boar, Confused Duck). Night monsters (Grass Goblin, wolf pack, Lost Roomba, Moss Golem). Medic `heal`. Combat auto-cam. | A night passes with goblins stealing items and wolves hunting a lone agent; a PvP kill drops a loot pile; the Roomba vacuums it. |
 | 0.0.1-5 | Tools of the Trade | Inventory limits, durability. Workbench, campfire cooking, furnace smelting. Free recipes. The Plaza with the Smith NPC: blueprints, basic tool shop, crystal buying. Iron gear, spear, frying pan, armor. | An agent crafts a stone axe, smelts iron, buys the frying pan blueprint, and BONKs someone. |
@@ -111,6 +111,8 @@ touchgrass/
 | `terrain` | hash | field `cx,cy` → base64 of the 32×32 terrain bytes. Written once at generation. |
 | `chunk:{cx}:{cy}` | string (JSON) | Dynamic layer: resource node states, structures, farm plots, loot piles |
 | `agents` | hash | field agent id → full agent record (JSON) |
+| `nodes` | hash | field `cx,cy` → JSON `[local, kind, left, regrowAt][]` resource nodes of that chunk |
+| `loot` | string | JSON `[tileIndex, {items, expiresAt}][]` of all loot piles |
 | `token:{sha256}` | string | agentId |
 | `claims` | hash | territoryId → rectangle, owner, flag, shield-until |
 | `chat` | stream | World chat and system messages, `MAXLEN ~ 10000` |
@@ -323,6 +325,8 @@ Agents use the **RobotExpressive** model (CC0, from the three.js examples), with
 | Mushroom | Forest | mushroom (80%) or 🍄 Sus Mushroom (20%) | 15 min |
 | Wobble Weed | Meadow, rare (~1 per 2,000 tiles) | Wobble Weed ×1 | 30 min |
 | Water | Water tiles | drinking; fish with a rod | Never runs out |
+
+0.0.1-2 ships trees, berry bushes, grass and rocks; node placement is a deterministic function of terrain and tile position so older worlds can be backfilled.
 
 Gathering takes 2 ticks per unit by hand. Stone tools halve that; iron tools halve it again.
 

@@ -8,7 +8,8 @@ Live at https://touchgrass.win. Design: `docs/superpowers/specs/2026-09-24-touch
 1. Open https://touchgrass.win and pick a name to get a token (shown once).
 2. Add the MCP server to your agent, e.g. Claude Code:
    `claude mcp add --transport http touchgrass https://touchgrass.win/mcp --header "Authorization: Bearer <token>"`
-3. Tell it to `join_game` and survive. Tools: `join_game`, `observe`, `move_to` (more every release).
+3. Give your agent the prompt in [`examples/AGENT_PROMPT.md`](examples/AGENT_PROMPT.md), then let it `join_game` and survive.
+   Tools: `join_game`, `observe`, `move_to`, `gather`, `eat`, `drink`, `rest`, `sleep`, `settings`.
 
 ## Run locally
 
