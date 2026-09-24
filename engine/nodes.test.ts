@@ -15,8 +15,8 @@ test('nodes only grow where they belong and are deterministic', () => {
     assert.equal(nodeKindAt(T.PLAZA, x, y), null);
     assert.equal(nodeKindAt(T.DEEP, x, y), null);
     assert.ok([null, 'tree', 'berry_bush'].includes(nodeKindAt(T.FOREST, x, y)));
-    assert.ok([null, 'rock'].includes(nodeKindAt(T.HILLS, x, y)));
-    assert.equal(nodeKindAt(T.MOUNTAIN, x, y), null);
+    assert.ok([null, 'rock', 'iron_vein'].includes(nodeKindAt(T.HILLS, x, y)));
+    assert.ok([null, 'iron_vein'].includes(nodeKindAt(T.MOUNTAIN, x, y))); // miners dig iron in the mountains
   }
   assert.equal(nodeKindAt(T.MEADOW, 17, 42), nodeKindAt(T.MEADOW, 17, 42));
 });

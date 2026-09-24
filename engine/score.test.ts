@@ -29,6 +29,7 @@ test('a point per minute alive; death resets life score but keeps the best', () 
 test('a point per 20 units gathered, counting double yield', () => {
   const w = world();
   const a = joined(w, 'Picker', [2, 2]);
+  a.role = 'miner'; // miners double stone
   w.nodes.set(w.index(2, 2), { kind: 'rock', left: 30, regrowAt: 0 });
   w.gather(a.id, 'rock', 20);
   for (let i = 0; i < 30; i++) w.step(0); // rocks take 3 punches per unit

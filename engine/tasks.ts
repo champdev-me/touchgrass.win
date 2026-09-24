@@ -4,6 +4,7 @@ import { addItem, room } from '../shared/items.ts';
 import type { Agent, GatherTarget, Task, Vec } from '../shared/types.ts';
 import type { Activity } from './body.ts';
 import { fightStep } from './combat.ts';
+import { bestTool, useGear } from './gear.ts';
 import { NODE_DEF } from './nodes.ts';
 import { findPath } from './path.ts';
 import { addScore } from './score.ts';
@@ -104,11 +105,19 @@ function gatherStep(w: World, a: Agent, t: GatherTask): Activity {
     t.progress = 0;
     return pickUpLoot(w, a, t);
   }
-  const def = NODE_DEF[w.nodes.get(t.node)!.kind];
+  const kind = w.nodes.get(t.node)!.kind, def = NODE_DEF[kind];
+  const tool = bestTool(a, kind);
+  if (def.needsPickaxe && !tool) {
+    w.interrupt(a, 'Your pickaxe is gone. You cannot dig this by hand.');
+    return 'idle';
+  }
+  // Stone tools halve the work, iron halves it again.
+  const ticks = tool ? Math.max(1, Math.ceil(def.ticks / (tool.tier === 2 ? 4 : 2))) : def.ticks;
   // Every punch can shake something loose (an apple from a tree).
-  if (def.bonus && w.rng() < def.bonus.chance / def.ticks && addItem(a.inventory, def.bonus.item, 1)) w.note(a, `Bonus: a ${def.bonus.item} fell out!`);
-  if (++t.progress < def.ticks) return 'busy';
+  if (def.bonus && w.rng() < def.bonus.chance / ticks && addItem(a.inventory, def.bonus.item, 1)) w.note(a, `Bonus: a ${def.bonus.item} fell out!`);
+  if (++t.progress < ticks) return 'busy';
   t.progress = 0;
+  if (tool) useGear(w, a, tool.item);
   return harvest(w, a, t);
 }
 
@@ -148,7 +157,8 @@ function fleeStep(w: World, a: Agent, t: FleeTask): Activity {
 function harvest(w: World, a: Agent, t: GatherTask): Activity {
   const node = w.nodes.get(t.node)!;
   const def = NODE_DEF[node.kind];
-  const per = a.role === 'gatherer' ? B.gathererMultiplier : 1;
+  const plant = node.kind === 'tree' || node.kind === 'berry_bush' || node.kind === 'grass';
+  const per = (plant && a.role === 'gatherer') || (!plant && a.role === 'miner') ? B.gathererMultiplier : 1; // gatherers: plants, miners: stone
   // Bushes and grass (one tick) are picked in one go; trees and rocks give one unit per round of punches.
   const units = def.ticks === 1 ? Math.min(node.left, Math.ceil((t.until - t.got) / per)) : 1;
   for (let u = 0; u < units; u++) {

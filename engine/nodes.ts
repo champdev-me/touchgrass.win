@@ -9,22 +9,27 @@ export interface ResourceNode {
 }
 
 // ticks: punches (or picks) per unit by hand
-export const NODE_DEF: Record<NodeKind, { item: string; min: number; max: number; ticks: number; regrowTicks: number | null; bonus?: { item: string; chance: number } }> = {
+export const NODE_DEF: Record<NodeKind, { item: string; min: number; max: number; ticks: number; regrowTicks: number | null; needsPickaxe?: boolean; bonus?: { item: string; chance: number } }> = {
   tree: { item: 'wood', min: 3, max: 5, ticks: 3, regrowTicks: 1800, bonus: { item: 'apple', chance: 0.1 } },
   berry_bush: { item: 'berries', min: 5, max: 5, ticks: 1, regrowTicks: 600 },
   grass: { item: 'fiber', min: 3, max: 3, ticks: 1, regrowTicks: 300 },
   rock: { item: 'stone', min: 3, max: 5, ticks: 3, regrowTicks: null }, // stone is finite
+  iron_vein: { item: 'iron_ore', min: 2, max: 3, ticks: 4, regrowTicks: null, needsPickaxe: true },
+  crystal: { item: 'crystal', min: 1, max: 1, ticks: 4, regrowTicks: 7200, needsPickaxe: true },
 };
 
 /** Bumped when placement rules change; loadWorld prunes nodes the new rules no longer place, once. */
-export const NODE_RULES = 5; // 2: half the berry bushes, 3: thinner forests, 4: nothing on mountains, 5: more rocks on foothills
+export const NODE_RULES = 6; // 2: half the berries, 3: thinner forests, 4: nothing on mountains, 5: more rocks, 6: iron veins and crystals
 
 /** Which node grows on a tile. Seedless, so worlds saved before nodes existed can be backfilled. */
 export function nodeKindAt(t: number, x: number, y: number): NodeKind | null {
   const r = hash01(x, y);
   if (t === T.FOREST) return r < 0.22 ? 'tree' : r >= 0.4 && r < 0.42 ? 'berry_bush' : null;
   if (t === T.MEADOW) return r < 0.02 ? 'tree' : r < 0.035 ? 'berry_bush' : r >= 0.05 && r < 0.11 ? 'grass' : null;
-  if (t === T.HILLS) return r < 0.25 ? 'rock' : null;
+  if (t === T.HILLS) return r < 0.25 ? 'rock' : r < 0.29 ? 'iron_vein' : null;
+  if (t === T.MOUNTAIN || t === T.HIGH) return r < 0.05 ? 'iron_vein' : null;
+  if (t === T.PEAK) return r < 0.01 ? 'crystal' : null;
+  if (t === T.RUINS) return r < 0.03 ? 'crystal' : null;
   return null;
 }
 

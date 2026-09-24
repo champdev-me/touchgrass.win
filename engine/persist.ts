@@ -4,7 +4,7 @@ import { CHAT_STREAM, recentChat, type Redis } from '../shared/redis.ts';
 import { TERRAIN as T } from '../shared/types.ts';
 import type { Agent, Creature, PackedNode, Structure } from '../shared/types.ts';
 import { normalizeAgent } from './agent.ts';
-import { NODE_RULES, chunkOf, generateNodes, nodeKindAt, packChunk, unpackChunk } from './nodes.ts';
+import { NODE_RULES, chunkOf, fullAmount, generateNodes, nodeKindAt, packChunk, unpackChunk } from './nodes.ts';
 import { TERRAIN_RULES, chunkBytes, generateLand, levelsOf, walkable, writeChunk } from './terrain.ts';
 import { World, type LootPile } from './world.ts';
 
@@ -135,6 +135,16 @@ export async function loadWorld(r: Redis, seed = 'touchgrass-season-1'): Promise
       const [x, y] = w.xy(i);
       if (nodeKindAt(tiles[i], x, y) === node.kind) continue;
       w.nodes.delete(i);
+      w.dirtyChunks.add(chunkOf(i, size));
+    }
+  }
+  if (Number(meta.nodeRules ?? 1) < 6) {
+    // 6: iron veins and crystal clusters appear on hills, mountains, peaks and ruins.
+    for (let i = 0; i < tiles.length; i++) {
+      if (w.nodes.has(i)) continue;
+      const [x, y] = w.xy(i), kind = nodeKindAt(tiles[i], x, y);
+      if (kind !== 'iron_vein' && kind !== 'crystal') continue;
+      w.nodes.set(i, { kind, left: fullAmount(kind, x, y), regrowAt: 0 });
       w.dirtyChunks.add(chunkOf(i, size));
     }
   }

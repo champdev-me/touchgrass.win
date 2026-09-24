@@ -9,6 +9,7 @@ import { AGENT_COLORS, normalizeAgent } from './agent.ts';
 import { BUFFET_SUFFIX, say } from './lines.ts';
 import { eat, tickBody } from './body.ts';
 import { stepCreatures } from './creatures.ts';
+import { armorOf, bestTool, useGear } from './gear.ts';
 import { chunksPerRow, dominantTerrain, explore } from './explore.ts';
 import { NODE_DEF, chunkOf, fullAmount, type ResourceNode } from './nodes.ts';
 import { buildObservation } from './observe.ts';
@@ -184,6 +185,9 @@ export class World {
     const a = this.alive(id);
     if (!isTarget(target)) throw new GameFail('bad_target', `You cannot gather "${target}".`, `Gather one of: ${GATHER_TARGETS.join(', ')}.`);
     if (target !== 'loot' && room(a.inventory, NODE_DEF[target].item) === 0) throw new GameFail('bag_full', 'Your bag is full.', `It holds ${slotsOf(a.inventory)} slots. Eat something, sell to the Smith, or stop hoarding.`);
+    if (target !== 'loot' && NODE_DEF[target].needsPickaxe && !bestTool(a, target)) {
+      throw new GameFail('needs_pickaxe', 'You need a pickaxe for that.', 'Craft a stone pickaxe at a workbench, or buy one from the Smith.');
+    }
     const found = findTarget(this, a, target);
     if (!found) throw new GameFail('none_nearby', `No reachable ${target.replace('_', ' ')} in sight.`, 'Walk somewhere new, then observe again.');
     const want = until !== undefined && Number.isInteger(until) && until > 0 ? until : B.gatherUntilFull;
@@ -350,7 +354,7 @@ export class World {
       return;
     }
     if (dayTick === 0 && a.task?.type === 'sleep') this.interrupt(a, 'The sun woke you up.');
-    if (timeOf(this.tick).phase === 'night' && (a.inventory.torch ?? 0) > 0) a.wear.torch = (a.wear.torch ?? 600) - 1; // Task 3: useGear
+    if (timeOf(this.tick).phase === 'night' && (a.inventory.torch ?? 0) > 0) useGear(this, a, 'torch');
     const charging = a.autoFlee && a.task?.type !== 'attack' && a.task?.type !== 'flee' ? this.chargingAt(a) : null;
     if (charging) {
       a.task = { type: 'flee', from: charging.id }; // reflex; attack() or settings(auto_flee=false) to stand and fight
@@ -436,6 +440,7 @@ export class World {
   /** Damage from a creature or robot; true when it was the killing blow. */
   hurt(a: Agent, damage: number, cause: string, by: string, alarm = true): boolean {
     if (a.dead) return false;
+    damage *= 1 - armorOf(a);
     const fresh = this.tick - a.lastHurtAt > B.combatTicks;
     a.lastHurtAt = this.tick;
     a.health = Math.max(0, a.health - damage);
