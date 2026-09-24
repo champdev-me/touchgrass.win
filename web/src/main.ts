@@ -115,8 +115,7 @@ send = connect((m: ServerMsg) => {
     const mob = follow ? creatures.mobs.get(follow)?.view : undefined;
     if (follow?.startsWith('mob_') && !mob) setFollow(null); // it died or wandered off
     const t = timeOf(m.tick);
-    const watching = mob ? ` · following ${CREATURES[mob.kind].emoji} ${CREATURES[mob.kind].name} (${mob.hp}/${mob.maxHp} hp)` : '';
-    ui.status(`day ${t.day} · ${t.phase} · ${m.agents.length} robots · ${m.creatures.length} creatures${watching}`);
+    ui.world({ day: t.day, night: t.phase === 'night', robots: m.agents.length, creatures: m.creatures.length, following: mob ? { emoji: CREATURES[mob.kind].emoji, name: CREATURES[mob.kind].name, hp: mob.hp, maxHp: mob.maxHp } : undefined });
   }
 }, (s) => ui.status(s));
 
