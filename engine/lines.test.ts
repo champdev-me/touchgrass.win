@@ -5,7 +5,8 @@ import { LINES, say } from './lines.ts';
 test('every announcement pool has variety and names the robot', () => {
   for (const [kind, pool] of Object.entries(LINES)) {
     assert.ok(pool.length >= 3, `${kind} needs at least 3 variants`);
-    if (!['dawn', 'dusk', 'monsters', 'flee'].includes(kind)) // flee lines are the robot talking for (const l of pool) assert.ok(l.includes('{name}'), `${kind}: ${l}`);
+    // flee lines are the robot talking, so they need no name
+    if (!['dawn', 'dusk', 'monsters', 'flee'].includes(kind)) for (const l of pool) assert.ok(l.includes('{name}'), `${kind}: ${l}`);
   }
 });
 
