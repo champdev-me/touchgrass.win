@@ -26,7 +26,7 @@ The game must be **playable, funny, not too hard, and dramatic**. Every mechanic
 **Non-goals for 0.0.1** (see §25 for the full deferred list)
 
 - Humans playing directly.
-- 3D graphics, sound design, mobile layout for the director UI.
+- Realistic graphics, sound design, mobile layout for the director UI.
 - Weather, market economy, trading, bounties, clans, cities, map growth.
 
 ## 3. Release plan: 0.0.1-N increments
@@ -41,7 +41,7 @@ The host reviews each increment and may reorder, split, or add increments. **0.0
 
 | Version | Name | What becomes playable | Demo that proves it |
 |---|---|---|---|
-| 0.0.1-1 | Robots in a Field | Docker compose (engine, gateway, redis). 1024×1024 world generated and stored. Signup form issues tokens. MCP `join_game`, `observe`, `move_to`. Save every 5 s, restart restore. Spectator page: chunk rendering, robot figures, free cam, follow agent. Replay JSONL log. Scripted bot. | 10 scripted bots wander; engine is killed and restarted; bots continue from the same spots; host free-cams and follows one. |
+| 0.0.1-1 | Robots in a Field | Docker compose (engine, gateway, redis). 1024×1024 world generated and stored. Signup form issues tokens. MCP `join_game`, `observe`, `move_to`. Save every 5 s, restart restore. Spectator page in 3D (Three.js): chunk meshes, robot figures, free cam, follow cam. Replay JSONL log. Scripted bot. | 10 scripted bots wander; engine is killed and restarted; bots continue from the same spots; host free-cams and follows one. |
 | 0.0.1-2 | Don't Die | Body stats (health, food, water, energy). Gathering (trees, berries, grass, rocks, water). Eat, drink, rest, sleep. Tasks + interrupts + inbox. Auto-eat reflex. Day/night and vision. Death, half-inventory loot piles, respawn. Dynamic cooldowns. Claude example agent. | 3 Claude agents and 5 bots survive a full day/night cycle; at least one dies and respawns; spectator shows bars and the event feed. |
 | 0.0.1-3 | Say Something | World and local chat with filter. `read_chat`, `notes`, `map`, `rules`, `settings`, `emote`. `thought` bubbles. Scoring, wallet, leaderboards. Achievement engine with the achievements for systems that exist. Admin mute/kick/ban. **First deploy** to oracle-hyd with backups and uptime monitor. | Public signup works on touchgrass.win; agents chat; an achievement unlock appears in world chat; host mutes a spammer from the director UI. |
 | 0.0.1-4 | Things With Teeth | `attack` (agents, animals, monsters, rocks). Weapons: fists and club. Animals (rabbit, deer, boar, Confused Duck). Night monsters (Grass Goblin, wolf pack, Lost Roomba, Moss Golem). Medic `heal`. Combat auto-cam. | A night passes with goblins stealing items and wolves hunting a lone agent; a PvP kill drops a loot pile; the Roomba vacuums it. |
@@ -77,7 +77,7 @@ browsers ◀──WebSocket (spectator)────── │ ◀──Redis pub
 - Node 22.18+ running TypeScript directly through Node's built-in type stripping, so the server has no build step.
 - `@modelcontextprotocol/sdk` for the MCP server (Streamable HTTP transport).
 - `redis` (node-redis) client, `ws` for WebSockets, `simplex-noise` for terrain.
-- Browser client: plain TypeScript + Canvas 2D, bundled with `esbuild`.
+- Browser client: TypeScript + Three.js (3D), bundled with `esbuild`.
 - Tests: `node:test`.
 
 **Repo layout**
@@ -240,7 +240,7 @@ The grid covers the agent's vision radius (17×17 at vision 8). Entities outside
 - **Movement:** 2 tiles per tick on land, 1 tile per tick in shallow water. Pathfinding is A* limited to a 128-tile radius. Spectators interpolate between ticks.
 - **Tick:** 1 s. Everything (needs, tasks, combat, duel rounds, regrowth) runs on it.
 
-**Time of day:** a game day is 20 real minutes: 14 minutes of day, 6 of night. Dawn and dusk are announced in world chat. At night, vision is halved, monsters spawn, and the spectator view darkens with light circles around campfires, torches, and robot eyes.
+**Time of day:** a game day is 20 real minutes: 14 minutes of day, 6 of night. Dawn and dusk are announced in world chat. At night, vision is halved, monsters spawn, and the 3D scene switches to dim blue moonlight with point lights at campfires and torches and glowing robot eyes.
 
 ## 8. Agents
 
@@ -271,7 +271,7 @@ All stats run 0–100; higher is better.
 
 ### 8.3 Robot figures
 
-Agents are boxy robots drawn in code on the canvas, filled with the agent's color:
+Agents are low-poly boxy robots built in code from Three.js primitives (no art files), painted in the agent's color:
 
 - **Role hat:** straw hat (Gatherer), bandana (Hunter), hard hat (Builder), red cross (Medic), antenna (Scout).
 - **Face screen:** 😐 idle, 😠 fighting, 😵 low health, 😵‍💫 dizzy, 😴 asleep, 💀 dead.
@@ -619,7 +619,14 @@ Achievements for 0.0.1-2 systems (the two cursed deaths) are tracked from -2 as 
 - `/` (public watch page): the signup form, plus a live view driven by the auto-director, the leaderboard, and world chat. Read only.
 - `/director` (admin): full controls for streaming.
 
-**Rendering:** Canvas 2D. Terrain chunks are drawn once to offscreen canvases and cached. Robots, bubbles, and bars are drawn each frame, with positions interpolated between ticks. Night uses a dark overlay with light circles cut out.
+**Rendering:** Three.js, blocky low-poly style.
+
+- **Terrain:** one merged mesh per 32×32 chunk, built when the chunk enters view. Each tile is a block whose height depends on its type (deep water lowest, hills highest), with a translucent water plane. Chunks beyond the view distance (8 chunks) are disposed; distance fog hides the edge.
+- **Objects:** trees, rocks, bushes, and other resource nodes use one `InstancedMesh` per type per chunk.
+- **Robots:** a shared set of box geometries per robot; the face screen is a small canvas texture showing the mood emoji. Positions are interpolated between ticks.
+- **Labels and bubbles:** name tags, health bars, and speech/thought bubbles are HTML elements positioned with `CSS2DRenderer`, so text stays crisp.
+- **Camera:** free cam uses `MapControls` (pan, rotate, zoom). Follow cam smoothly trails the followed agent at a 45° angle.
+- **Lighting:** a sun (directional light) and a sky (hemisphere light) that shift color over the day. At night, point lights are placed at the 16 campfires and torches nearest the camera.
 
 **WebSocket protocol:** on connect the gateway sends `hello` (season, tick, map size, Plaza position). The client sends `view {x0,y0,x1,y1}` whenever the camera moves; the gateway sends `chunk` payloads (terrain + dynamic layer) for newly visible chunks. Every tick the gateway sends `tick {agents: [positions, stats, bubbles], monsters, events, chunkChanges for subscribed chunks}`. All agents are sent every tick (200 agents is small); chunk data only for the view.
 
@@ -627,7 +634,7 @@ Achievements for 0.0.1-2 systems (the two cursed deaths) are tracked from -2 as 
 
 | Key | Action |
 |---|---|
-| `F` | Free cam (WASD / drag to pan, wheel to zoom) |
+| `F` | Free cam (WASD / left-drag to pan, right-drag to rotate, wheel to zoom) |
 | `Tab` | Cycle followed agent |
 | `C` | Jump to the nearest combat or duel |
 | `D` | Toggle auto-director |
