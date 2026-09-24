@@ -440,6 +440,7 @@ export const STRUCTURES: Record<StructureKind, { needs: Inventory; roles?: Role[
 - `engine/rules.ts`: crafting lines show roles (`brick: kiln, 2 mud + 1 wood (mason)`); stations line from `STRUCTURES[k].needs` with roles.
 - `engine/achievements.ts`: add `{ id: 'brick_by_brick', emoji: '🧱', name: 'Brick by Brick', tier: 'rare', trigger: 'Fire 50 bricks', progress: (a) => [stat(a, 'craft:brick'), 50] }`.
 - Update the station-lookup code that reads `STRUCTURES[kind]` as an inventory (search `STRUCTURES[` across engine and web).
+- Give the robot in Task 1's test "iron gear needs no blueprint any more" the role `'smith'`, and every other existing workbench or furnace test robot a role that may craft there.
 
 - [ ] **Step 4: Run everything**
 
