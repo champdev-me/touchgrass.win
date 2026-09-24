@@ -1,0 +1,29 @@
+{
+  "name": "touchgrass",
+  "version": "0.0.1-1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "engine": "bun engine/main.ts",
+    "gateway": "bun gateway/main.ts",
+    "build:web": "bun build web/src/main.ts --outdir web/dist --format esm --minify --sourcemap=linked",
+    "dev:web": "bun build web/src/main.ts --outdir web/dist --format esm --sourcemap=linked --watch",
+    "test": "bun test --timeout 30000 ./shared ./engine ./gateway",
+    "test:int": "bun test --timeout 30000 ./test",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p web",
+    "bots": "bun examples/scripted-bot.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.30.1",
+    "obscenity": "0.4.6",
+    "redis": "6.2.1",
+    "simplex-noise": "4.0.3",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.2",
+    "@types/three": "0.186.0",
+    "three": "0.186.0",
+    "typescript": "7.0.2"
+  }
+}
