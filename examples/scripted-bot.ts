@@ -11,7 +11,8 @@ const sleep = (ms: number) => new Promise((ok) => setTimeout(ok, ms));
 const LINES = ['Has anyone seen my berries?', 'This grass is excellent.', 'I am definitely not lost.', 'Night is scary. Just saying.', 'Who keeps eating all the berries?'];
 
 type Reply = {
-  you: { pos: Vec; health: number; food: number; water: number; energy: number; dead: boolean; inventory: Record<string, number> };
+  you: { pos: Vec; health: number; food: number; water: number; energy: number; dead: boolean; inventory: Record<string, number>; slots?: string };
+  stations?: string[];
   task: { type: string } | null;
   nearby: string[];
   time: { phase: string };
@@ -59,6 +60,25 @@ async function runBot(token: string, i: number): Promise<never> {
         }
         if (o.error || o.data.you.dead || o.data.task) continue;
         const me = o.data.you;
+        // Economy: sell materials to the Smith when the bag fills up; make an axe once there is enough stuff.
+        const SELLS = ['iron_ore', 'crystal', 'hide', 'stone', 'wood', 'fiber', 'meat'];
+        const sellable = SELLS.find((i) => (me.inventory[i] ?? 0) > 0);
+        const [px, py] = [512, 512];
+        const nearSmith = Math.max(Math.abs(me.pos[0] - px), Math.abs(me.pos[1] - py)) <= 3;
+        if (sellable && nearSmith) {
+          await call(c, 'smith', { action: 'sell', item: sellable, count: me.inventory[sellable], thought: 'cash money' });
+          continue;
+        }
+        const used = Number(String(o.data.you.slots ?? '0/12').split('/')[0]);
+        if (sellable && used >= 10 && Math.random() < 0.5) {
+          await call(c, 'move_to', { x: px + 2, y: py, thought: 'off to the Smith with a full bag' });
+          continue;
+        }
+        if (!me.inventory.stone_axe && (me.inventory.wood ?? 0) >= 9 && (me.inventory.stone ?? 0) >= 5 && (me.inventory.fiber ?? 0) >= 2) {
+          const hasBench = (o.data.stations ?? []).some((l) => l.startsWith('workbench') && /, [0-2] tiles/.test(l));
+          await call(c, hasBench ? 'craft' : 'build', hasBench ? { item: 'stone_axe', thought: 'an axe, finally' } : { structure: 'workbench', thought: 'time for tools' });
+          continue;
+        }
         const spot = (kind: string) => {
           const m = o.data.resources.find((r) => r.startsWith(kind))?.match(/at \((\d+), (\d+)\)/);
           return m ? { x: Number(m[1]), y: Number(m[2]) } : null;

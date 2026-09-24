@@ -16,7 +16,7 @@ const LLM_URL = (process.env.LLM_URL ?? 'http://localhost:11434/v1').replace(/\/
 const LLM_MODEL = process.env.LLM_MODEL ?? 'gemma4:12b';
 const LLM_KEY = process.env.LLM_KEY ?? '';
 const ROLE = process.env.ROLE ?? 'gatherer';
-const ACTIONS = ['move_to', 'gather', 'eat', 'drink', 'rest', 'sleep', 'say_world', 'attack', 'heal', 'craft', 'flee'];
+const ACTIONS = ['move_to', 'gather', 'eat', 'drink', 'rest', 'sleep', 'say_world', 'attack', 'heal', 'craft', 'flee', 'build', 'smith', 'give'];
 const CHAT_EVERY_MS = 60_000;
 
 type Obs = {
@@ -27,6 +27,7 @@ type Obs = {
   nearby: string[];
   inbox: string[];
   world_chat?: string[]; // servers before 0.0.1-3 don't send it
+  stations?: string[];
 };
 type Reply = { ok: boolean; data: Record<string, unknown> };
 type Action = { name: string; args: Record<string, unknown>; why: string };
@@ -45,7 +46,9 @@ Use exact coordinates from the state. Never move onto deep water. Be decisive.
 At most once a minute, instead of working you may post something short and funny with say_world (react to world chat if you like).
 Every tool accepts "thought": one short sentence about why, shown to viewers as a thought bubble. Always fill it in.
 If something is "hunting you": attack it (its mob id) when health is above 40, else flee (or flee to x, y).
-Rabbits and deer are food: attack them, then eat meat (+10 food, sometimes a tummy ache). With 5 wood, craft a club (double damage).`;
+Rabbits and deer are food: attack them, then eat meat (+10 food, sometimes a tummy ache). With 5 wood, craft a club (double damage).
+Tools make work faster: build a workbench (6 wood, 2 stone), then craft stone_axe or stone_pickaxe. Cook meat at a campfire (+35 food).
+Gold is money: sell ore, crystals, hides, stone and wood to the Smith at the Plaza (512, 512) with smith action=sell; buy tools and blueprints there.`;
 
 const mcp = new Client({ name: 'touchgrass-llm-agent', version: '1.0.0' });
 await mcp.connect(new StreamableHTTPClientTransport(new URL(`${TG_URL}/mcp`), { requestInit: { headers: { Authorization: `Bearer ${TG_TOKEN}` } } }));
@@ -90,6 +93,10 @@ function fallback(o: Obs, skip = ''): Action {
   for (const kind of ['tree', 'grass', 'rock']) if (find(kind)) options.push({ name: 'gather', args: { target: kind, until: 5 }, why: `gathering ${kind}` });
   const [x, y] = me.pos, d = () => Math.round((Math.random() - 0.5) * 40);
   if ((me.inventory.wood ?? 0) >= 5 && !me.inventory.club) options.push({ name: 'craft', args: { item: 'club' }, why: 'making a club' });
+  if (!me.inventory.stone_axe && (me.inventory.wood ?? 0) >= 9 && (me.inventory.stone ?? 0) >= 5 && (me.inventory.fiber ?? 0) >= 2) {
+    const bench = (o.stations ?? []).some((l) => l.startsWith('workbench') && /, [0-2] tiles/.test(l));
+    options.push(bench ? { name: 'craft', args: { item: 'stone_axe' }, why: 'crafting an axe' } : { name: 'build', args: { structure: 'workbench' }, why: 'building a workbench' });
+  }
   options.push({ name: 'move_to', args: { x: Math.max(0, Math.min(1023, x + d())), y: Math.max(0, Math.min(1023, y + d())) }, why: 'exploring' });
   return options.find(pick) ?? options[options.length - 1];
 }

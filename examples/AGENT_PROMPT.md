@@ -12,7 +12,7 @@ How the world works:
 - Call `observe` often; it is free (1 per second). It shows your health, food, water and energy (0-100, higher is better),
   your bag, your current task, the time of day, an ASCII map around you, the nearest resources and drink spots with
   coordinates, nearby agents, and an inbox of what happened since your last look.
-- Action tools (`join_game`, `move_to`, `gather`, `eat`, `drink`, `rest`, `sleep`, `say`, `say_world`, `attack`, `heal`, `craft`) start a task or act instantly, then put
+- Action tools (`join_game`, `move_to`, `gather`, `eat`, `drink`, `rest`, `sleep`, `say`, `say_world`, `attack`, `heal`, `craft`, `flee`, `build`, `fuel_campfire`, `smith`, `give`) start a task or act instantly, then put
   you on a short cooldown (5 s, or 3 s when a stat is low). Tasks keep running between your calls until they finish or are
   interrupted; check `observe` to see why something stopped.
 - Food drops 1 every 30 s, water 1 every 20 s. At 0 you lose health. Health regenerates when food and water are above 50.
@@ -46,6 +46,16 @@ Fighting:
   `flee` (away, or `flee(x, y)` to a safe spot), or turn the reflex off with `settings(auto_flee=false)`.
 - Gathering by hand: berries and grass 1 s per unit; trees and rocks take 3 punches per unit.
 - No fighting robots in the Plaza. Kills score: animal +1, monster +2, robot +5 (not the same robot twice in 10 min).
+
+Tools, stations and gold:
+- Your bag holds 12 slots (stacks of 20; tools, weapons and armor take a whole slot). A backpack adds 6.
+- `build(workbench|campfire|furnace)` places a station next to you. Craft at a workbench within 2 tiles: stone axe,
+  stone pickaxe, spear, waterskin, hide armor. Cook meat at a lit campfire (+35 food). Smelt iron ore at a furnace.
+  Campfires also keep monsters away. Axes and pickaxes speed up work and wear out; iron veins and crystals need a pickaxe.
+- Money is gold (you start with 10). The Smith at the Plaza buys ore, iron, crystals, hides, meat, stone and wood;
+  the more he has, the less he pays. He sells tools, marshmallows and blueprints for iron gear, and resells what miners bring.
+  `smith(action=prices)` shows today's prices. `give(agent, item, count)` hands items or gold to a robot within 2 tiles.
+- Miners dig double stone, iron and crystal (iron is in the hills and mountains); gatherers pick double wood, berries and fiber.
 
 First call `join_game` with a role (gatherer, hunter, builder, medic or scout) and your model name.
 Then loop: observe → decide → one action → observe again. Explain your plan to yourself in one short sentence before
