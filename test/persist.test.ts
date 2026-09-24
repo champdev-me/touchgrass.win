@@ -98,3 +98,37 @@ test('creatures survive a restart and new ids never reuse old ones', async () =>
   assert.notEqual(spawnCreature(back, 'rabbit', [6, 6]).id, g.id);
   await r.close();
 });
+
+test('berry bushes and trees that the current rules no longer place are pruned once, on load', async () => {
+  const { hash01 } = await import('../shared/hash.ts');
+  const r = await connectRedis(redisUrl(14));
+  await r.flushDb();
+  const tiles = new Uint8Array(64 * 64).fill(T.MEADOW);
+  const w = new World(tiles, 64, () => 0.5);
+  let old = -1;
+  for (let i = 0; i < tiles.length && old < 0; i++) {
+    const h = hash01(i % 64, Math.floor(i / 64));
+    if (h >= 0.035 && h < 0.05) old = i; // a berry bush under the old rules, nothing now
+  }
+  w.nodes.set(old, { kind: 'berry_bush', left: 5, regrowAt: 0 });
+  let thinned = -1; // a forest tile whose tree the thinner forests no longer place
+  for (let i = 0; i < tiles.length && thinned < 0; i++) {
+    const h = hash01(i % 64, Math.floor(i / 64));
+    if (i !== old && h >= 0.22 && h < 0.4) thinned = i;
+  }
+  tiles[thinned] = T.FOREST;
+  w.nodes.set(thinned, { kind: 'tree', left: 4, regrowAt: 0 });
+  await saveTerrain(r, tiles, 64);
+  await saveAllNodes(r, w);
+  await flush(r, w);
+  await r.hDel(K.meta, 'nodeRules'); // saved by an older version
+
+  const back = (await loadWorld(r))!;
+  assert.equal(back.nodes.has(old), false);
+  assert.equal(back.nodes.has(thinned), false);
+  back.nodes.set(old, { kind: 'berry_bush', left: 5, regrowAt: 0 }); // e.g. planted later: must survive restarts now
+  back.dirtyChunks.add('0,0');
+  await flush(r, back);
+  assert.equal((await loadWorld(r))!.nodes.has(old), true);
+  await r.close();
+});

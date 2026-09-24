@@ -21,15 +21,16 @@ test('nodes only grow where they belong and are deterministic', () => {
 });
 
 test('forests are mostly trees; meadows have grass and berries', () => {
-  assert.ok(Math.abs(share(T.FOREST, 'tree') - 0.4) < 0.03);
+  assert.ok(Math.abs(share(T.FOREST, 'tree') - 0.22) < 0.03, String(share(T.FOREST, 'tree')));
   assert.ok(share(T.MEADOW, 'grass') > 0.04);
-  assert.ok(share(T.MEADOW, 'berry_bush') > 0.02);
+  assert.ok(Math.abs(share(T.MEADOW, 'berry_bush') - 0.015) < 0.006, String(share(T.MEADOW, 'berry_bush')));
+  assert.ok(Math.abs(share(T.FOREST, 'berry_bush') - 0.02) < 0.008, String(share(T.FOREST, 'berry_bush')));
 });
 
 test('fresh nodes are full and chunks pack and unpack losslessly', () => {
   const size = 64, tiles = new Uint8Array(size * size).fill(T.FOREST);
   const nodes = generateNodes(tiles, size);
-  assert.ok(nodes.size > 1000);
+  assert.ok(nodes.size > 800); // ~24% of 4096 forest tiles
   for (const n of nodes.values()) assert.ok(n.left >= NODE_DEF[n.kind].min && n.left <= NODE_DEF[n.kind].max);
   const first = nodes.get([...nodes.keys()][0])!;
   first.left = 0;

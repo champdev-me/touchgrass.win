@@ -2,7 +2,7 @@ import { B } from '../shared/balance.ts';
 import { CHAT_STREAM, recentChat, type Redis } from '../shared/redis.ts';
 import type { Agent, Creature, PackedNode } from '../shared/types.ts';
 import { normalizeAgent } from './agent.ts';
-import { generateNodes, packChunk, unpackChunk } from './nodes.ts';
+import { NODE_RULES, chunkOf, generateNodes, nodeKindAt, packChunk, unpackChunk } from './nodes.ts';
 import { chunkBytes, writeChunk } from './terrain.ts';
 import { World, type LootPile } from './world.ts';
 
@@ -35,7 +35,7 @@ export async function saveAllNodes(r: Redis, w: World): Promise<void> {
 }
 
 export async function flush(r: Redis, w: World): Promise<void> {
-  const m = r.multi().hSet(K.meta, { tick: String(w.tick), nextId: String(w.nextId), nextMobId: String(w.nextMobId), mapSize: String(w.size), season: '1' });
+  const m = r.multi().hSet(K.meta, { tick: String(w.tick), nextId: String(w.nextId), nextMobId: String(w.nextMobId), mapSize: String(w.size), season: '1', nodeRules: String(NODE_RULES) });
   const ids = [...w.dirty];
   const chunks = [...w.dirtyChunks];
   const lootWasDirty = w.lootDirty;
@@ -101,6 +101,15 @@ export async function loadWorld(r: Redis): Promise<World | null> {
     // Worlds from before resource nodes existed: grow them now, save on the next flush.
     w.nodes = generateNodes(tiles, size);
     for (const key of chunkKeys(size)) w.dirtyChunks.add(key);
+  }
+  if (Number(meta.nodeRules ?? 1) < NODE_RULES) {
+    // Placement got sparser: drop nodes the current rules no longer place (once, so later planted ones survive)
+    for (const [i, node] of w.nodes) {
+      const [x, y] = w.xy(i);
+      if (nodeKindAt(tiles[i], x, y) === node.kind) continue;
+      w.nodes.delete(i);
+      w.dirtyChunks.add(chunkOf(i, size));
+    }
   }
   for (const [i, node] of w.nodes) if (node.left === 0 && node.regrowAt > 0) w.depleted.add(i);
   const loot = await r.get(K.loot);
