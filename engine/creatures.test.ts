@@ -32,6 +32,7 @@ test('rabbits run from robots; distant creatures stand still; very distant ones 
 test('a wolf pack hunts a lone robot and bites every 2 ticks', () => {
   const w = world();
   const a = joined(w, 'Loner', [30, 30]);
+  a.autoFlee = false; // this test is about the wolves
   const pack = [spawnCreature(w, 'wolf', [35, 30], 7), spawnCreature(w, 'wolf', [35, 31], 7), spawnCreature(w, 'wolf', [35, 29], 7)];
   for (let i = 0; i < 6; i++) w.step(0);
   assert.ok(pack.every((wf) => wf.mode === 'chase' && wf.target === a.id));
@@ -110,6 +111,7 @@ test('a monster that spawns out of sight comes for you', () => {
 test('wolves keep pace with a walking robot and bite the moment it stops', () => {
   const w = world();
   const a = joined(w, 'Walker', [30, 30]);
+  a.autoFlee = false; // this test is about the wolves
   w.moveTo(a.id, 40, 30);
   const wolf = spawnCreature(w, 'wolf', [26, 30]);
   Object.assign(wolf, { mode: 'chase', target: a.id, until: 1000 });

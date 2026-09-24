@@ -223,13 +223,56 @@ export class World {
     return { energy: Math.round(a.energy) };
   }
 
-  settings(id: string, autoEat: unknown) {
+  settings(id: string, autoEat: unknown, autoFlee?: unknown) {
     const a = this.joined(id);
-    if (typeof autoEat === 'boolean') {
-      a.autoEat = autoEat;
-      this.dirty.add(a.id);
+    if (typeof autoEat === 'boolean') a.autoEat = autoEat;
+    if (typeof autoFlee === 'boolean') a.autoFlee = autoFlee;
+    this.dirty.add(a.id);
+    return { auto_eat: a.autoEat, auto_flee: a.autoFlee };
+  }
+
+  /** Run from the nearest dangerous creature in sight, or to a chosen spot. */
+  flee(id: string, x?: number, y?: number) {
+    const a = this.alive(id);
+    if (x !== undefined && y !== undefined) {
+      const { steps } = this.moveTo(id, x, y); // same checks and path as walking there
+      const path = a.task?.type === 'move_to' ? a.task.path : [];
+      a.task = { type: 'flee', from: '', to: [x, y], path };
+      return { fleeing_to: [x, y], steps };
     }
-    return { auto_eat: a.autoEat };
+    let threat: Creature | null = null, bd = Infinity;
+    for (const c of this.creatures.values()) {
+      const d = dist([c.x, c.y], [a.x, a.y]);
+      if (CREATURES[c.kind].damage > 0 && d <= this.vision(a) && d < bd) [threat, bd] = [c, d];
+    }
+    if (!threat) throw new GameFail('no_threat', 'Nothing scary in sight. You run anyway, in your heart.', 'flee works when a dangerous creature is in sight.');
+    a.task = { type: 'flee', from: threat.id };
+    this.touch(a);
+    return { fleeing_from: `${threat.id} ${CREATURES[threat.kind].name}` };
+  }
+
+  /** A creature charging at this robot close enough to notice. */
+  chargingAt(a: Agent): Creature | null {
+    for (const c of this.creatures.values()) {
+      if (c.mode === 'chase' && c.target === a.id && CREATURES[c.kind].damage > 0 && dist([c.x, c.y], [a.x, a.y]) <= B.fleeNotice) return c;
+    }
+    return null;
+  }
+
+  /** Where a task target is: an agent, a creature, or a node. */
+  targetPos(target: string): Vec | null {
+    if (target.startsWith('rock:')) return this.xy(Number(target.slice(5)));
+    const c = this.creatures.get(target);
+    if (c) return [c.x, c.y];
+    const o = this.agents.get(target);
+    return o && o.joined && !o.dead ? [o.x, o.y] : null;
+  }
+
+  faceOf(a: Agent): Vec | null {
+    const t = a.task;
+    if (t?.type === 'gather' && !t.path.length) return this.xy(t.node);
+    if (t?.type === 'attack') return this.targetPos(t.target);
+    return null;
   }
 
   inCombat(a: Agent): boolean {
@@ -305,6 +348,11 @@ export class World {
       return;
     }
     if (dayTick === 0 && a.task?.type === 'sleep') this.interrupt(a, 'The sun woke you up.');
+    const charging = a.autoFlee && a.task?.type !== 'attack' && a.task?.type !== 'flee' ? this.chargingAt(a) : null;
+    if (charging) {
+      a.task = { type: 'flee', from: charging.id }; // reflex; attack() or settings(auto_flee=false) to stand and fight
+      this.note(a, `Reflex: a ${CREATURES[charging.kind].name} is charging at you. You run!`);
+    }
     const news = tickBody(a, runTask(this, a));
     this.dirty.add(a.id);
     if (news.ate) {
@@ -358,7 +406,8 @@ export class World {
   }
 
   creatureViews(): CreatureView[] {
-    return [...this.creatures.values()].map((c) => ({ id: c.id, kind: c.kind, x: c.x, y: c.y, hp: Math.max(0, Math.round(c.hp)), maxHp: CREATURES[c.kind].hp, mode: c.mode }));
+    return [...this.creatures.values()].map((c) => ({ id: c.id, kind: c.kind, x: c.x, y: c.y, hp: Math.max(0, Math.round(c.hp)), maxHp: CREATURES[c.kind].hp, mode: c.mode,
+      face: c.mode === 'chase' && c.target ? this.targetPos(c.target) : null }));
   }
 
   /** Damage from a creature or robot; true when it was the killing blow. */
@@ -378,7 +427,7 @@ export class World {
 
   /** Danger stops calm tasks; walking away or fighting back keeps going. */
   alarm(a: Agent, reason: string): void {
-    if (a.task?.type === 'move_to' || a.task?.type === 'attack') this.note(a, reason);
+    if (a.task?.type === 'move_to' || a.task?.type === 'attack' || a.task?.type === 'flee') this.note(a, reason);
     else this.interrupt(a, reason);
   }
 
@@ -443,6 +492,7 @@ export class World {
         trophies: Object.keys(a.achievements).length,
         fighting: this.inCombat(a),
         inventory: a.inventory,
+        face: this.faceOf(a),
       }));
   }
 

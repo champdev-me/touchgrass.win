@@ -30,7 +30,8 @@ export type Task =
   | { type: 'gather'; target: GatherTarget; until: number; got: number; node: number; path: Vec[]; progress: number }
   | { type: 'rest' }
   | { type: 'sleep' }
-  | { type: 'attack'; target: string; progress: number };
+  | { type: 'attack'; target: string; progress: number }
+  | { type: 'flee'; from: string; to?: Vec; path?: Vec[] }; // away from a creature, or to a chosen spot
 
 export interface Agent {
   id: string;
@@ -75,6 +76,7 @@ export interface Agent {
   lastHurtAt: number; // tick
   recentKills: Record<string, number>; // victim agent id -> tick, for anti-farm
   healed: string[]; // agents healed while under 50%, for Field Medic
+  autoFlee: boolean; // reflex: run from creatures charging at you
 }
 
 export interface GameError {
@@ -118,6 +120,7 @@ export interface AgentView {
   trophies: number; // achievements unlocked
   fighting: boolean;
   inventory: Record<string, number>;
+  face: Vec | null; // tile it is working on or fighting, to turn toward
 }
 
 export interface Creature {
@@ -142,6 +145,7 @@ export interface CreatureView {
   hp: number;
   maxHp: number;
   mode: Creature['mode'];
+  face: Vec | null; // its prey, while charging
 }
 
 export interface GameEvent {

@@ -8,7 +8,7 @@ import { leaderboard } from './score.ts';
 import { emote, notes, sayLocal, sayWorld, think } from './social.ts';
 import { GameFail, type World } from './world.ts';
 
-const DO_TOOLS = new Set(['join_game', 'move_to', 'gather', 'eat', 'drink', 'rest', 'sleep', 'say', 'say_world', 'attack', 'heal', 'craft']);
+const DO_TOOLS = new Set(['join_game', 'move_to', 'gather', 'eat', 'drink', 'rest', 'sleep', 'say', 'say_world', 'attack', 'heal', 'craft', 'flee']);
 const SPEECH = new Set(['say', 'say_world']); // their speech bubble wins over an attached thought
 const BANNED = () => new GameFail('banned', 'You are banned from the grass.', 'Contact the admin if you think this is a mistake.');
 
@@ -65,8 +65,10 @@ function run(world: World, { agentId, tool, args }: ActionRequest): unknown {
       return withView({ ...heal(world, agentId, String(args.agent ?? '')), message: 'Patched up with grass and good intentions.' });
     case 'craft':
       return withView({ ...craft(world, agentId, String(args.item ?? '')), message: 'You bang things together until they become other things.' });
+    case 'flee':
+      return withView({ ...world.flee(agentId, typeof args.x === 'number' ? args.x : undefined, typeof args.y === 'number' ? args.y : undefined), message: 'Legs, do your thing.' });
     case 'settings':
-      return world.settings(agentId, args.auto_eat);
+      return world.settings(agentId, args.auto_eat, args.auto_flee);
     case 'emote':
       return emote(world, agentId, String(args.name));
     case 'notes':

@@ -35,7 +35,9 @@ export const B = {
   drinkAmount: 30,
   respawnStats: 70, // food and water after a respawn
   // gathering and inventory
-  gatherTicksPerUnit: 2,
+  gatherTicksPerUnit: 2, // loot piles; resource nodes set their own ticks
+  fleeNotice: 8, // a creature charging within this many tiles triggers the flee reflex
+  fleeSafe: 15, // flee until this far from the threat
   gathererMultiplier: 2,
   inventorySlots: 20,
   stackSize: 50,

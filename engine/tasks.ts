@@ -11,6 +11,7 @@ import { stepCost, walkable } from './terrain.ts';
 import type { World } from './world.ts';
 
 type GatherTask = Extract<Task, { type: 'gather' }>;
+type FleeTask = Extract<Task, { type: 'flee' }>;
 
 /** Walks along `path` within this tick's budget (halved at zero energy). */
 export function walk(w: World, a: Agent, path: Vec[]): boolean {
@@ -78,6 +79,8 @@ export function runTask(w: World, a: Agent): Activity {
       return gatherStep(w, a, task);
     case 'attack':
       return fightStep(w, a, task);
+    case 'flee':
+      return fleeStep(w, a, task);
   }
 }
 
@@ -96,9 +99,50 @@ function gatherStep(w: World, a: Agent, t: GatherTask): Activity {
     walk(w, a, t.path);
     return 'busy';
   }
-  if (++t.progress < B.gatherTicksPerUnit) return 'busy';
+  if (t.target === 'loot') {
+    if (++t.progress < B.gatherTicksPerUnit) return 'busy';
+    t.progress = 0;
+    return pickUpLoot(w, a, t);
+  }
+  const def = NODE_DEF[w.nodes.get(t.node)!.kind];
+  // Every punch can shake something loose (an apple from a tree).
+  if (def.bonus && w.rng() < def.bonus.chance / def.ticks && addItem(a.inventory, def.bonus.item, 1)) w.note(a, `Bonus: a ${def.bonus.item} fell out!`);
+  if (++t.progress < def.ticks) return 'busy';
   t.progress = 0;
-  return t.target === 'loot' ? pickUpLoot(w, a, t) : harvest(w, a, t);
+  return harvest(w, a, t);
+}
+
+/** Run from a creature: step to whichever free neighbour is farthest from it, until safe. */
+function fleeStep(w: World, a: Agent, t: FleeTask): Activity {
+  if (t.path && t.to) {
+    walk(w, a, t.path);
+    if (!t.path.length) w.finish(a, `Task done: you reached safety at (${t.to[0]}, ${t.to[1]}).`);
+    return 'busy';
+  }
+  const c = w.creatures.get(t.from);
+  if (!c || dist([c.x, c.y], [a.x, a.y]) >= B.fleeSafe) {
+    w.finish(a, 'Task done: you got away.');
+    return 'idle';
+  }
+  let budget: number = a.energy <= 0 ? 1 : B.moveBudgetPerTick, moved = false;
+  while (budget > 0) {
+    let best: Vec | null = null, bs = dist([a.x, a.y], [c.x, c.y]);
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = a.x + dx, ny = a.y + dy;
+      if (!walkable(w.at(nx, ny)) || !w.canStep(a.x, a.y, nx, ny)) continue;
+      const s = dist([nx, ny], [c.x, c.y]) + (Math.abs(nx - c.x) + Math.abs(ny - c.y)) * 0.01;
+      if (s > bs) [best, bs] = [[nx, ny], s];
+    }
+    if (!best) break;
+    budget -= stepCost(w.at(best[0], best[1]));
+    [a.x, a.y] = best;
+    moved = true;
+  }
+  if (!moved) {
+    w.interrupt(a, 'Cornered! Fight or pray.');
+    return 'idle';
+  }
+  return 'busy';
 }
 
 function harvest(w: World, a: Agent, t: GatherTask): Activity {
@@ -115,7 +159,6 @@ function harvest(w: World, a: Agent, t: GatherTask): Activity {
   const before = a.stats.gathered ?? 0;
   a.stats.gathered = before + got;
   if (Math.floor(a.stats.gathered / B.gatherScoreEvery) > Math.floor(before / B.gatherScoreEvery)) addScore(w, a, 1);
-  if (def.bonus && w.rng() < def.bonus.chance && addItem(a.inventory, def.bonus.item, 1)) w.note(a, `Bonus: a ${def.bonus.item} fell out!`);
   if (t.got >= t.until) w.finish(a, `Task done: gathered ${t.got} ${def.item}.`);
   else if (room(a.inventory, def.item) === 0) w.interrupt(a, 'Your bag is full.');
   return 'busy';

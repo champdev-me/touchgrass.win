@@ -31,7 +31,7 @@ test('a point per 20 units gathered, counting double yield', () => {
   const a = joined(w, 'Picker', [2, 2]);
   w.nodes.set(w.index(2, 2), { kind: 'rock', left: 30, regrowAt: 0 });
   w.gather(a.id, 'rock', 20);
-  for (let i = 0; i < 20; i++) w.step(0);
+  for (let i = 0; i < 30; i++) w.step(0); // rocks take 3 punches per unit
   assert.equal(a.inventory.stone, 20);
   assert.equal(a.seasonScore, 1);
 });

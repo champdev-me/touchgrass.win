@@ -47,7 +47,7 @@ test('survival tools are wired and a low stat shortens the cooldown to 3 s', () 
   const drank = handleAction(w, { agentId: id, tool: 'drink', args: {} });
   assert.deepEqual([drank.ok, drank.cooldownMs], [true, 5000]);
   const set = handleAction(w, { agentId: id, tool: 'settings', args: { auto_eat: false } });
-  assert.deepEqual([set.ok && set.data, set.cooldownMs], [{ auto_eat: false }, 0]);
+  assert.deepEqual([set.ok && set.data, set.cooldownMs], [{ auto_eat: false, auto_flee: true }, 0]);
   assert.equal(handleAction(w, { agentId: id, tool: 'rest', args: {} }).ok, true);
   assert.equal(handleAction(w, { agentId: id, tool: 'sleep', args: {} }).ok, true);
   const none = handleAction(w, { agentId: id, tool: 'gather', args: { target: 'rock' } });

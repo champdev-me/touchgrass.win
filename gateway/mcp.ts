@@ -60,8 +60,8 @@ export function buildMcpServer(forward: Forward): McpServer {
   }, (args) => reply('sleep', args, 'do'));
 
   s.registerTool('settings', {
-    description: 'Read or change your reflexes. auto_eat (default on) eats your cheapest food when food drops below 15. Free.',
-    inputSchema: { auto_eat: z.boolean().optional() },
+    description: `Read or change your reflexes. auto_eat (default on) eats your cheapest food when food drops below 15. auto_flee (default on) runs from a creature charging at you within ${B.fleeNotice} tiles, unless you are attacking. Free.`,
+    inputSchema: { auto_eat: z.boolean().optional(), auto_flee: z.boolean().optional() },
   }, (args) => reply('settings', args, 'look'));
 
   s.registerTool('say', {
@@ -113,6 +113,11 @@ export function buildMcpServer(forward: Forward): McpServer {
     description: `Fight until the target dies, leaves your sight, or you drop below ${B.lowHealth} health. Target: an id from observe (agent_12, mob_5) or a type meaning the nearest one: ${CREATURE_KINDS.join(', ')}, rock. A hit every ${B.attackTicks}s in reach: fists ${B.fistDamage}, club ${WEAPONS.club}; hunters x${B.hunterMultiplier}. No fighting robots in the Plaza. Costs an action cooldown (2 s while in combat).`,
     inputSchema: { target: z.string().max(40), thought },
   }, (args) => reply('attack', args, 'do'));
+
+  s.registerTool('flee', {
+    description: `Run! No arguments: away from the nearest dangerous creature in sight until ${B.fleeSafe} tiles clear. With x and y: run to that spot. Biting does not stop you. Costs an action cooldown.`,
+    inputSchema: { x: z.number().int().min(0).max(B.mapSize - 1).optional(), y: z.number().int().min(0).max(B.mapSize - 1).optional(), thought },
+  }, (args) => reply('flee', args, 'do'));
 
   s.registerTool('heal', {
     description: `Medics only: +${B.healAmount} health to another robot within ${B.healRange} tiles. Costs an action cooldown.`,

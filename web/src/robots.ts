@@ -81,7 +81,9 @@ export class Robots {
       b.t = Math.min(1, b.t + (dt * 1000) / this.tickMs);
       b.root.position.lerpVectors(b.from, b.to, b.t);
       const dx = b.to.x - b.from.x, dz = b.to.z - b.from.z;
+      const f = b.view.face; // standing still: turn toward what it works on or fights
       if (Math.abs(dx) + Math.abs(dz) > 1e-3) b.root.rotation.y = Math.atan2(dx, dz);
+      else if (f) b.root.rotation.y = Math.atan2(f[0] + 0.5 - b.root.position.x, f[1] + 0.5 - b.root.position.z);
       b.mixer.update(dt);
     }
   }

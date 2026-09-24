@@ -8,11 +8,12 @@ export interface ResourceNode {
   regrowAt: number; // tick; 0 while full or when it never regrows
 }
 
-export const NODE_DEF: Record<NodeKind, { item: string; min: number; max: number; regrowTicks: number | null; bonus?: { item: string; chance: number } }> = {
-  tree: { item: 'wood', min: 3, max: 5, regrowTicks: 1800, bonus: { item: 'apple', chance: 0.1 } },
-  berry_bush: { item: 'berries', min: 5, max: 5, regrowTicks: 600 },
-  grass: { item: 'fiber', min: 3, max: 3, regrowTicks: 300 },
-  rock: { item: 'stone', min: 3, max: 5, regrowTicks: null }, // stone is finite
+// ticks: punches (or picks) per unit by hand
+export const NODE_DEF: Record<NodeKind, { item: string; min: number; max: number; ticks: number; regrowTicks: number | null; bonus?: { item: string; chance: number } }> = {
+  tree: { item: 'wood', min: 3, max: 5, ticks: 3, regrowTicks: 1800, bonus: { item: 'apple', chance: 0.1 } },
+  berry_bush: { item: 'berries', min: 5, max: 5, ticks: 1, regrowTicks: 600 },
+  grass: { item: 'fiber', min: 3, max: 3, ticks: 1, regrowTicks: 300 },
+  rock: { item: 'stone', min: 3, max: 5, ticks: 3, regrowTicks: null }, // stone is finite
 };
 
 /** Bumped when placement rules change; loadWorld prunes nodes the new rules no longer place, once. */

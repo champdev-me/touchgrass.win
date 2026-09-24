@@ -26,6 +26,7 @@ interface Model {
 
 interface Mob {
   kind: CreatureKind;
+  face: [number, number] | null;
   root: THREE.Group;
   tag: HTMLDivElement;
   hp: HTMLElement;
@@ -83,6 +84,7 @@ export class Creatures {
       m.t = 0;
       m.hp.style.width = `${(100 * v.hp) / v.maxHp}%`;
       m.tag.classList.toggle('angry', v.mode === 'chase');
+      m.face = v.face;
       const moving = m.from.distanceToSquared(m.to) > 1e-4;
       const still = v.kind === 'duck' ? 'dance' : 'idle'; // the duck is confused
       this.play(m, !moving ? still : v.mode === 'chase' || v.mode === 'flee' ? 'run' : 'walk');
@@ -103,6 +105,7 @@ export class Creatures {
       if (m.kind === 'rabbit' && m.from.distanceToSquared(m.to) > 1e-4) m.root.position.y += Math.sin(m.t * Math.PI) * 0.35; // hop
       const dx = m.to.x - m.from.x, dz = m.to.z - m.from.z;
       if (Math.abs(dx) + Math.abs(dz) > 1e-3) m.root.rotation.y = Math.atan2(dx, dz);
+      else if (m.face) m.root.rotation.y = Math.atan2(m.face[0] + 0.5 - m.root.position.x, m.face[1] + 0.5 - m.root.position.z); // eyes on its prey
       m.mixer?.update(dt);
     }
   }
@@ -128,7 +131,7 @@ export class Creatures {
     this.scene.add(root);
     const mixer = model.clips.length ? new THREE.AnimationMixer(body) : null;
     const actions = new Map(mixer ? model.clips.map((c) => [c.name, mixer.clipAction(c)] as const) : []);
-    const m: Mob = { kind: v.kind, root, tag, hp, from: root.position.clone(), to: root.position.clone(), t: 1, mixer, actions, clip: '' };
+    const m: Mob = { kind: v.kind, face: v.face, root, tag, hp, from: root.position.clone(), to: root.position.clone(), t: 1, mixer, actions, clip: '' };
     this.play(m, 'idle');
     this.mobs.set(v.id, m);
     return m;

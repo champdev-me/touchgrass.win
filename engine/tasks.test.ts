@@ -89,7 +89,7 @@ test('a full bag interrupts gathering', () => {
   steps(w, 2);
   assert.equal(a.inventory.berries, 50);
   assert.equal(a.task, null);
-  assert.equal(w.observe(a.id).inbox.at(-1), 'Task interrupted: Your bag is full.');
+  assert.ok(w.observe(a.id).inbox.includes('Task interrupted: Your bag is full.'));
   assert.equal(failCode(() => w.gather(a.id, 'berry_bush')), 'bag_full');
 });
 
@@ -172,5 +172,5 @@ test('one broken robot does not freeze the world', () => {
   assert.deepEqual([fine.x, fine.y], [5, 5]);
   assert.equal(broken.task, null);
   broken.inventory = {};
-  assert.equal(w.observe(broken.id).inbox.at(-1), 'Your robot glitched and forgot what it was doing.');
+  assert.ok(w.observe(broken.id).inbox.includes('Your robot glitched and forgot what it was doing.'));
 });

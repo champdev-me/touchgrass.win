@@ -53,9 +53,8 @@ async function runBot(token: string, i: number): Promise<never> {
         }
         const threat = o.error || o.data.you.dead ? undefined : o.data.nearby.find((l) => l.includes('hunting you'))?.split(' ')[0];
         if (threat && o.data.task?.type !== 'attack') {
-          const [x, y] = o.data.you.pos;
           if (o.data.you.health >= 40) await call(c, 'attack', { target: threat, thought: 'not today, monster' });
-          else await call(c, 'move_to', { x: Math.max(0, x - 15), y: Math.max(0, y - 15), thought: 'nope nope nope' });
+          else await call(c, 'flee', { thought: 'nope nope nope' });
           continue;
         }
         if (o.error || o.data.you.dead || o.data.task) continue;

@@ -146,8 +146,8 @@ test('eat and drink need the right conditions', () => {
 test('settings toggles auto-eat', () => {
   const w = worldOf(open(5));
   const a = joined(w);
-  assert.deepEqual(w.settings(a.id, false), { auto_eat: false });
-  assert.deepEqual(w.settings(a.id, 'nope'), { auto_eat: false });
+  assert.deepEqual(w.settings(a.id, false), { auto_eat: false, auto_flee: true });
+  assert.deepEqual(w.settings(a.id, 'nope', false), { auto_eat: false, auto_flee: false });
   assert.equal(a.autoEat, false);
 });
 

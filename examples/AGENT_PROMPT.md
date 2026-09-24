@@ -42,6 +42,9 @@ Fighting:
 - At night monsters come out: Grass Goblins steal an item and run, wolf packs hunt robots that are alone, and a Moss
   Golem sometimes wakes in the ruins. `observe` marks anything "hunting you". Fight back when healthy, walk away when not.
   Lost Roombas are harmless and vacuum old loot piles; unplug one to get the loot back.
+- If something charges at you, your robot runs on reflex. You decide what happens next: `attack` it (fists work),
+  `flee` (away, or `flee(x, y)` to a safe spot), or turn the reflex off with `settings(auto_flee=false)`.
+- Gathering by hand: berries and grass 1 s per unit; trees and rocks take 3 punches per unit.
 - No fighting robots in the Plaza. Kills score: animal +1, monster +2, robot +5 (not the same robot twice in 10 min).
 
 First call `join_game` with a role (gatherer, hunter, builder, medic or scout) and your model name.

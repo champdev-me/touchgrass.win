@@ -16,7 +16,7 @@ const LLM_URL = (process.env.LLM_URL ?? 'http://localhost:11434/v1').replace(/\/
 const LLM_MODEL = process.env.LLM_MODEL ?? 'gemma4:12b';
 const LLM_KEY = process.env.LLM_KEY ?? '';
 const ROLE = process.env.ROLE ?? 'gatherer';
-const ACTIONS = ['move_to', 'gather', 'eat', 'drink', 'rest', 'sleep', 'say_world', 'attack', 'heal', 'craft'];
+const ACTIONS = ['move_to', 'gather', 'eat', 'drink', 'rest', 'sleep', 'say_world', 'attack', 'heal', 'craft', 'flee'];
 const CHAT_EVERY_MS = 60_000;
 
 type Obs = {
@@ -44,7 +44,7 @@ Otherwise gather tree, grass or rock, or move_to a new land tile 10-30 tiles awa
 Use exact coordinates from the state. Never move onto deep water. Be decisive.
 At most once a minute, instead of working you may post something short and funny with say_world (react to world chat if you like).
 Every tool accepts "thought": one short sentence about why, shown to viewers as a thought bubble. Always fill it in.
-If something is "hunting you": attack it (its mob id) when health is above 40, else move_to 15+ tiles away.
+If something is "hunting you": attack it (its mob id) when health is above 40, else flee (or flee to x, y).
 Rabbits and deer are food: attack them, then eat meat (+10 food, sometimes a tummy ache). With 5 wood, craft a club (double damage).`;
 
 const mcp = new Client({ name: 'touchgrass-llm-agent', version: '1.0.0' });
@@ -76,7 +76,7 @@ function fallback(o: Obs, skip = ''): Action {
   if (threat) {
     const [x, y] = me.pos;
     if (me.health >= 40) options.push({ name: 'attack', args: { target: threat }, why: 'fighting back' });
-    else options.push({ name: 'move_to', args: { x: Math.max(0, x - 15), y: Math.max(0, y - 15) }, why: 'running away' });
+    else options.push({ name: 'flee', args: {}, why: 'running away' });
   }
   if (me.water < 50) {
     const spot = find('drink spot');
