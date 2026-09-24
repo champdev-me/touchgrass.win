@@ -1,12 +1,12 @@
 import { B } from '../shared/balance.ts';
 import { CHAT_STREAM, recentChat, type Redis } from '../shared/redis.ts';
-import type { Agent, PackedNode } from '../shared/types.ts';
+import type { Agent, Creature, PackedNode } from '../shared/types.ts';
 import { normalizeAgent } from './agent.ts';
 import { generateNodes, packChunk, unpackChunk } from './nodes.ts';
 import { chunkBytes, writeChunk } from './terrain.ts';
 import { World, type LootPile } from './world.ts';
 
-export const K = { meta: 'meta', terrain: 'terrain', agents: 'agents', nodes: 'nodes', loot: 'loot', firsts: 'firsts', chat: CHAT_STREAM } as const;
+export const K = { meta: 'meta', terrain: 'terrain', agents: 'agents', nodes: 'nodes', loot: 'loot', firsts: 'firsts', chat: CHAT_STREAM, creatures: 'creatures' } as const;
 
 const chunkKeys = (size: number): string[] => {
   const n = size / B.chunkSize, keys: string[] = [];
@@ -35,7 +35,7 @@ export async function saveAllNodes(r: Redis, w: World): Promise<void> {
 }
 
 export async function flush(r: Redis, w: World): Promise<void> {
-  const m = r.multi().hSet(K.meta, { tick: String(w.tick), nextId: String(w.nextId), mapSize: String(w.size), season: '1' });
+  const m = r.multi().hSet(K.meta, { tick: String(w.tick), nextId: String(w.nextId), nextMobId: String(w.nextMobId), mapSize: String(w.size), season: '1' });
   const ids = [...w.dirty];
   const chunks = [...w.dirtyChunks];
   const lootWasDirty = w.lootDirty;
@@ -48,6 +48,9 @@ export async function flush(r: Redis, w: World): Promise<void> {
   const firstsWasDirty = w.firstsDirty;
   if (firstsWasDirty && Object.keys(w.firsts).length) m.hSet(K.firsts, w.firsts);
   w.firstsDirty = false;
+  const creaturesWereDirty = w.creaturesDirty;
+  if (creaturesWereDirty) m.set(K.creatures, JSON.stringify([...w.creatures.values()]));
+  w.creaturesDirty = false;
   w.dirty.clear();
   w.dirtyChunks.clear();
   w.lootDirty = false;
@@ -58,6 +61,7 @@ export async function flush(r: Redis, w: World): Promise<void> {
     for (const key of chunks) w.dirtyChunks.add(key);
     w.lootDirty ||= lootWasDirty;
     w.firstsDirty ||= firstsWasDirty;
+    w.creaturesDirty ||= creaturesWereDirty;
     throw e;
   }
 }
@@ -102,6 +106,9 @@ export async function loadWorld(r: Redis): Promise<World | null> {
   const loot = await r.get(K.loot);
   if (loot) w.loot = new Map(JSON.parse(loot) as [number, LootPile][]);
   w.firsts = await r.hGetAll(K.firsts);
+  w.nextMobId = Number(meta.nextMobId) || 1;
+  const mobs = await r.get(K.creatures);
+  if (mobs) for (const c of JSON.parse(mobs) as Creature[]) w.creatures.set(c.id, c);
   w.chatLog = (await recentChat(r, B.chatLogKeep)).reverse().map((m) => (m.type === 'chat' ? `${m.name}: ${m.text}` : m.text));
   return w;
 }

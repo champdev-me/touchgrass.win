@@ -1,6 +1,7 @@
 import { test } from 'bun:test';
 import assert from 'node:assert/strict';
 import { checkAchievements } from '../engine/achievements.ts';
+import { spawnCreature } from '../engine/creatures.ts';
 import { K, flush, loadWorld, saveAllNodes, saveTerrain } from '../engine/persist.ts';
 import { World } from '../engine/world.ts';
 import { connectRedis } from '../shared/redis.ts';
@@ -79,5 +80,21 @@ test('scores, achievements, server firsts and recent chat survive a restart', as
   assert.equal(back.chatLog.at(-1), 'Keeper: remember me');
   checkAchievements(back, b);
   assert.equal(b.seasonScore, 20);
+  await r.close();
+});
+
+test('creatures survive a restart and new ids never reuse old ones', async () => {
+  const r = await connectRedis(redisUrl(14));
+  await r.flushDb();
+  const tiles = new Uint8Array(64 * 64).fill(T.MEADOW);
+  const w = new World(tiles, 64, () => 0.5);
+  await saveTerrain(r, tiles, 64);
+  await saveAllNodes(r, w);
+  const g = spawnCreature(w, 'goblin', [5, 5]);
+  Object.assign(g, { hp: 7, bag: { berries: 2 } });
+  await flush(r, w);
+  const back = (await loadWorld(r))!;
+  assert.deepEqual(back.creatures.get(g.id), g);
+  assert.notEqual(spawnCreature(back, 'rabbit', [6, 6]).id, g.id);
   await r.close();
 });

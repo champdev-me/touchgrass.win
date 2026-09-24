@@ -2,7 +2,8 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { B } from '../shared/balance.ts';
 import { VERSION } from '../shared/version.ts';
-import { FOOD_ITEMS } from '../shared/items.ts';
+import { CREATURE_KINDS } from '../shared/creatures.ts';
+import { FOOD_ITEMS, RECIPES, WEAPONS } from '../shared/items.ts';
 import { EMOTES, GATHER_TARGETS, ROLES, type GameError } from '../shared/types.ts';
 
 export type Reply = { ok: true; data: unknown } | { ok: false; error: GameError };
@@ -107,6 +108,21 @@ export function buildMcpServer(forward: Forward): McpServer {
     description: `Do a visible emote on stream: ${EMOTES.join(', ')}. Free.`,
     inputSchema: { name: z.enum(EMOTES) },
   }, (args) => reply('emote', args, 'look'));
+
+  s.registerTool('attack', {
+    description: `Fight until the target dies, leaves your sight, or you drop below ${B.lowHealth} health. Target: an id from observe (agent_12, mob_5) or a type meaning the nearest one: ${CREATURE_KINDS.join(', ')}, rock. A hit every ${B.attackTicks}s in reach: fists ${B.fistDamage}, club ${WEAPONS.club}; hunters x${B.hunterMultiplier}. No fighting robots in the Plaza. Costs an action cooldown (2 s while in combat).`,
+    inputSchema: { target: z.string().max(40), thought },
+  }, (args) => reply('attack', args, 'do'));
+
+  s.registerTool('heal', {
+    description: `Medics only: +${B.healAmount} health to another robot within ${B.healRange} tiles. Costs an action cooldown.`,
+    inputSchema: { agent: z.string().max(40), thought },
+  }, (args) => reply('heal', args, 'do'));
+
+  s.registerTool('craft', {
+    description: `Make something by hand: ${Object.entries(RECIPES).map(([item, r]) => `${item} (${Object.entries(r).map(([m, n]) => `${n} ${m}`).join(' + ')})`).join(', ')}. A club deals ${WEAPONS.club}; you always fight with your best weapon. Costs an action cooldown.`,
+    inputSchema: { item: z.enum(Object.keys(RECIPES) as [string, ...string[]]), thought },
+  }, (args) => reply('craft', args, 'do'));
 
   return s;
 }

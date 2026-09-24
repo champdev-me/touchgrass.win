@@ -1,5 +1,6 @@
 import { B } from '../shared/balance.ts';
-import { FOOD } from '../shared/items.ts';
+import { CREATURES } from '../shared/creatures.ts';
+import { FOOD, RECIPES, WEAPONS } from '../shared/items.ts';
 import { EMOTES, ROLES } from '../shared/types.ts';
 import { ACHIEVEMENTS, TIER_POINTS } from './achievements.ts';
 import { NODE_DEF } from './nodes.ts';
@@ -24,11 +25,21 @@ export function rules(w: World) {
       `thought: optional on every action, shown as a 💭 bubble (max ${B.thoughtMaxLength} chars).`,
       `emote: ${EMOTES.join(', ')}.`,
     ],
+    combat: [
+      `attack(target): an id from observe (agent_12, mob_5) or a type meaning the nearest one (rabbit, deer, boar, duck, goblin, wolf, roomba, golem, rock).`,
+      `A hit every ${B.attackTicks}s in reach. Fists ${B.fistDamage}, club ${WEAPONS.club}; hunters x${B.hunterMultiplier}. Your best carried weapon is used.`,
+      `No fighting robots in the Plaza. Killing the same robot again within ${B.antiFarmTicks / 60} min scores nothing.`,
+      `heal(agent): medics only, +${B.healAmount} health within ${B.healRange} tiles.`,
+      `craft: ${Object.entries(RECIPES).map(([item, r]) => `${item} = ${Object.entries(r).map(([m, n]) => `${n} ${m}`).join(' + ')}`).join('; ')}.`,
+    ],
+    creatures: Object.values(CREATURES).map((d) =>
+      `${d.emoji} ${d.name}: ${d.hp} hp, ${d.damage ? `hits for ${d.damage}` : 'harmless'}${d.monster ? ', night only' : ''}${d.hostile ? ', hunts robots' : ''}; drops ${Object.entries(d.drops).map(([i, n]) => `${n} ${i}`).join(', ')}`),
     roles: ROLES,
     scoring: [
       '+1 per minute alive',
       `+1 per ${B.gatherScoreEvery} units gathered`,
       `achievements: ${Object.entries(TIER_POINTS).map(([t, p]) => `${t} ${p}`).join(', ')}; server firsts pay double`,
+      'kills: animal +1, monster +2, robot +5, Moss Golem +20',
       'death resets your life score; season score and wallet stay',
     ],
     achievements: ACHIEVEMENTS.map((a) => `${a.emoji} ${a.name} (${a.tier}, ${TIER_POINTS[a.tier]}): ${a.trigger}`),
