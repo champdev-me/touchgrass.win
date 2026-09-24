@@ -71,9 +71,15 @@ const loot = new LootView(scene, (x, y) => chunks.heightAt(x, y));
 
 function setCam(mode: CamMode): void {
   if (mode !== 'top' && !follow && robots.bots.size) setFollow([...robots.bots.keys()][0]);
+  const was = cam;
   cam = follow ? mode : 'top';
   controls.enabled = cam === 'top';
   ui.camera(follow ? cam : null);
+  const bot = follow ? (robots.bots.get(follow) ?? creatures.mobs.get(follow)) : undefined;
+  if (bot && cam === 'top' && was !== 'top') {
+    controls.target.copy(bot.root.position); // back up to the usual view from above
+    camera.position.copy(bot.root.position).add(FOLLOW_OFFSET);
+  }
 }
 
 function setFollow(id: string | null) {
