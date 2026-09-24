@@ -185,7 +185,7 @@ for (;;) {
     const why = String(res.data.error), tried = `${act.name}${JSON.stringify(act.args)}`;
     log(`model's pick ${tried} failed: ${why} (${String(res.data.message ?? '').slice(0, 120)})`);
     const note = `${tried} -> FAILED ${why}: ${String(res.data.message ?? '').slice(0, 100)} ${String(res.data.hint ?? '').slice(0, 80)}`;
-    if (memory.includes(note)) {
+    if (memory.some((m) => m.startsWith(`${act.name}{`) && m.includes(`FAILED ${why}:`))) {
       memory.length = 0; // it is looping on the same mistake: start from a clean slate
       log('memory cleared: the model repeated a failed pick');
     } else memory.push(note);
