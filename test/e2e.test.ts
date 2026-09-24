@@ -146,23 +146,10 @@ test('two robots meet and trade over MCP with offer and accept', async () => {
   const ja = await call(a, 'join_game', { role: 'smith' }); // the kit brings 6 wood
   await call(b, 'join_game', { role: 'scout' });
   await sleep(5100);
-  const [ax, ay] = ja.data.you.pos;
-  let walking = false;
-  for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]) {
-    if (!(await call(b, 'move_to', { x: ax + dx, y: ay + dy })).isError) {
-      walking = true;
-      break;
-    }
-  }
-  assert.ok(walking, 'no free tile next to Ann');
-  let bpos: Vec = [-99, -99];
-  for (let i = 0; i < 20 && Math.max(Math.abs(bpos[0] - ax), Math.abs(bpos[1] - ay)) > B.tradeRange; i++) {
-    await sleep(1100); // observe allows one call a second
-    bpos = (await call(b, 'observe')).data.you?.pos ?? bpos;
-  }
+  const bob = eng!.world.agents.get(sb.body.agentId)!;
+  [bob.x, bob.y] = ja.data.you.pos; // spawns are random: stand Bob on Ann's tile
   const o = await call(a, 'offer', { agent: sb.body.agentId, give: { wood: 2 } });
   assert.equal(o.isError, false, JSON.stringify(o.data));
-  await sleep(5100); // Bob's move_to cooldown
   const got = await call(b, 'accept', { offer: o.data.offer });
   assert.equal(got.isError, false, JSON.stringify(got.data));
   await sleep(1100);
