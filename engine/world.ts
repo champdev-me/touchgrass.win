@@ -4,6 +4,7 @@ import { FOOD, room, type Inventory } from '../shared/items.ts';
 import { timeOf } from '../shared/time.ts';
 import { GATHER_TARGETS, ROLES, TERRAIN as T, type Agent, type AgentView, type GameEvent, type GatherTarget, type Role, type TickDelta, type Vec } from '../shared/types.ts';
 import { AGENT_COLORS, normalizeAgent } from './agent.ts';
+import { BUFFET_SUFFIX, say } from './lines.ts';
 import { eat, tickBody } from './body.ts';
 import { NODE_DEF, chunkOf, fullAmount, type ResourceNode } from './nodes.ts';
 import { buildObservation } from './observe.ts';
@@ -28,11 +29,6 @@ export interface LootPile {
   expiresAt: number;
 }
 
-const DEATH_TEXT: Record<string, string> = {
-  starvation: 'starved. The berries watched.',
-  thirst: 'dried out like forgotten toast.',
-  'hunger and thirst': 'ran out of food and water at the same time. Efficient.',
-};
 const isTarget = (s: string): s is GatherTarget => (GATHER_TARGETS as readonly string[]).includes(s);
 
 export class World {
@@ -97,7 +93,7 @@ export class World {
       a.joined = true;
       a.role = role;
       a.spawnedAt = this.tick;
-      this.emit('join', `${a.name} has entered the grass. Lower your expectations.`, a);
+      this.emit('join', say('join', a.name, this.rng), a);
     } else {
       this.note(a, 'Welcome back. Your robot missed you. Probably.');
     }
@@ -202,8 +198,8 @@ export class World {
   step(): TickDelta {
     this.tick++;
     const { dayTick } = timeOf(this.tick);
-    if (dayTick === 0) this.emit('dawn', 'The sun rises. Robots squint.');
-    if (dayTick === B.dayTicks - B.nightTicks) this.emit('dusk', 'Night falls. Vision halves. Something rustles.');
+    if (dayTick === 0) this.emit('dawn', say('dawn', '', this.rng));
+    if (dayTick === B.dayTicks - B.nightTicks) this.emit('dusk', say('dusk', '', this.rng));
     for (const a of this.agents.values()) {
       if (!a.joined) continue;
       if (a.dead) {
@@ -286,8 +282,9 @@ export class World {
     if (Object.keys(dropped).length) this.dropLoot(this.index(a.x, a.y), dropped);
     this.bump(a, `death:${cause}`);
     if (this.tick - a.spawnedAt < B.speedrunTicks) this.bump(a, 'death:speedrun');
-    if (cause !== 'thirst' && this.berriesNear(a.x, a.y, 3)) this.bump(a, 'death:starved_at_buffet');
-    this.emit('death', `${a.name} ${DEATH_TEXT[cause] ?? `died of ${cause}.`}`, a);
+    const buffet = cause !== 'thirst' && this.berriesNear(a.x, a.y, 3);
+    if (buffet) this.bump(a, 'death:starved_at_buffet');
+    this.emit('death', say(`death:${cause}`, a.name, this.rng) + (buffet ? BUFFET_SUFFIX : ''), a);
     this.note(a, `You died of ${cause}. You respawn in ${B.respawnTicks}s. Half your bag stayed behind.`);
   }
 
@@ -300,7 +297,7 @@ export class World {
     [a.x, a.y] = a.spawn;
     a.spawnedAt = this.tick;
     this.dirty.add(a.id);
-    this.emit('respawn', `${a.name} is back. Nobody learned anything.`, a);
+    this.emit('respawn', say('respawn', a.name, this.rng), a);
     this.note(a, 'You respawned at your spawn point.');
   }
 

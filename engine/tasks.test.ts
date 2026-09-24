@@ -133,7 +133,7 @@ test('death drops half the bag as loot; respawn restores the robot at its spawn'
   assert.deepEqual(a.inventory, { wood: 2 });
   assert.deepEqual(w.loot.get(w.index(3, 3))!.items, { wood: 3, berries: 1 });
   assert.deepEqual(d.loot, [[3, 3]]);
-  assert.match(d.events.find((e) => e.type === 'death')!.text, /Doomed starved/);
+  assert.match(d.events.find((e) => e.type === 'death')!.text, /^Doomed .*\bF\b.* There were berries three tiles away\.$/);
   assert.ok(a.stats['death:starvation'] && a.stats['death:speedrun'] && a.stats['death:starved_at_buffet']);
   assert.equal(failCode(() => w.moveTo(a.id, 1, 1)), 'dead');
   assert.equal(w.observe(a.id).you.respawn_in_seconds, 30);

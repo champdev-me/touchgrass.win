@@ -96,7 +96,8 @@ test('joining is announced; tick deltas list joined agents only', () => {
   const d = w.step();
   assert.equal(d.tick, 1);
   assert.deepEqual(d.agents.map((v) => v.id), [a.id]);
-  assert.match(d.events[0].text, /Grasslord has entered the grass/);
+  assert.equal(d.events[0].type, 'join');
+  assert.match(d.events[0].text, /Grasslord/);
   assert.equal(w.step().events.length, 0);
 });
 
