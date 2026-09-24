@@ -9,7 +9,12 @@ const FILE = 'examples/.bots.json';
 const ROLES = ['gatherer', 'hunter', 'builder', 'medic', 'scout'];
 const sleep = (ms: number) => new Promise((ok) => setTimeout(ok, ms));
 
-type Reply = { you: { pos: Vec }; task: unknown } & GameError;
+type Reply = {
+  you: { pos: Vec; food: number; water: number; energy: number; dead: boolean; inventory: Record<string, number> };
+  task: unknown;
+  time: { phase: string };
+  resources: string[];
+} & GameError;
 
 async function tokens(): Promise<string[]> {
   const saved = JSON.parse(await readFile(FILE, 'utf8').catch(() => '[]')) as string[];
@@ -40,12 +45,35 @@ async function runBot(token: string, i: number): Promise<never> {
       for (;;) {
         await sleep(5500 + Math.random() * 2000);
         const o = await call(c, 'observe');
-        if (o.error || o.data.task) continue;
-        const [x, y] = o.data.you.pos;
-        const clamp = (v: number) => Math.max(0, Math.min(1023, v));
-        const tx = clamp(x + Math.round((Math.random() - 0.5) * 60)), ty = clamp(y + Math.round((Math.random() - 0.5) * 60));
-        const m = await call(c, 'move_to', { x: tx, y: ty });
-        console.log(`bot ${i}: move_to (${tx}, ${ty}) -> ${m.error ? m.data.error : 'ok'}`);
+        if (o.error || o.data.you.dead || o.data.task) continue;
+        const me = o.data.you;
+        const spot = (kind: string) => {
+          const m = o.data.resources.find((r) => r.startsWith(kind))?.match(/at \((\d+), (\d+)\)/);
+          return m ? { x: Number(m[1]), y: Number(m[2]) } : null;
+        };
+        let did = '';
+        if (me.water < 50) {
+          const d = await call(c, 'drink');
+          did = d.error ? '' : 'drink';
+          const place = spot('drink spot');
+          if (!did && place) did = (await call(c, 'move_to', place)).error ? '' : 'walk to water';
+        } else if (me.food < 60 && (me.inventory.berries ?? 0) > 0) {
+          did = (await call(c, 'eat', { item: 'berries' })).error ? '' : 'eat';
+        } else if (me.food < 70) {
+          did = (await call(c, 'gather', { target: 'berry_bush', until: 6 })).error ? '' : 'gather berries';
+        } else if (o.data.time.phase === 'night' && me.energy < 90) {
+          did = (await call(c, 'sleep')).error ? '' : 'sleep';
+        } else if (Math.random() < 0.4) {
+          const target = ['tree', 'grass', 'rock'][Math.floor(Math.random() * 3)];
+          did = (await call(c, 'gather', { target, until: 5 })).error ? '' : `gather ${target}`;
+        }
+        if (!did) {
+          const [x, y] = me.pos;
+          const clamp = (v: number) => Math.max(0, Math.min(1023, v));
+          const m = await call(c, 'move_to', { x: clamp(x + Math.round((Math.random() - 0.5) * 60)), y: clamp(y + Math.round((Math.random() - 0.5) * 60)) });
+          did = m.error ? `wander failed (${m.data.error})` : 'wander';
+        }
+        console.log(`bot ${i}: ${did} | food ${Math.round(me.food)} water ${Math.round(me.water)} energy ${Math.round(me.energy)}`);
       }
     } catch (e) {
       console.log(`bot ${i}: ${(e as Error).message}; reconnecting in 5s`);
