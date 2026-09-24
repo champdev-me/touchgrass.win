@@ -136,11 +136,6 @@ export function buildMcpServer(forward: Forward): McpServer {
     inputSchema: { agent: z.string().max(40), item: z.string().max(40), count: z.number().int().min(1).max(10000).optional(), thought },
   }, (args) => reply('give', args, 'do'));
 
-  s.registerTool('heal', {
-    description: `Medics only: +${B.healAmount} health to another robot within ${B.healRange} tiles. Costs an action cooldown.`,
-    inputSchema: { agent: z.string().max(40), thought },
-  }, (args) => reply('heal', args, 'do'));
-
   s.registerTool('craft', {
     description: `Make items. Recipes (station: needs): ${Object.entries(RECIPES).map(([item, r]) => `${item} (${r.station}: ${Object.entries(r.needs).map(([m, n]) => `${n} ${m}`).join(' + ')})`).join(', ')}. Stations must be within ${B.stationRange} tiles (a campfire must be lit). You always fight with your best weapon and gather with your best tool. Costs an action cooldown.`,
     inputSchema: { item: z.enum(Object.keys(RECIPES) as [string, ...string[]]), count: z.number().int().min(1).max(20).optional(), thought },

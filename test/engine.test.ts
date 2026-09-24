@@ -20,7 +20,7 @@ test('engine registers agents, runs ticks, and restores after a restart', async 
   const reg = await post<Reg>('/register', { name: 'Tester' });
   assert.equal(reg.ok, true);
   assert.equal((await post<Reg>('/register', { name: 'tester' })).error.error, 'name_taken');
-  assert.equal((await post<ActionResult>('/action', { agentId: reg.agentId, tool: 'join_game', args: { role: 'builder' } })).ok, true);
+  assert.equal((await post<ActionResult>('/action', { agentId: reg.agentId, tool: 'join_game', args: { role: 'smith' } })).ok, true);
   await sleep(300);
   const health = await fetch(`http://127.0.0.1:${eng.port}/health`).then((r) => r.json() as Promise<{ tick: number }>);
   assert.ok(health.tick >= 3, `tick ${health.tick}`);
@@ -29,7 +29,7 @@ test('engine registers agents, runs ticks, and restores after a restart', async 
   await eng.close();
   eng = await startEngine(opts);
   const after = eng.world.agents.get(reg.agentId)!;
-  assert.deepEqual([after.x, after.y, after.role], [before.x, before.y, 'builder']);
+  assert.deepEqual([after.x, after.y, after.role], [before.x, before.y, 'smith']);
   assert.ok(eng.world.tick >= health.tick);
   await eng.close();
   await redis.close();

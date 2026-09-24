@@ -15,6 +15,7 @@ const open = (n: number) => Array.from({ length: n }, () => '.'.repeat(n));
 function joined(w: World, name = 'Grasslord', at: Vec = [2, 2]) {
   const a = w.register(name, 0);
   w.join(a.id, 'gatherer', 'test-model');
+  a.inventory = {}; // tests below predate starter kits
   [a.x, a.y] = at;
   return a;
 }
@@ -47,6 +48,7 @@ test('rejoining keeps the role and leaves a note that observe hands over once', 
   const w = worldOf(open(10));
   const a = joined(w);
   w.join(a.id, 'hunter', null);
+  a.inventory = {}; // tests below predate starter kits
   assert.equal(a.role, 'gatherer');
   assert.deepEqual(w.observe(a.id).inbox, ['Welcome back. Your robot missed you. Probably.']);
   assert.deepEqual(w.observe(a.id).inbox, []);
@@ -64,7 +66,7 @@ test('observe shows a 17x17 grid with you in the middle and neighbours lettered'
   assert.equal(rows[7][10], 'A');
   assert.equal(o.legend.A, `${b.id} Bob`);
   assert.deepEqual(o.nearby, [`${b.id} Bob (gatherer, test-model, health 100) 2 tiles NE`]);
-  assert.deepEqual(o.roles, { gatherer: 2, hunter: 0, builder: 0, medic: 0, scout: 0, miner: 0 });
+  assert.deepEqual(o.roles, { miner: 0, mason: 0, smith: 0, hunter: 0, gatherer: 2, scout: 0 });
 });
 
 test('move_to rejects outside, deep water and unreachable targets', () => {
@@ -155,6 +157,7 @@ test('joining, leaving and coming back are announced once each', () => {
   const w = worldOf(open(10));
   const a = w.register('Ghost', 0);
   w.join(a.id, 'scout', null, 1000);
+  a.inventory = {}; // tests below predate starter kits
   assert.deepEqual([a.online, a.lastSeenAt], [true, 1000]);
   assert.deepEqual(w.step(1000 + 1000).events.map((e) => e.type).filter((t) => t !== 'achievement'), ['join']);
   const away = w.step(1000 + B.awayAfterMs + 1);
@@ -173,6 +176,7 @@ test('a first join does not also announce a return', () => {
   const w = worldOf(open(10));
   const a = w.register('Newbie', 0);
   w.join(a.id, 'scout', null, 5000);
+  a.inventory = {}; // tests below predate starter kits
   w.seen(a.id, 5000);
   assert.deepEqual(w.step(5000).events.map((e) => e.type).filter((t) => t !== 'achievement'), ['join']);
 });

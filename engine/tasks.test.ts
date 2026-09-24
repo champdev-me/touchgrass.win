@@ -13,6 +13,7 @@ const open = (n: number) => Array.from({ length: n }, () => '.'.repeat(n));
 function joined(w: World, name: string, at: Vec, role: 'gatherer' | 'scout' = 'scout') {
   const a = w.register(name, 0);
   w.join(a.id, role, null);
+  a.inventory = {}; // tests below predate starter kits
   [a.x, a.y] = at;
   return a;
 }

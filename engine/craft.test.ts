@@ -81,10 +81,3 @@ test('iron comes from the furnace; iron gear needs no blueprint any more', () =>
   craft(w, a.id, 'frying_pan');
   assert.equal(a.inventory.frying_pan, 1);
 });
-
-test('builders build for half the materials (rounded up)', () => {
-  const w = world();
-  const a = robot(w, [10, 10], { wood: 3, stone: 1 }, 'builder');
-  build(w, a.id, 'workbench'); // 6 wood + 2 stone halves to 3 + 1
-  assert.deepEqual(a.inventory, {});
-});

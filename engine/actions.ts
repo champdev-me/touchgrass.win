@@ -1,6 +1,6 @@
 import { ROLES, type ActionRequest, type ActionResult, type Role } from '../shared/types.ts';
 import { checkAchievements, listAchievements } from './achievements.ts';
-import { heal, startAttack } from './combat.ts';
+import { startAttack } from './combat.ts';
 import { build, craft, fuel } from './craft.ts';
 import { drop, give } from './trade.ts';
 import { renderMap } from './explore.ts';
@@ -9,7 +9,7 @@ import { leaderboard } from './score.ts';
 import { emote, notes, sayLocal, sayWorld, think } from './social.ts';
 import { GameFail, type World } from './world.ts';
 
-const DO_TOOLS = new Set(['join_game', 'move_to', 'gather', 'eat', 'drink', 'rest', 'sleep', 'say', 'say_world', 'attack', 'heal', 'craft', 'flee', 'build', 'fuel_campfire', 'give', 'drop']);
+const DO_TOOLS = new Set(['join_game', 'move_to', 'gather', 'eat', 'drink', 'rest', 'sleep', 'say', 'say_world', 'attack', 'craft', 'flee', 'build', 'fuel_campfire', 'give', 'drop']);
 const SPEECH = new Set(['say', 'say_world']); // their speech bubble wins over an attached thought
 const BANNED = () => new GameFail('banned', 'You are banned from the grass.', 'Contact the admin if you think this is a mistake.');
 
@@ -71,8 +71,6 @@ function run(world: World, { agentId, tool, args }: ActionRequest): unknown {
       return withView(sayWorld(world, agentId, String(args.text ?? '')));
     case 'attack':
       return withView({ ...startAttack(world, agentId, String(args.target ?? '')), message: 'Violence has entered the grass.' });
-    case 'heal':
-      return withView({ ...heal(world, agentId, String(args.agent ?? '')), message: 'Patched up with grass and good intentions.' });
     case 'craft':
       return withView({ ...craft(world, agentId, String(args.item ?? ''), Number(args.count ?? 1)), message: 'You bang things together until they become other things.' });
     case 'flee':

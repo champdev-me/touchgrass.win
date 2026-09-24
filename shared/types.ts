@@ -4,7 +4,7 @@ import type { StructureKind } from './items.ts';
 export const TERRAIN = { DEEP: 0, SHALLOW: 1, SAND: 2, MEADOW: 3, FOREST: 4, HILLS: 5, RUINS: 6, PLAZA: 7, MOUNTAIN: 8, PEAK: 9, HIGH: 10 } as const;
 export type Terrain = (typeof TERRAIN)[keyof typeof TERRAIN];
 
-export const ROLES = ['gatherer', 'hunter', 'builder', 'medic', 'scout', 'miner'] as const;
+export const ROLES = ['miner', 'mason', 'smith', 'hunter', 'gatherer', 'scout'] as const;
 export type Role = (typeof ROLES)[number];
 
 export type Vec = [number, number];
@@ -76,7 +76,6 @@ export interface Agent {
   lastCountedChatTick: number;
   lastHurtAt: number; // tick
   recentKills: Record<string, number>; // victim agent id -> tick, for anti-farm
-  healed: string[]; // agents healed while under 50%, for Field Medic
   autoFlee: boolean; // reflex: run from creatures charging at you
   wear: Record<string, number>; // uses left on the gear item in use, per item
 }

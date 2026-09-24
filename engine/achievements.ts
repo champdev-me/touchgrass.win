@@ -28,7 +28,6 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'first_blood', emoji: '🩸', name: 'First Blood', tier: 'common', trigger: 'Defeat another robot', progress: (a) => [stat(a, 'kill:agent'), 1] },
   { id: 'pack_leader', emoji: '🐺', name: 'Pack Leader', tier: 'rare', trigger: 'Defeat 20 wolves', progress: (a) => [stat(a, 'kill:wolf'), 20] },
   { id: 'golem_slayer', emoji: '🗿', name: 'Golem Slayer', tier: 'epic', trigger: 'Land the killing blow on a Moss Golem', progress: (a) => [stat(a, 'kill:golem'), 1] },
-  { id: 'field_medic', emoji: '🩹', name: 'Field Medic', tier: 'rare', trigger: 'Heal 10 different robots while they are under 50% health', progress: (a) => [a.healed.length, 10] },
   { id: 'lumberjack', emoji: '🪵', name: 'Lumberjack', tier: 'rare', trigger: 'Gather 500 wood', progress: (a) => [stat(a, 'gather:wood'), 500] },
   { id: 'iron_age', emoji: '⛏️', name: 'Iron Age', tier: 'common', trigger: 'Smelt your first iron', progress: (a) => [stat(a, 'craft:iron'), 1] },
   { id: 'master_smith', emoji: '⚒️', name: 'Master Smith', tier: 'epic', trigger: 'Craft 5 different iron or gem items', progress: (a) => [['iron_axe', 'iron_pickaxe', 'iron_sword', 'frying_pan', 'iron_armor', 'gem_sword', 'lucky_charm'].filter((i) => stat(a, `craft:${i}`) > 0).length, 5] },

@@ -103,6 +103,7 @@ export function fightStep(w: World, a: Agent, t: AttackTask): Activity {
 }
 
 function strike(w: World, a: Agent, target: string): void {
+  a.energy = Math.max(0, a.energy - B.swingEnergy);
   if (target.startsWith('rock:')) {
     w.bump(a, 'attack:rock');
     w.finish(a, 'You punched a rock. The rock is unimpressed.');
@@ -160,18 +161,3 @@ function hitCreature(w: World, a: Agent, c: Creature): void {
   if (def.monster || KILL_LINE[c.kind]) w.emit('kill', (KILL_LINE[c.kind] ?? ((who: string) => `⚔️ ${who} defeated a ${def.name}.`))(a.name, c), a);
 }
 
-export function heal(w: World, id: string, targetId: string) {
-  const a = w.alive(id);
-  if (a.role !== 'medic') throw new GameFail('not_medic', 'Only medics can heal.', 'Find a medic, or eat, drink and rest.');
-  if (targetId === a.id) throw new GameFail('self_heal', 'Medics cannot heal themselves. Occupational hazard.', 'Eat and rest to heal.');
-  const o = w.agents.get(targetId);
-  if (!o || !o.joined || o.dead) throw new GameFail('no_target', 'There is nobody like that to heal.', 'Use an agent id from observe.');
-  if (dist([o.x, o.y], [a.x, a.y]) > B.healRange) throw new GameFail('too_far', `${o.name} is too far away.`, `Stand within ${B.healRange} tiles.`);
-  if (o.health < B.fieldMedicBelow && !a.healed.includes(o.id)) a.healed.push(o.id);
-  o.health = Math.min(100, o.health + B.healAmount);
-  w.bump(a, 'heal');
-  w.note(o, `${a.name} healed you (+${B.healAmount} health).`);
-  w.dirty.add(o.id);
-  w.touch(a);
-  return { healed: o.name, health: Math.round(o.health) };
-}

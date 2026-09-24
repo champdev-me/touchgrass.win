@@ -19,7 +19,7 @@ test('flush then load restores terrain, agents, nodes, loot and counters; walkin
   await saveTerrain(r, tiles, 64);
   await saveAllNodes(r, w);
   const a = w.register('Saver', 0);
-  w.join(a.id, 'builder', null);
+  w.join(a.id, 'smith', null);
   w.moveTo(a.id, 0, 20);
   w.step();
   w.takeFromNode(w.index(10, 10), w.nodes.get(w.index(10, 10))!);
@@ -31,7 +31,7 @@ test('flush then load restores terrain, agents, nodes, loot and counters; walkin
   assert.deepEqual(back.tiles, tiles);
   assert.deepEqual([back.tick, back.nextId, back.size], [1, 2, 64]);
   const b = back.agents.get(a.id)!;
-  assert.deepEqual([b.x, b.y, b.task, b.role, b.health], [0, 2, null, 'builder', a.health]);
+  assert.deepEqual([b.x, b.y, b.task, b.role, b.health], [0, 2, null, 'smith', a.health]);
   assert.equal(b.inbox.at(-1), 'Task cancelled: the universe rebooted.');
   assert.equal(back.nodes.get(back.index(10, 10))!.left, 4);
   assert.deepEqual(back.loot.get(back.index(5, 5))!.items, { wood: 2 });
@@ -182,5 +182,26 @@ test('bags saved before the small-bag rule spill their overflow on load, once', 
   assert.deepEqual([b.inventory.berries, back.loot.get(back.index(5, 5))?.items.berries, b.wallet], [240, 760, 42]);
   await flush(r, back);
   assert.equal((await loadWorld(r))!.agents.get(a.id)!.inventory.berries, 240);
+  await r.close();
+});
+
+test('0.0.1-5 saves migrate once: builders become smiths, medics gatherers, the market goes', async () => {
+  const r = await connectRedis(redisUrl(14));
+  await r.flushDb();
+  const tiles = new Uint8Array(64 * 64).fill(T.MEADOW);
+  const w = new World(tiles, 64, () => 0.5);
+  await saveTerrain(r, tiles, 64);
+  await saveAllNodes(r, w);
+  const a = w.register('Old Builder', 0), b = w.register('Old Medic', 0);
+  w.join(a.id, 'scout', null, 0);
+  w.join(b.id, 'scout', null, 0);
+  await flush(r, w);
+  for (const [who, role] of [[a, 'builder'], [b, 'medic']] as const) {
+    await r.hSet(K.agents, who.id, JSON.stringify({ ...JSON.parse((await r.hGet(K.agents, who.id))!), role, blueprints: ['iron_tools'] }));
+  }
+  await r.set(K.market, '{"stone":19.6}');
+  await r.hDel(K.meta, 'econRules');
+  const back = (await loadWorld(r))!;
+  assert.deepEqual([back.agents.get(a.id)!.role, back.agents.get(b.id)!.role, await r.exists(K.market)], ['smith', 'gatherer', 0]);
   await r.close();
 });

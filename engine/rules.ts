@@ -1,7 +1,7 @@
 import { B } from '../shared/balance.ts';
 import { CREATURES } from '../shared/creatures.ts';
-import { FOOD, ITEMS, RECIPES, STRUCTURES, WEAPONS } from '../shared/items.ts';
-import { EMOTES, ROLES } from '../shared/types.ts';
+import { FOOD, ITEMS, KITS, RECIPES, STRUCTURES, WEAPONS } from '../shared/items.ts';
+import { EMOTES } from '../shared/types.ts';
 import { ACHIEVEMENTS, TIER_POINTS } from './achievements.ts';
 import { NODE_DEF } from './nodes.ts';
 import type { World } from './world.ts';
@@ -12,7 +12,8 @@ export function rules(w: World) {
     time: `A day is ${B.dayTicks / 60} min; the last ${B.nightTicks / 60} min are night (vision halves). Current tick ${w.tick}.`,
     body: [
       `Stats run 0-100, higher is better. Food drops 1 every ${Math.round(-1 / B.foodPerTick)}s, water 1 every ${Math.round(-1 / B.waterPerTick)}s.`,
-      `At 0 food or water you lose health; above ${B.regenAbove} of both you heal. drink() next to water adds ${B.drinkAmount}.`,
+      `At 0 food or water you lose health. You heal ${B.regenPerTick * 60} a minute only while food is full and water is above ${B.regenAbove}. drink() next to water adds ${B.drinkAmount}.`,
+      `Work costs energy: ${B.punchEnergy} per punch (tools need fewer punches), ${B.swingEnergy} per strike, on top of walking. At 0 energy you cannot punch or fight: rest or sleep.`,
       `Death drops half your bag as a loot pile and you respawn after ${B.respawnTicks}s.`,
       'The land has height levels (you.altitude). You can step up or down one level at a time; 2+ is a cliff. Mountains (m) are slow and steep; deep water (~) blocks you. Trees and berry bushes are solid: stand next to them to gather.',
     ],
@@ -37,7 +38,7 @@ export function rules(w: World) {
     economy: [
       `Money is gold. You start with ${B.startGold}. There is no shop: robots trade with robots.`,
       'give(agent, item, count) hands items or gold to a robot within 2 tiles. Deals are made in chat.',
-      'Miners dig double stone, iron and crystal; gatherers pick double wood, berries and fiber.',
+      'Gatherers pick double wood, berries and fiber.',
     ],
     combat: [
       `attack(target): an id from observe (agent_12, mob_5) or a type meaning the nearest one (rabbit, deer, boar, duck, goblin, wolf, roomba, golem, rock).`,
@@ -45,12 +46,11 @@ export function rules(w: World) {
       `No fighting robots in the Plaza. Killing the same robot again within ${B.antiFarmTicks / 60} min scores nothing.`,
       `Untamed animals sometimes kick robots that come within ${B.fleeRadius} tiles (${Object.values(CREATURES).filter((d) => d.kick).map((d) => `${d.name} ${d.kick}`).join(', ')} damage), then run.`,
       `flee(): run from the nearest dangerous creature; flee(x, y): run to a spot. You also flee on reflex when something charges at you within ${B.fleeNotice} tiles, unless you are attacking or turned it off with settings(auto_flee=false).`,
-      `heal(agent): medics only, +${B.healAmount} health within ${B.healRange} tiles.`,
       `craft: ${Object.entries(RECIPES).map(([item, r]) => `${item} = ${Object.entries(r.needs).map(([m, n]) => `${n} ${m}`).join(' + ')}`).join('; ')}.`,
     ],
     creatures: Object.values(CREATURES).map((d) =>
       `${d.emoji} ${d.name}: ${d.hp} hp, ${d.damage ? `hits for ${d.damage} every ${B.monsterBiteTicks}s` : 'harmless'}${d.monster ? ', night only' : ''}${d.hostile ? ', hunts robots' : ''}; drops ${Object.entries(d.drops).map(([i, n]) => `${n} ${i}`).join(', ')}`),
-    roles: ROLES,
+    roles: Object.entries(KITS).map(([r, kit]) => `${r}: starts with ${Object.entries(kit).map(([i, n]) => `${n} ${i}`).join(', ')}`),
     scoring: [
       '+1 per minute alive',
       `+1 per ${B.gatherScoreEvery} units gathered`,

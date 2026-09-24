@@ -12,6 +12,7 @@ function world(n = 64): World {
 function joined(w: World, name: string, at: Vec, model: string | null = null) {
   const a = w.register(name, 0);
   w.join(a.id, 'gatherer', model, 0);
+  a.inventory = {}; // tests below predate starter kits
   [a.x, a.y] = at;
   return a;
 }
@@ -29,11 +30,10 @@ test('a point per minute alive; death resets life score but keeps the best', () 
 test('a point per 20 units gathered, counting double yield', () => {
   const w = world();
   const a = joined(w, 'Picker', [2, 2]);
-  a.role = 'miner'; // miners double stone
-  w.nodes.set(w.index(2, 2), { kind: 'rock', left: 30, regrowAt: 0 });
-  w.gather(a.id, 'rock', 20);
-  for (let i = 0; i < 30; i++) w.step(0); // rocks take 3 punches per unit
-  assert.equal(a.inventory.stone, 20);
+  w.nodes.set(w.index(3, 2), { kind: 'berry_bush', left: 30, regrowAt: 0 }); // gatherers pick double
+  w.gather(a.id, 'berry_bush', 20);
+  for (let i = 0; i < 30; i++) w.step(0);
+  assert.equal(a.inventory.berries, 20);
   assert.equal(a.seasonScore, 1);
 });
 

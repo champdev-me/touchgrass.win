@@ -24,8 +24,8 @@ const P: Record<string, string> = {
   // roles
   gatherer: 'M2 6h12l-1.5 8h-9zM5 6c0-2 1.3-4 3-4s3 2 3 4H9.5c0-1.2-.6-2.5-1.5-2.5S6.5 4.8 6.5 6z',
   hunter: 's:M8 1.5v3M8 11.5v3M1.5 8h3M11.5 8h3M8 3.5a4.5 4.5 0 1 1 0 9 4.5 4.5 0 0 1 0-9',
-  builder: 'M9 1.5l4 2.5-1.5 2.4-1.6-1L4.5 14.5 2.5 13.2 7.9 4.1l-1.5-1z',
-  medic: 'M6 1.5h4v4.5h4.5v4H10v4.5H6V10H1.5V6H6z',
+  smith: 'M9 1.5l4 2.5-1.5 2.4-1.6-1L4.5 14.5 2.5 13.2 7.9 4.1l-1.5-1z',
+  mason: 'M1.5 4h13v3h-13zM1.5 9h13v3h-13zM6 4v3M10 9v3',
   scout: 'M8 3.5C4.4 3.5 1.8 6.3 1 8c.8 1.7 3.4 4.5 7 4.5s6.2-2.8 7-4.5c-.8-1.7-3.4-4.5-7-4.5zm0 1.8a2.7 2.7 0 1 1 0 5.4 2.7 2.7 0 0 1 0-5.4z',
   // bag items
   wood: 'M3 5.5h8.5a2.5 2.5 0 0 1 0 5H3a2.5 2.5 0 0 1 0-5zm8.5 1.3a1.2 1.2 0 1 0 0 2.4 1.2 1.2 0 0 0 0-2.4z',
@@ -67,7 +67,7 @@ export const COLORS: Record<string, string> = {
   stone_axe: '#a7a39c', stone_pickaxe: '#a7a39c', stone_spear: '#a7a39c', frying_pan: '#aab3bd', hide_armor: '#c49a6c', torch: '#ffae42',
   waterskin: '#c49a6c', backpack: '#9b6b3d', cooked_meat: '#c0583f', grass_salad: '#8be36b', marshmallow: '#f4efe6', roasted_marshmallow: '#e0b074', miner: '#c0c6cc',
   dead: '#d9d9d9', away: '#9fb59a', wood: '#b07a45', berries: '#e0355b', stone: '#a7a39c', fiber: '#8be36b', meat: '#e8766a',
-  hide: '#c49a6c', apple: '#e84a3c', club: '#9b6b3d', battery: '#58d68d', crystal: '#7fd8ff', medic: '#ff6b6b',
+  hide: '#c49a6c', apple: '#e84a3c', club: '#9b6b3d', battery: '#58d68d', crystal: '#7fd8ff', mason: '#c8643c',
 };
 
 const NS = 'http://www.w3.org/2000/svg';
@@ -76,7 +76,7 @@ const NS = 'http://www.w3.org/2000/svg';
 // Items that share a drawing.
 const ALIAS: Record<string, string> = {
   stone_axe: 'axe', iron_axe: 'axe', stone_pickaxe: 'pickaxe', iron_pickaxe: 'pickaxe', miner: 'pickaxe', hide_armor: 'armor', iron_armor: 'armor',
-  cooked_meat: 'meat', roasted_marshmallow: 'marshmallow', workbench: 'builder', campfire: 'torch', furnace: 'stone',
+  cooked_meat: 'meat', roasted_marshmallow: 'marshmallow', workbench: 'smith', campfire: 'torch', furnace: 'stone',
 };
 
 export function icon(name: string, title = name.replaceAll('_', ' '), color = COLORS[name]): SVGSVGElement {

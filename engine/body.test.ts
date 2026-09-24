@@ -28,7 +28,7 @@ test('empty stats hurt and full stats heal', () => {
   assert.ok(near(a.health, 49.6), `${a.health}`);
   const b = bot({ health: 50 });
   tickBody(b, 'idle');
-  assert.ok(near(b.health, 50.1), `${b.health}`);
+  assert.ok(near(b.health, 50.5), `${b.health}`); // full food heals 0.5 a tick
 });
 
 test('energy drains while busy and refills while resting or sleeping', () => {
@@ -79,5 +79,5 @@ test('raw meat can give a tummy ache; a battery is pure energy; auto-eat never e
 
 test('old records get combat fields', () => {
   const a = normalizeAgent({ id: 'agent_1', name: 'Old' });
-  assert.deepEqual([a.lastHurtAt < 0, a.recentKills, a.healed], [true, {}, []]);
+  assert.deepEqual([a.lastHurtAt < 0, a.recentKills], [true, {}]);
 });

@@ -10,6 +10,7 @@ function world(): World {
 function robot(w: World, at: Vec, role: Role = 'scout') {
   const a = w.register(`R${at.join('')}${role}`, 0);
   w.join(a.id, role, null, 0);
+  a.inventory = {}; // tests below predate starter kits
   [a.x, a.y] = at;
   return a;
 }
@@ -36,7 +37,7 @@ test('axes speed up trees: hand 3 ticks, stone 2, iron 1', () => {
   }
 });
 
-test('iron veins need a pickaxe; miners dig double; tools wear out and snap', () => {
+test('iron veins need a pickaxe; tools wear out and snap', () => {
   const w = world();
   const a = robot(w, [5, 5], 'miner');
   w.nodes.set(w.index(6, 5), { kind: 'iron_vein', left: 5, regrowAt: 0 });
@@ -46,7 +47,7 @@ test('iron veins need a pickaxe; miners dig double; tools wear out and snap', ()
   w.gather(a.id, 'iron_vein', 4);
   const events: string[] = [];
   for (let i = 0; i < 4; i++) events.push(...w.step(0).events.map((e) => e.text));
-  assert.equal(a.inventory.iron_ore, 4); // two digs, 2 each for a miner
+  assert.equal(a.inventory.iron_ore, 2); // two digs before the pickaxe snaps
   assert.equal(a.inventory.stone_pickaxe, undefined);
   assert.ok(events.some((t) => t.includes('snapped')));
   assert.equal(bestTool(a, 'iron_vein'), null);

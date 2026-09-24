@@ -7,7 +7,7 @@ export const B = {
   moveBudgetPerTick: 2, // a land step costs 1, shallow water 2
   pathRadius: 128,
   vision: 8,
-  scoutVision: 15,
+  scoutVision: 16,
   nightVisionFactor: 0.5,
   plazaHalf: 20,
   maxClimb: 1, // height levels a robot or creature can step up or down in one move
@@ -24,10 +24,13 @@ export const B = {
   // body: every stat runs 0-100, higher is better
   foodPerTick: -1 / 30,
   waterPerTick: -1 / 20,
-  regenPerTick: 1 / 10, // health, while food and water are both above regenAbove
+  regenPerTick: 0.5, // health, only while food is full (regenFood) and water above regenAbove
+  regenFood: 99,
   regenAbove: 50,
   starvePerTick: -1 / 5, // health, per empty stat
   busyEnergyPerTick: -1 / 10,
+  punchEnergy: 0.3, // per tick spent punching a node
+  swingEnergy: 1, // per strike in a fight
   restEnergyPerTick: 1,
   sleepEnergyPerTick: 2,
   lowStat: 15, // food/water: interrupts, auto-eat, faster cooldown
@@ -83,9 +86,6 @@ export const B = {
   combatCooldownMs: 2000,
   antiFarmTicks: 600,
   agentKillScore: 5,
-  healAmount: 20,
-  healRange: 2,
-  fieldMedicBelow: 50,
   tummyAcheChance: 0.3,
   tummyAcheEnergy: 20,
   // creatures

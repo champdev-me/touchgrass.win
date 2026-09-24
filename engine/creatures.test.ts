@@ -13,6 +13,7 @@ function world(rng = () => 0.5): World {
 function joined(w: World, name: string, at: Vec) {
   const a = w.register(name, 0);
   w.join(a.id, 'scout', null, 0);
+  a.inventory = {}; // tests below predate starter kits
   [a.x, a.y] = at;
   return a;
 }

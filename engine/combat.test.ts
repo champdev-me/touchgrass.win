@@ -2,7 +2,7 @@ import { test } from 'bun:test';
 import assert from 'node:assert/strict';
 import { TERRAIN as T, type Role, type Vec } from '../shared/types.ts';
 import { TIER_POINTS } from './achievements.ts';
-import { heal, startAttack, weaponOf } from './combat.ts';
+import { startAttack, weaponOf } from './combat.ts';
 import { craft } from './craft.ts';
 import { spawnCreature } from './creatures.ts';
 import { GameFail, World } from './world.ts';
@@ -13,6 +13,7 @@ function world(tiles = new Uint8Array(64 * 64).fill(T.MEADOW)): World {
 function joined(w: World, name: string, at: Vec, role: Role = 'gatherer') {
   const a = w.register(name, 0);
   w.join(a.id, role, null, 0);
+  a.inventory = {}; // tests below predate starter kits
   [a.x, a.y] = at;
   return a;
 }
@@ -132,21 +133,6 @@ test('killing a goblin or a Roomba returns what they took', () => {
   startAttack(w, a.id, r.id);
   for (let i = 0; i < 3; i++) w.step(0);
   assert.deepEqual([a.inventory.wood, a.inventory.battery], [3, 1]);
-});
-
-test('medics heal others nearby; Field Medic counts different robots under half health', () => {
-  const w = world();
-  const m = joined(w, 'Doc', [10, 10], 'medic');
-  const p = joined(w, 'Patient', [11, 10]);
-  const far = joined(w, 'Far', [20, 10]);
-  const g = joined(w, 'Nurse', [9, 10]);
-  p.health = 40;
-  assert.deepEqual(heal(w, m.id, p.id), { healed: 'Patient', health: 60 });
-  heal(w, m.id, p.id);
-  assert.deepEqual([p.health, m.healed], [80, [p.id]]);
-  assert.equal(failCode(() => heal(w, g.id, p.id)), 'not_medic');
-  assert.equal(failCode(() => heal(w, m.id, m.id)), 'self_heal');
-  assert.equal(failCode(() => heal(w, m.id, far.id)), 'too_far');
 });
 
 test('craft a club from 5 wood and fight with it', () => {

@@ -1,4 +1,5 @@
 import { B } from './balance.ts';
+import type { Role } from './types.ts';
 
 export type Inventory = Record<string, number>;
 export type Station = 'hand' | 'workbench' | 'campfire' | 'furnace';
@@ -75,6 +76,12 @@ export const WEAPONS: Record<string, number> = Object.fromEntries(Object.entries
 export type StructureKind = 'workbench' | 'campfire' | 'furnace';
 export const STRUCTURES: Record<StructureKind, Inventory> = { workbench: { wood: 6, stone: 2 }, campfire: { wood: 5, stone: 3 }, furnace: { stone: 10 } };
 export const isStructure = (s: string): s is StructureKind => s in STRUCTURES;
+
+/** Given on join and respawn for each item the robot does not already carry. */
+export const KITS: Record<Role, Inventory> = {
+  miner: { stone_pickaxe: 1 }, mason: { stone_pickaxe: 1 }, smith: { wood: 6, stone: 2 },
+  hunter: { stone_spear: 1 }, gatherer: { stone_axe: 1 }, scout: { torch: 1 },
+};
 
 const GEAR: ItemKind[] = ['tool', 'weapon', 'armor', 'gear'];
 export const stackOf = (item: string): number => (GEAR.includes(ITEMS[item]?.kind ?? 'material') ? 1 : B.stackSize);

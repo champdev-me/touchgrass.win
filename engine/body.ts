@@ -38,7 +38,7 @@ export function tickBody(a: Agent, activity: Activity): BodyNews {
   a.water = clamp(a.water + B.waterPerTick);
   const empty = (a.food === 0 ? 1 : 0) + (a.water === 0 ? 1 : 0);
   if (empty) a.health = clamp(a.health + B.starvePerTick * empty);
-  else if (a.food > B.regenAbove && a.water > B.regenAbove) a.health = clamp(a.health + B.regenPerTick);
+  else if (a.food >= B.regenFood && a.water > B.regenAbove) a.health = clamp(a.health + B.regenPerTick);
   const energy = { idle: 0, busy: B.busyEnergyPerTick, rest: B.restEnergyPerTick, sleep: B.sleepEnergyPerTick }[activity];
   a.energy = clamp(a.energy + energy);
 

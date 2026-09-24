@@ -26,7 +26,7 @@ test('failures explain themselves and cost no cooldown', () => {
   const bad = handleAction(w, { agentId: id, tool: 'join_game', args: { role: 'wizard' } });
   assert.deepEqual([bad.ok, bad.cooldownMs], [false, 0]);
   assert.equal(!bad.ok && bad.error.error, 'bad_role');
-  handleAction(w, { agentId: id, tool: 'join_game', args: { role: 'medic' } });
+  handleAction(w, { agentId: id, tool: 'join_game', args: { role: 'mason' } });
   const blocked = handleAction(w, { agentId: id, tool: 'move_to', args: { x: 5, y: 0 } });
   assert.equal(!blocked.ok && blocked.error.error, 'blocked');
   const unknown = handleAction(w, { agentId: id, tool: 'fly', args: {} });
@@ -91,9 +91,9 @@ test('speaking keeps the speech bubble even when a thought is attached', () => {
   assert.deepEqual(w.views()[0].bubble, { kind: 'world', text: 'hello grass' });
 });
 
-test('attack, heal and craft are wired as action tools', () => {
+test('attack and craft are wired as action tools; heal is gone', () => {
   const { w, id } = setup();
-  handleAction(w, { agentId: id, tool: 'join_game', args: { role: 'medic' } });
+  handleAction(w, { agentId: id, tool: 'join_game', args: { role: 'mason' } });
   const a = w.agents.get(id)!;
   a.inventory = { wood: 5 };
   const c = handleAction(w, { agentId: id, tool: 'craft', args: { item: 'club' } });
@@ -102,7 +102,7 @@ test('attack, heal and craft are wired as action tools', () => {
   w.join(other.id, 'scout', null, 0);
   [other.x, other.y] = [a.x + 1, a.y];
   const h = handleAction(w, { agentId: id, tool: 'heal', args: { agent: other.id } });
-  assert.equal(h.ok, true);
+  assert.equal(!h.ok && h.error.error, 'unknown_tool');
   const at = handleAction(w, { agentId: id, tool: 'attack', args: { target: other.id } });
   assert.deepEqual([at.ok, at.cooldownMs], [true, 2000]);
 });

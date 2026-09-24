@@ -37,7 +37,7 @@ export function build(w: World, id: string, kind: string) {
   const a = w.alive(id);
   if (!isStructure(kind)) throw new GameFail('bad_structure', `You cannot build "${kind}".`, `Buildable: ${Object.keys(STRUCTURES).join(', ')}.`);
   if (w.at(a.x, a.y) === T.PLAZA) throw new GameFail('plaza_rules', 'No building in the Plaza. It is for trading.', 'Walk out of the Plaza first.');
-  const cost = a.role === 'builder' ? Object.fromEntries(Object.entries(STRUCTURES[kind]).map(([m, n]) => [m, Math.ceil(n / 2)])) : STRUCTURES[kind]; // builders: half
+  const cost = STRUCTURES[kind];
   if (!has(a, cost)) throw new GameFail('missing_materials', `You need ${missing(a, cost)} more.`, 'Gather them first.');
   const spot = ([[1, 0], [-1, 0], [0, 1], [0, -1]] as Vec[]).map(([dx, dy]): Vec => [a.x + dx, a.y + dy])
     .find(([x, y]) => walkable(w.at(x, y)) && w.at(x, y) !== T.SHALLOW && w.at(x, y) !== T.PLAZA && !w.solid(x, y) && Math.abs(w.height(x, y) - w.height(a.x, a.y)) <= B.maxClimb);

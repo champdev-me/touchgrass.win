@@ -116,6 +116,11 @@ function gatherStep(w: World, a: Agent, t: GatherTask): Activity {
   const ticks = tool ? Math.max(1, Math.ceil(def.ticks / (tool.tier === 2 ? 4 : 2))) : def.ticks;
   // Every punch can shake something loose (an apple from a tree).
   if (def.bonus && w.rng() < def.bonus.chance / ticks && addItem(a.inventory, def.bonus.item, 1)) w.note(a, `Bonus: a ${def.bonus.item} fell out!`);
+  if (a.energy <= 0) {
+    w.interrupt(a, 'Too tired to punch. Rest or sleep.');
+    return 'idle';
+  }
+  a.energy = Math.max(0, a.energy - B.punchEnergy);
   if (++t.progress < ticks) return 'busy';
   t.progress = 0;
   if (tool) useGear(w, a, tool.item);
@@ -159,7 +164,7 @@ function harvest(w: World, a: Agent, t: GatherTask): Activity {
   const node = w.nodes.get(t.node)!;
   const def = NODE_DEF[node.kind];
   const plant = node.kind === 'tree' || node.kind === 'berry_bush' || node.kind === 'grass';
-  const per = (plant && a.role === 'gatherer') || (!plant && a.role === 'miner') ? B.gathererMultiplier : 1; // gatherers: plants, miners: stone
+  const per = plant && a.role === 'gatherer' ? B.gathererMultiplier : 1; // gatherers pick double
   // Bushes and grass (one tick) are picked in one go; trees and rocks give one unit per round of punches.
   const units = def.ticks === 1 ? Math.min(node.left, Math.ceil((t.until - t.got) / per)) : 1;
   for (let u = 0; u < units; u++) {

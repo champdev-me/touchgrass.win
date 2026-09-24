@@ -169,7 +169,15 @@ export async function loadWorld(r: Redis, seed = 'touchgrass-season-1'): Promise
     }
   }
   w.firsts = await r.hGetAll(K.firsts);
-  if (Number(meta.econRules ?? 0) < ECON_RULES) await r.del(K.market); // the Smith retired
+  if (Number(meta.econRules ?? 0) < ECON_RULES) {
+    await r.del(K.market); // the Smith retired
+    for (const a of w.agents.values()) {
+      const old: string | null = a.role;
+      if (old === 'builder') a.role = 'smith';
+      if (old === 'medic') a.role = 'gatherer';
+      w.dirty.add(a.id);
+    }
+  }
   const st = await r.get(K.structures);
   if (st) w.structures = new Map(JSON.parse(st) as [number, Structure][]);
   w.nextMobId = Number(meta.nextMobId) || 1;

@@ -1,6 +1,6 @@
 import { B } from '../shared/balance.ts';
 import { dist } from '../shared/geo.ts';
-import { FOOD, ITEMS, room, slotsOf, type Inventory } from '../shared/items.ts';
+import { FOOD, ITEMS, KITS, addItem, room, slotsOf, type Inventory } from '../shared/items.ts';
 import { CREATURES } from '../shared/creatures.ts';
 import { timeOf } from '../shared/time.ts';
 import { GATHER_TARGETS, ROLES, TERRAIN as T, type Agent, type AgentView, type Bubble, type Creature, type CreatureView, type Structure, type StructureView, type GameEvent, type GatherTarget, type Role, type TickDelta, type Vec } from '../shared/types.ts';
@@ -135,6 +135,7 @@ export class World {
     if (!a.joined) {
       a.joined = true;
       a.role = role;
+      this.giveKit(a);
       a.spawnedAt = this.tick;
       a.online = true;
       a.lastSeenAt = now;
@@ -183,6 +184,7 @@ export class World {
 
   gather(id: string, target: string, until?: number) {
     const a = this.alive(id);
+    if (a.energy <= 0) throw new GameFail('too_tired', 'Your robot is too tired to punch anything.', 'rest or sleep first.');
     if (!isTarget(target)) throw new GameFail('bad_target', `You cannot gather "${target}".`, `Gather one of: ${GATHER_TARGETS.join(', ')}.`);
     if (target !== 'loot' && room(a.inventory, NODE_DEF[target].item) === 0) throw new GameFail('bag_full', 'Your bag is full.', `It holds ${slotsOf(a.inventory)} slots. Eat something, sell to the Smith, or stop hoarding.`);
     if (target !== 'loot' && NODE_DEF[target].needsPickaxe && !bestTool(a, target)) {
@@ -499,6 +501,15 @@ export class World {
     this.dirty.add(a.id);
     this.emit('respawn', say('respawn', a.name, this.rng), a);
     this.note(a, 'You respawned at your spawn point.');
+    this.giveKit(a);
+  }
+
+  giveKit(a: Agent): void {
+    if (!a.role) return;
+    for (const [item, n] of Object.entries(KITS[a.role])) {
+      if ((a.inventory[item] ?? 0) > 0) continue;
+      if (addItem(a.inventory, item, n) && ITEMS[item].uses) a.wear[item] = ITEMS[item].uses!;
+    }
   }
 
   berriesNear(x: number, y: number, r: number): boolean {
