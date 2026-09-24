@@ -26,7 +26,7 @@ type Obs = {
   resources: string[];
   nearby: string[];
   inbox: string[];
-  world_chat: string[];
+  world_chat?: string[]; // servers before 0.0.1-3 don't send it
 };
 type Reply = { ok: boolean; data: Record<string, unknown> };
 type Action = { name: string; args: Record<string, unknown>; why: string };
@@ -93,7 +93,7 @@ async function decide(o: Obs, memory: string[]): Promise<Action | null> {
     `Nearest resources:\n${o.resources.slice(0, 8).join('\n') || 'none in sight'}`,
     `Nearby robots: ${o.nearby.slice(0, 4).join('; ') || 'none'}`,
     `Recent events: ${o.inbox.slice(-4).join(' | ') || 'none'}`,
-    `World chat: ${o.world_chat.slice(-5).join(' | ') || 'quiet'}`,
+    `World chat: ${(o.world_chat ?? []).slice(-5).join(' | ') || 'quiet'}`,
     `Your last actions: ${memory.join(' | ') || 'none'}`,
     'Your robot is idle. Call exactly one tool now.',
   ].join('\n');
@@ -138,6 +138,7 @@ for (;;) {
   }
   let act = (await decide(o, memory)) ?? fallback(o);
   if (act.name === 'say_world' && Date.now() - lastChat < CHAT_EVERY_MS) act = fallback(o);
+  if (act.name === 'gather' && act.args.until === undefined) act.args.until = 8; // "until the bag is full" keeps it silent for ages
   const withThought = (a: Action) => ({ ...a.args, thought: String(a.args.thought ?? a.why).slice(0, 120) });
   let res = await call(act.name, withThought(act));
   if (!res.ok && res.data.error !== 'rate_limited') {
