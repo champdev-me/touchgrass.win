@@ -13,7 +13,7 @@ In 0.0.1-5 every robot can gather everything and sell it to one Smith NPC in the
 
 ## 2. Roles
 
-Seven roles. `builder` is renamed `smith` and `mason` is new. Role perks from 0.0.1-5 (the miner's double stone, the builder's half-cost stations) are removed; only the gatherer keeps double plant yield. Exclusivity replaces the perks.
+Six roles: miner, mason, smith, hunter, gatherer, scout. `builder` is renamed `smith`, `mason` is new, and `medic` is removed (with the `heal` tool; see Health below, and bandages come from gatherers). Role perks from 0.0.1-5 (the miner's double stone, the builder's half-cost stations) are removed; only the gatherer keeps double plant yield. Exclusivity replaces the perks.
 
 | Role | Only this role can | Starter kit |
 |---|---|---|
@@ -21,9 +21,8 @@ Seven roles. `builder` is renamed `smith` and `mason` is new. Role perks from 0.
 | mason | get stone from `rock` and mud from `mud`; build `kiln`, `furnace`; fire bricks | stone_pickaxe |
 | smith | craft every workbench and furnace recipe (tools, weapons, armor, iron, waterskin, backpack); build `workbench` | wood 6, stone 2 |
 | hunter | get meat and hide from animals it kills | stone_spear |
-| medic | `heal` other robots; craft `bandage` | bandage 3 |
-| gatherer | double yield from plants; the only role that gets `apple` (tree bonus) and `herb` | stone_axe |
-| scout | observe radius doubled; the only role that can open supply `crate`s | torch |
+| gatherer | double yield from plants; the only role that gets `apple` (tree bonus) and `herb`; craft `bandage` | stone_axe |
+| scout | observe radius doubled; the only role that can see buried `treasure`, and `chart` it onto a treasure map | torch |
 
 **Everyone** can drink, eat, sleep, punch trees for wood, pull grass for fiber, pick berries, craft the hand recipes (torch, club, grass_salad), build a `campfire` or a `chest`, and cook at a campfire.
 
@@ -32,6 +31,15 @@ Rules:
 - Animals killed by a non-hunter drop nothing. Monsters drop as before for everyone.
 - The starter kit is added on join and on every respawn, for each kit item the robot does not already carry. Anything that does not fit the bag is skipped.
 - Roles are chosen at `join_game` and do not change (unchanged from today).
+
+**Health** (replaces the 0.0.1-5 rule "heal while food and water are both above 50"): health regenerates only while food is full (100) and water is above 50, at `B.regenPerTick` = 0.5 per tick (was 0.1). Food drops 1 every 30 s, so a robot that ate to full heals about 15 health before it needs to eat again. Staying healthy means eating often, which keeps hunters and gatherers in business. Both numbers are tunable in `shared/balance.ts`.
+
+**Money flow.** Gold enters the world only through miners (gold veins and treasure). It reaches everyone else because miners must buy what they cannot make:
+- from smiths: pickaxes (100 uses each, they wear out) and weapons;
+- from hunters and gatherers: food, which they need all the time to stay healthy;
+- from scouts: treasure maps;
+- from masons: stone for campfires.
+Smiths then pay miners for iron and gems, masons for stone and bricks, and hunters for hide, so the coins go round.
 
 ## 3. New nodes and items
 
@@ -43,20 +51,26 @@ Nodes (added by node rules version 7; placement is seedless like today, so exist
 | gem_vein | MOUNTAIN or HIGH, hash in [0.05, 0.065) | gem | 1-2 | 5 | never | yes | miner |
 | gold_vein | HIGH hash in [0.065, 0.075), PEAK hash in [0.01, 0.02) | gold (coins) | 3-8 | 5 | never | yes | miner |
 | herb | FOREST hash in [0.42, 0.44), MEADOW hash in [0.035, 0.04) | herb | 2 | 1 | 900 ticks | no | gatherer |
-| crate | see below | random loot | 1 | 2 | respawns elsewhere | no | scout |
+| treasure | see below | gold and loot | 1 | 10 | respawns elsewhere | yes | miner, with the matching map |
 
 - `rock` becomes mason-only. `iron_vein` and `crystal` become miner-only.
 - Gold from a `gold_vein` goes straight into the miner's wallet, one coin per unit. It never enters the bag. Veins never regrow, so the gold supply is finite per world; the 0.0.1-10 balance pass tunes vein density.
-- **Crates:** the world keeps 8 crates on random walkable land tiles at least 64 tiles from the Plaza. Opening one removes it and spawns a new one elsewhere. Loot is one roll from: gold 5-20 (40%), a random stone tool (25%), torch x2 (20%), bandage x2 (15%). Crates are persisted with the other nodes.
+- **Treasure** (the scout's trade is information):
+  - The world keeps 6 buried treasures on random walkable land tiles at least 64 tiles from the Plaza. They are persisted, but never sent to the public WebSocket, so a spectator page cannot leak them.
+  - Only scouts see them: `observe.resources` shows `buried treasure at (x, y), ...` within the scout's doubled radius.
+  - `chart { x, y }` (scout only, standing within 2 tiles, costs fiber 2) creates a `treasure_map` item for that treasure. The map is gear (one per slot), tradeable with `offer`, and `observe` shows each map as `treasure_map -> (x, y)`. Stored as the inventory key `treasure_map:x,y`.
+  - Scouts cannot dig. Only a miner holding the matching map can `gather treasure` at the spot (10 ticks, needs a pickaxe). Digging consumes the map, removes the treasure, and spawns a new one elsewhere; any other maps for it become worthless.
+  - Loot: gold 30-80 into the wallet, plus one roll: gem x2 (40%), crystal x2 (30%), an iron tool (20%), a lucky_charm (10%).
+  - So a scout finds treasure and sells the map to a miner, a miner pays gold for it, and a treasure hunt can be watched from the stream.
 
-Items: `mud`, `brick`, `gem`, `herb` (materials), `bandage` (a consumable used with `eat`: +15 health, no food or water).
+Items: `mud`, `brick`, `gem`, `herb` (materials), `bandage` (a consumable used with `eat`: +15 health, no food or water), `treasure_map` (gear, see above).
 
 Recipes (new or changed; every recipe gains a `roles` list, and a missing list means anyone):
 
 | Recipe | Station | Needs | Roles |
 |---|---|---|---|
 | brick x1 | kiln | mud 2, wood 1 | mason |
-| bandage x1 | hand | fiber 2, herb 1 | medic |
+| bandage x1 | hand | fiber 2, herb 1 | gatherer |
 | gem_sword | workbench | iron 4, gem 2, wood 2 | smith (damage 28, 500 uses) |
 | lucky_charm | workbench | gem 1, fiber 2 | smith (gear; 10% chance of double yield on any gather) |
 | all workbench and furnace recipes | as today | as today, with no blueprint | smith |
@@ -106,38 +120,38 @@ Rules:
 
 ## 7. Migration (one time, economy rules version 1 in Redis meta)
 
-- Robots with role `builder` become `smith`.
+- Robots with role `builder` become `smith`; robots with role `medic` become `gatherer`.
 - The `market` key is deleted; `blueprints` fields are dropped.
 - Bags, wallets and structures carry over. No starter kit is granted until the robot's next join or respawn.
 - Node rules version 7 adds the new nodes as described in section 3.
 
 ## 8. Achievements
 
-- `blueprint_collector` becomes `master_smith`: craft 5 different iron or gem items (epic).
-- New: `deal` (complete a trade, common), `minted` (mine your first gold, common), `brick_by_brick` (fire 50 bricks, rare), `crate_digger` (open 10 crates, rare), `fair_trader` (complete 25 trades, rare).
+- `blueprint_collector` becomes `master_smith`: craft 5 different iron or gem items (epic). `field_medic` is removed with the medic.
+- New: `deal` (complete a trade, common), `minted` (mine your first gold, common), `brick_by_brick` (fire 50 bricks, rare), `cartographer_for_hire` (sell 5 treasure maps, rare), `treasure_hunter` (dig up 3 treasures, rare), `fair_trader` (complete 25 trades, rare).
 - `tycoon` (hold 1000 gold) is unchanged.
 
 ## 9. Agents and docs
 
 - `rules` gains a roles section listing each role's exclusive actions and kit, and a trading section.
-- MCP tool list: remove `smith`; add `offer`, `accept`, `decline`, `store`, `take`.
+- MCP tool list: remove `smith` and `heal`; add `offer`, `accept`, `decline`, `store`, `take`, `chart`.
 - `examples/scripted-bot.ts`: each role works its exclusive job, keeps its goods in a chest when the bag fills, and offers goods to nearby robots at a fixed price list; each bot accepts offers for what its role needs (smiths buy iron and stone, masons buy wood, everyone buys a pickaxe or food when low).
 - `examples/llm-agent.ts` and `examples/AGENT_PROMPT.md`: role goals rewritten around exclusive skills and trading.
 - README and the parent spec's release table are updated.
 
 ## 10. Web
 
-- Node visuals: mud (a flat brown patch), gem_vein (coloured crystal cluster), gold_vein (rock with gold tint), herb (small leafy plant), crate (a wooden box from the Kenney Survival Kit).
+- Node visuals: mud (a flat brown patch), gem_vein (coloured crystal cluster), gold_vein (rock with gold tint), herb (small leafy plant). Treasure is never drawn while buried; when a miner digs one up, the spot shows an open chest for 30 s and world news announces the find.
 - Structure visuals: kiln and chest (Survival Kit models).
 - A trade shows a swap icon (an SVG, not emoji) over both robots for 5 seconds.
 - The forge, anvil, sign and Smith body at the Plaza are removed; the Plaza keeps a plain marker.
 
 ## 11. Testing
 
-- Unit tests: wrong-role failures for each exclusive action; starter kits on join and respawn; hunter-only animal drops; gold into the wallet; crate open and respawn; brick, bandage and gem recipes; the offer, accept, decline and expire flow, including every failed check leaving both robots unchanged; chest ownership, capacity and the 3-chest limit; the migration.
+- Unit tests: wrong-role failures for each exclusive action; starter kits on join and respawn; hunter-only animal drops; gold into the wallet; health regenerating only at full food; treasure visible only to scouts, absent from the WebSocket, charted into a map, dug only by a miner holding that map, and respawned; brick, bandage and gem recipes; the offer, accept, decline and expire flow, including every failed check leaving both robots unchanged; chest ownership, capacity and the 3-chest limit; the migration.
 - Integration: the MCP tool list; one scripted trade end to end over MCP.
-- Local demo with the scripted bots, one per role: a miner mints gold and trades iron to a smith; a mason fires bricks and builds a furnace; a scout opens a crate.
+- Local demo with the scripted bots, one per role: a miner mints gold and trades iron to a smith; a mason fires bricks and builds a furnace; a scout charts a treasure and sells the map to the miner, who digs it up.
 
 ## 12. Acceptance
 
-A miner mints gold and sells iron ore to a smith with `offer` and `accept`; the smith crafts an iron pickaxe at a mason's furnace and sells it back; a scout opens a crate; a robot stores stone in its chest; the Smith NPC is gone from the map.
+A miner mints gold and sells iron ore to a smith with `offer` and `accept`; the smith crafts an iron pickaxe at a mason's furnace and sells it back; a scout sells a treasure map to a miner who digs up the treasure; a robot stores stone in its chest; the Smith NPC is gone from the map.
