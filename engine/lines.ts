@@ -77,6 +77,16 @@ export const LINES: Record<string, string[]> = {
     'A Moss Golem sat on {name}. F.',
     '{name} tried to hug a Moss Golem. F.',
   ],
+  'death:rabbit': [
+    '{name} was dropkicked to death by a rabbit. F.',
+    'A rabbit ended {name}. Nobody will ever let this go. F.',
+    '{name} lost a fight to a bunny. Press F.',
+  ],
+  rabbit: [
+    '🐇 A rabbit dropkicked {name}. It had it coming.',
+    '🐇 {name} got bonked by a rabbit. Nature is healing.',
+    '🐇 A rabbit jumped {name} and ran. Respect the bunny.',
+  ],
   monsters: [
     'The monsters run home at dawn. Nobody knows where home is.',
     'Sunrise. The goblins pack up and leave, pockets full.',

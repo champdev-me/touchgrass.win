@@ -124,3 +124,46 @@ test('a wolf pack gives a lone robot time to react (it survives 12 seconds)', ()
   for (let i = 0; i < 12; i++) w.step(0);
   assert.ok(!a.dead && a.health < 100, String(a.health));
 });
+
+test('rabbits sometimes dropkick a nearby robot, then run', () => {
+  const w = world(() => 0.01); // under the 3% kick chance
+  const a = joined(w, 'Victim', [20, 20]);
+  const rabbit = spawnCreature(w, 'rabbit', [22, 20]);
+  const d = w.step(0);
+  assert.equal(a.health, 97);
+  assert.equal(rabbit.mode, 'flee');
+  assert.ok(d.events.some((e) => e.type === 'rabbit' && e.text.includes('Victim')));
+});
+
+test('animals spawn close enough to see; monsters stay out of sight', () => {
+  const w = world(() => 0); // every spawn lands at the minimum distance, due east
+  joined(w, 'Viewer', [20, 20]);
+  w.tick = 900;
+  w.step(0);
+  const at = (kind: string) => [...w.creatures.values()].find((c) => c.kind === kind)!;
+  assert.ok(dist([at('rabbit').x, at('rabbit').y], [20, 20]) <= 9);
+  assert.ok(dist([at('goblin').x, at('goblin').y], [20, 20]) >= 16);
+});
+
+test('the Confused Duck waddles right next to its robot', () => {
+  const w = world();
+  joined(w, 'Mom', [20, 20]);
+  const duck = spawnCreature(w, 'duck', [25, 20]);
+  for (let i = 0; i < 6; i++) w.step(0);
+  assert.equal(duck.mode, 'follow');
+  assert.ok(dist([duck.x, duck.y], [20, 20]) <= 1, `${duck.x},${duck.y}`);
+});
+
+test('the duck gets bored: after a minute of following it wanders off for two', () => {
+  const w = world();
+  joined(w, 'Mom', [20, 20]);
+  const duck = spawnCreature(w, 'duck', [22, 20]);
+  w.step(0);
+  assert.equal(duck.mode, 'follow');
+  for (let i = 0; i < 60; i++) w.step(0);
+  assert.equal(duck.mode, 'wander');
+  for (let i = 0; i < 100; i++) w.step(0);
+  assert.equal(duck.mode, 'wander');
+  for (let i = 0; i < 30; i++) w.step(0);
+  assert.equal(duck.mode, 'follow');
+});

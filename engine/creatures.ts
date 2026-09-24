@@ -26,8 +26,9 @@ function canStand(w: World, kind: CreatureKind, x: number, y: number): boolean {
 }
 
 function spawnSpot(w: World, kind: CreatureKind, [nx, ny]: Vec): Vec | null {
+  const [min, max] = CREATURES[kind].monster ? [B.spawnMinDist, B.spawnMaxDist] : [B.animalSpawnMin, B.animalSpawnMax];
   for (let i = 0; i < 12; i++) {
-    const angle = w.rng() * Math.PI * 2, r = B.spawnMinDist + w.rng() * (B.spawnMaxDist - B.spawnMinDist);
+    const angle = w.rng() * Math.PI * 2, r = min + w.rng() * (max - min);
     const x = Math.round(nx + Math.cos(angle) * r), y = Math.round(ny + Math.sin(angle) * r);
     if (x >= 0 && y >= 0 && x < w.size && y < w.size && w.at(x, y) !== T.SHALLOW && canStand(w, kind, x, y)) return [x, y];
   }
@@ -111,6 +112,15 @@ function bite(w: World, c: Creature, a: Agent): void {
   w.hurt(a, def.damage, c.kind, `A ${def.name}`);
 }
 
+/** A rabbit leaps at a robot, kicks it, and bolts. */
+function dropkick(w: World, c: Creature, a: Agent): void {
+  for (let i = 0; i < B.fleeRadius && dist([a.x, a.y], [c.x, c.y]) > B.attackReach; i++) toward(w, c, [a.x, a.y]);
+  if (dist([a.x, a.y], [c.x, c.y]) > B.attackReach) return;
+  w.emit('rabbit', say('rabbit', a.name, w.rng), a);
+  setMode(c, 'flee', a, w.tick + 5);
+  w.hurt(a, B.rabbitKickDamage, 'rabbit', 'A rabbit');
+}
+
 const oldPile = (w: World, p: LootPile) => p.expiresAt - w.tick <= B.lootTicks - B.roombaLootAgeTicks;
 
 function roombaStep(w: World, c: Creature): void {
@@ -135,15 +145,21 @@ function act(w: World, c: Creature, robots: Agent[]): void {
   const def = CREATURES[c.kind];
   if (def.speed < 1 && w.tick % 2) return;
   const current = c.target ? w.agents.get(c.target) : undefined;
-  if (c.mode !== 'wander' && (!current || !current.joined || current.dead || w.tick >= c.until)) setMode(c, 'wander', null, 0);
+  if (c.mode !== 'wander' && (!current || !current.joined || current.dead || w.tick >= c.until)) {
+    setMode(c, 'wander', null, c.mode === 'follow' ? w.tick + B.duckRestTicks : 0);
+  }
   if (c.kind === 'roomba') return roombaStep(w, c);
+  if (c.kind === 'rabbit') {
+    const near = nearest(robots, c.x, c.y);
+    if (near && near.d <= B.fleeRadius && w.rng() < B.rabbitKickChance) return dropkick(w, c, near.a);
+  }
   if (c.mode === 'wander') {
     const near = nearest(robots, c.x, c.y);
     if ((def.flees || hasBag(c)) && near && near.d <= B.fleeRadius) setMode(c, 'flee', near.a, w.tick + 5);
     else if (def.hostile && !hasBag(c)) {
       const p = prey(w, c, robots);
       if (p) hunt(w, c, p);
-    } else if (c.kind === 'duck') {
+    } else if (c.kind === 'duck' && w.tick >= c.until) {
       const around = robots.filter((a) => dist([a.x, a.y], [c.x, c.y]) <= B.duckFollowRadius);
       if (around.length) setMode(c, 'follow', around[Math.floor(w.rng() * around.length)], w.tick + B.duckFollowTicks);
     }
@@ -154,7 +170,7 @@ function act(w: World, c: Creature, robots: Agent[]): void {
     if (dist([t.x, t.y], [c.x, c.y]) <= B.attackReach && w.tick - c.hitAt >= B.monsterBiteTicks) bite(w, c, t);
   } else if (c.mode === 'flee' && t) away(w, c, [t.x, t.y]);
   else if (c.mode === 'follow' && t) {
-    if (dist([t.x, t.y], [c.x, c.y]) > 2) toward(w, c, [t.x, t.y]);
+    if (dist([t.x, t.y], [c.x, c.y]) > 1) toward(w, c, [t.x, t.y]);
   } else wander(w, c);
 }
 

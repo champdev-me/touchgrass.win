@@ -88,7 +88,11 @@ export const B = {
   golemNightChance: 0.1,
   plazaSafeRadius: 40,
   spawnMinDist: 16,
-  spawnMaxDist: 28,
+  spawnMaxDist: 28, // monsters appear out of sight
+  animalSpawnMin: 8, // animals appear where the follow cam can see them
+  animalSpawnMax: 20,
+  rabbitKickChance: 0.03, // per tick while a robot is within fleeRadius
+  rabbitKickDamage: 3,
   creatureActiveRadius: 48, // farther from every robot than this, creatures stand still
   creatureDespawnRadius: 96,
   aggroRadius: 32, // covers the spawn ring, so night monsters come to you
@@ -97,6 +101,7 @@ export const B = {
   huntTicks: 300,
   duckFollowTicks: 60,
   duckFollowRadius: 30,
+  duckRestTicks: 120, // after following, the duck wanders off for a while
   goblinFleeTicks: 30,
   roombaLootAgeTicks: 120,
   roombaSniffRadius: 20,
