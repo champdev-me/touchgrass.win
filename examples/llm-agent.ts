@@ -117,7 +117,8 @@ function fallback(o: Obs, skip = ''): Action {
   if (me.energy < 15) options.push({ name: o.time.phase === 'night' ? 'sleep' : 'rest', args: {}, why: 'out of energy' });
   if (me.food < 70 && (me.inventory.berries ?? 0) < 10 && find('berry_bush')) options.push({ name: 'gather', args: { target: 'berry_bush', until: 6 }, why: 'stocking up on berries' });
   if (o.time.phase === 'night' && me.energy < 80) options.push({ name: 'sleep', args: {}, why: 'night, sleeping' });
-  for (const kind of ['tree', 'grass', 'rock']) if (find(kind)) options.push({ name: 'gather', args: { target: kind, until: 5 }, why: `gathering ${kind}` });
+  const own: Record<string, string[]> = { miner: ['gold_vein', 'gem_vein', 'iron_vein', 'crystal'], mason: ['rock', 'mud'], gatherer: ['herb'] };
+  for (const kind of [...(own[ROLE] ?? []), 'tree', 'grass']) if (find(kind)) options.push({ name: 'gather', args: { target: kind, until: 5 }, why: `${ROLE} work: ${kind}` });
   const [x, y] = me.pos, d = () => Math.round((Math.random() - 0.5) * 40);
   if ((me.inventory.wood ?? 0) >= 5 && !me.inventory.club) options.push({ name: 'craft', args: { item: 'club' }, why: 'making a club' });
   if (!me.inventory.stone_axe && (me.inventory.wood ?? 0) >= 9 && (me.inventory.stone ?? 0) >= 5 && (me.inventory.fiber ?? 0) >= 2) {
