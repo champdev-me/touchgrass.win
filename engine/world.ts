@@ -1,12 +1,14 @@
 import { B } from '../shared/balance.ts';
 import { dist } from '../shared/geo.ts';
 import { FOOD, room, type Inventory } from '../shared/items.ts';
+import { CREATURES } from '../shared/creatures.ts';
 import { timeOf } from '../shared/time.ts';
-import { GATHER_TARGETS, ROLES, TERRAIN as T, type Agent, type AgentView, type Bubble, type GameEvent, type GatherTarget, type Role, type TickDelta, type Vec } from '../shared/types.ts';
+import { GATHER_TARGETS, ROLES, TERRAIN as T, type Agent, type AgentView, type Bubble, type Creature, type CreatureView, type GameEvent, type GatherTarget, type Role, type TickDelta, type Vec } from '../shared/types.ts';
 import { checkAchievements } from './achievements.ts';
 import { AGENT_COLORS, normalizeAgent } from './agent.ts';
 import { BUFFET_SUFFIX, say } from './lines.ts';
 import { eat, tickBody } from './body.ts';
+import { stepCreatures } from './creatures.ts';
 import { chunksPerRow, dominantTerrain, explore } from './explore.ts';
 import { NODE_DEF, chunkOf, fullAmount, type ResourceNode } from './nodes.ts';
 import { buildObservation } from './observe.ts';
@@ -53,7 +55,10 @@ export class World {
   chunkTerrain: Uint8Array | null = null;
   firsts: Record<string, string> = {}; // achievement id -> agent id of the server first
   firstsDirty = false;
-  urgent = false; // flush on the next tick instead of waiting for the 5-tick flush
+  urgent = false;
+  creatures = new Map<string, Creature>();
+  nextMobId = 1;
+  creaturesDirty = false; // flush on the next tick instead of waiting for the 5-tick flush
 
   constructor(tiles: Uint8Array, size: number = B.mapSize, rng: () => number = Math.random) {
     this.tiles = tiles;
@@ -250,6 +255,7 @@ export class World {
       this.dirty.add(a.id);
       this.emit('leave', say('leave', a.name, this.rng), a);
     }
+    stepCreatures(this);
     this.regrow();
     for (const [i, pile] of this.loot) {
       if (pile.expiresAt <= this.tick) {
@@ -261,7 +267,7 @@ export class World {
     const nodes = this.nodeChanges;
     this.events = [];
     this.nodeChanges = [];
-    return { tick: this.tick, agents: this.views(), events, nodes, loot: [...this.loot.keys()].map((i) => this.xy(i)), creatures: [] };
+    return { tick: this.tick, agents: this.views(), events, nodes, loot: [...this.loot.keys()].map((i) => this.xy(i)), creatures: this.creatureViews() };
   }
 
   stepAgent(a: Agent, dayTick: number): void {
@@ -322,7 +328,32 @@ export class World {
     this.lootDirty = true;
   }
 
-  kill(a: Agent, cause: string): void {
+  creatureViews(): CreatureView[] {
+    return [...this.creatures.values()].map((c) => ({ id: c.id, kind: c.kind, x: c.x, y: c.y, hp: Math.max(0, Math.round(c.hp)), maxHp: CREATURES[c.kind].hp, mode: c.mode }));
+  }
+
+  /** Damage from a creature or robot; true when it was the killing blow. */
+  hurt(a: Agent, damage: number, cause: string, by: string): boolean {
+    if (a.dead) return false;
+    const fresh = this.tick - a.lastHurtAt > B.combatTicks;
+    a.lastHurtAt = this.tick;
+    a.health = Math.max(0, a.health - damage);
+    this.dirty.add(a.id);
+    if (a.health <= 0) {
+      this.kill(a, cause, by);
+      return true;
+    }
+    if (fresh) this.alarm(a, `${by} is attacking you!`);
+    return false;
+  }
+
+  /** Danger stops calm tasks; walking away or fighting back keeps going. */
+  alarm(a: Agent, reason: string): void {
+    if (a.task?.type === 'move_to' || a.task?.type === 'attack') this.note(a, reason);
+    else this.interrupt(a, reason);
+  }
+
+  kill(a: Agent, cause: string, by = ''): void {
     a.dead = true;
     a.task = null;
     a.health = 0;
@@ -338,10 +369,10 @@ export class World {
     if (Object.keys(dropped).length) this.dropLoot(this.index(a.x, a.y), dropped);
     this.bump(a, `death:${cause}`);
     if (this.tick - a.spawnedAt < B.speedrunTicks) this.bump(a, 'death:speedrun');
-    const buffet = cause !== 'thirst' && this.berriesNear(a.x, a.y, 3);
+    const buffet = (cause === 'starvation' || cause === 'hunger and thirst') && this.berriesNear(a.x, a.y, 3);
     if (buffet) this.bump(a, 'death:starved_at_buffet');
-    this.emit('death', say(`death:${cause}`, a.name, this.rng) + (buffet ? BUFFET_SUFFIX : ''), a);
-    this.note(a, `You died of ${cause}. You respawn in ${B.respawnTicks}s. Half your bag stayed behind.`);
+    this.emit('death', say(`death:${cause}`, a.name, this.rng, by) + (buffet ? BUFFET_SUFFIX : ''), a);
+    this.note(a, `You died${by ? ` (${by})` : ` of ${cause}`}. You respawn in ${B.respawnTicks}s. Half your bag stayed behind.`);
   }
 
   respawn(a: Agent): void {

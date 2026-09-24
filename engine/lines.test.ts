@@ -5,12 +5,13 @@ import { LINES, say } from './lines.ts';
 test('every announcement pool has variety and names the robot', () => {
   for (const [kind, pool] of Object.entries(LINES)) {
     assert.ok(pool.length >= 3, `${kind} needs at least 3 variants`);
-    if (!['dawn', 'dusk'].includes(kind)) for (const l of pool) assert.ok(l.includes('{name}'), `${kind}: ${l}`);
+    if (!['dawn', 'dusk', 'monsters'].includes(kind)) for (const l of pool) assert.ok(l.includes('{name}'), `${kind}: ${l}`);
   }
 });
 
 test('every death line says what killed you and asks for an F', () => {
-  const causes: Record<string, RegExp> = { 'death:starvation': /hunger|starv|eat/i, 'death:thirst': /thirst|water|dried/i, 'death:hunger and thirst': /food.*water|empt|hunger and thirst/i };
+  const causes: Record<string, RegExp> = { 'death:starvation': /hunger|starv|eat/i, 'death:thirst': /thirst|water|dried/i, 'death:hunger and thirst': /food.*water|empt|hunger and thirst/i,
+    'death:agent': /defeat|fight|sent/i, 'death:wolf': /wol/i, 'death:goblin': /goblin/i, 'death:boar': /boar/i, 'death:golem': /golem/i };
   for (const [kind, cause] of Object.entries(causes)) {
     for (const l of LINES[kind]) {
       assert.match(l, cause, l);

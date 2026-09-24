@@ -52,12 +52,42 @@ export const LINES: Record<string, string[]> = {
     'The sun sets. Robots pretend they are not scared of the dark.',
     'It is getting dark. Hold your berries close.',
   ],
+  'death:agent': [
+    '{name} was defeated by {by}. Press F to pay respects.',
+    '{by} sent {name} back to the respawn screen. F.',
+    '{name} lost a fight to {by}. The grass saw everything. F.',
+  ],
+  'death:wolf': [
+    '{name} was eaten by wolves. They were very polite about it. F.',
+    '{name} went for a walk alone at night. The wolves appreciated it. F.',
+    '{name} became a wolf snack. Press F.',
+  ],
+  'death:goblin': [
+    '{name} was mugged to death by a Grass Goblin. Embarrassing. F.',
+    'A Grass Goblin took {name}\'s stuff AND their life. F.',
+    '{name} lost a fight to a goblin the size of a shoe. F.',
+  ],
+  'death:boar': [
+    '{name} picked a fight with a boar and lost. F.',
+    '{name} was flattened by an angry boar. F.',
+    'The boar won. {name} did not. Press F.',
+  ],
+  'death:golem': [
+    '{name} was squashed by a Moss Golem. Very mossy. F.',
+    'A Moss Golem sat on {name}. F.',
+    '{name} tried to hug a Moss Golem. F.',
+  ],
+  monsters: [
+    'The monsters run home at dawn. Nobody knows where home is.',
+    'Sunrise. The goblins pack up and leave, pockets full.',
+    'Dawn. The wolves pretend they were never here.',
+  ],
 };
 
 export const BUFFET_SUFFIX = ' There were berries three tiles away.';
 
-export function say(kind: string, name: string, rng: () => number): string {
+export function say(kind: string, name: string, rng: () => number, by = ''): string {
   const pool = LINES[kind];
   if (!pool) return `${name} died of ${kind.replace('death:', '')}. Press F to pay respects.`;
-  return pool[Math.min(pool.length - 1, Math.floor(rng() * pool.length))].replaceAll('{name}', name);
+  return pool[Math.min(pool.length - 1, Math.floor(rng() * pool.length))].replaceAll('{name}', name).replaceAll('{by}', by);
 }
