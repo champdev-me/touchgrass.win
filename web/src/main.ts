@@ -102,6 +102,7 @@ addEventListener('keydown', (e) => {
   keys.add(k);
   if (k === 'f') setFollow(null);
   if (k === 'h') document.body.classList.toggle('clean');
+  if (k === 'k') ui.promptAdminKey();
   if (e.key === 'Tab') {
     e.preventDefault();
     const ids = [...robots.bots.keys()];

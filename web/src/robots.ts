@@ -5,6 +5,8 @@ import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import type { AgentView } from '../../shared/types.ts';
 
 const HEIGHT = 1.2; // robot height in tiles, about tree height
+const EMOTE_CLIP: Record<string, string> = { dance: 'Dance', wave: 'Wave', bow: 'Yes', cry: 'No', flex: 'ThumbsUp' };
+const BUBBLE_ICON: Record<string, string> = { say: '💬', world: '📢', thought: '💭' };
 
 export interface Bot {
   view: AgentView;
@@ -17,6 +19,8 @@ export interface Bot {
   to: THREE.Vector3;
   t: number;
   bars: HTMLElement[];
+  bubble: HTMLDivElement;
+  badge: HTMLSpanElement;
 }
 
 export class Robots {
@@ -53,8 +57,15 @@ export class Robots {
       [v.health, v.food, v.water, v.energy].forEach((val, i) => { b.bars[i].style.width = `${val}%`; });
       b.tag.classList.toggle('dead', v.dead);
       b.tag.classList.toggle('away', !v.online);
+      b.bubble.hidden = !v.bubble;
+      if (v.bubble) {
+        b.bubble.className = `bubble ${v.bubble.kind}`;
+        b.bubble.textContent = `${BUBBLE_ICON[v.bubble.kind]} ${v.bubble.text}`;
+      }
+      b.badge.textContent = v.badge ? `${v.badge} ` : '';
       const walking = v.moving || b.from.distanceToSquared(b.to) > 1e-4;
-      this.play(b, v.dead ? 'Death' : walking ? 'Walking' : v.action === 'gather' ? 'Punch' : v.action === 'rest' || v.action === 'sleep' ? 'Sitting' : 'Idle');
+      const still = v.emote ? EMOTE_CLIP[v.emote] : v.action === 'gather' ? 'Punch' : v.action === 'rest' || v.action === 'sleep' ? 'Sitting' : 'Idle';
+      this.play(b, v.dead ? 'Death' : walking ? 'Walking' : still);
     }
     for (const [id, b] of this.bots) {
       if (seen.has(id)) continue;
@@ -85,9 +96,12 @@ export class Robots {
     });
     const tag = document.createElement('div');
     tag.className = 'tag';
+    const bubble = document.createElement('div');
+    bubble.hidden = true;
+    const badge = document.createElement('span');
     const name = document.createElement('div');
     name.className = 'name';
-    name.textContent = v.model ? `${v.name} · ${v.model}` : v.name;
+    name.append(badge, v.model ? `${v.name} · ${v.model}` : v.name);
     const barRow = document.createElement('div');
     barRow.className = 'bars';
     const bars = ['hp', 'food', 'water', 'energy'].map((cls) => {
@@ -98,7 +112,7 @@ export class Robots {
       barRow.append(bar);
       return fill;
     });
-    tag.append(name, barRow);
+    tag.append(bubble, name, barRow);
     const label = new CSS2DObject(tag);
     label.position.y = (HEIGHT + 0.3) / this.scale;
     root.add(label);
@@ -106,7 +120,7 @@ export class Robots {
     this.scene.add(root);
     const mixer = new THREE.AnimationMixer(root);
     const b: Bot = {
-      view: v, root, tag, mixer, clip: '', t: 1, bars,
+      view: v, root, tag, mixer, clip: '', t: 1, bars, bubble, badge,
       actions: new Map(this.clips.map((c) => [c.name, mixer.clipAction(c)])),
       from: root.position.clone(), to: root.position.clone(),
     };

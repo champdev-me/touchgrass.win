@@ -9,7 +9,7 @@ export function setupUi(onFollow: (id: string) => void) {
   const $ = (id: string) => document.getElementById(id)!;
   const list = $('agent-list');
   const feed = $('event-list');
-  const shown: string[] = [];
+  const lines: GameEvent[] = [];
   const focusBox = $('focus');
   const who = el('div', 'who'), whoName = el('span'), whoSub = el('span', 'sub');
   who.append(whoName, whoSub);
@@ -20,17 +20,39 @@ export function setupUi(onFollow: (id: string) => void) {
     row.append(el('span', '', label), meter, value);
     return { key, row, fill, value };
   });
-  const doing = el('div', 'doing');
-  focusBox.append(who, ...rows.map((r) => r.row), doing);
+  const doing = el('div', 'doing'), score = el('div', 'doing'), adminRow = el('div', 'admin'), adminOut = el('span', 'sub');
+  focusBox.append(who, ...rows.map((r) => r.row), doing, score, adminRow);
+  const adminKey = (): string => {
+    try {
+      return localStorage.getItem('tg-admin') ?? '';
+    } catch {
+      return '';
+    }
+  };
+  for (const [label, action] of [['Mute 10m', 'mute'], ['Kick', 'kick'], ['Ban', 'ban']]) {
+    const b = el('button', '', label);
+    b.onclick = async () => {
+      if (action === 'ban' && !confirm('Ban this robot for good?')) return;
+      const res = await fetch(`/admin/${action}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${adminKey()}` },
+        body: JSON.stringify({ agent: adminRow.dataset.agent, minutes: 10 }),
+      });
+      adminOut.textContent = res.ok ? `${action}: done` : `${action}: failed (${res.status})`;
+    };
+    adminRow.append(b);
+  }
+  adminRow.append(adminOut);
   let following: string | null = null, lastKey = '', lastViews: AgentView[] = [];
 
+  // The robot list doubles as the leaderboard: sorted by season score.
   const render = () => {
-    list.replaceChildren(...lastViews.map((v) => {
+    list.replaceChildren(...[...lastViews].sort((p, q) => q.score - p.score).map((v) => {
       const b = document.createElement('button');
       const dot = document.createElement('span');
       dot.textContent = '● ';
       dot.style.color = v.color;
-      b.append(dot, v.name);
+      b.append(dot, `${v.badge ? `${v.badge} ` : ''}${v.name}`, el('b', 'pts', String(v.score)));
       b.className = `${v.id === following ? 'on' : ''} ${v.online ? '' : 'away'}`.trim();
       b.onclick = () => onFollow(v.id);
       return b;
@@ -54,7 +76,7 @@ export function setupUi(onFollow: (id: string) => void) {
     status: (s: string) => { $('status').textContent = s; },
     agents: (views: AgentView[]) => {
       lastViews = views;
-      const key = `${views.map((v) => `${v.id}:${v.online ? 1 : 0}`).join()}|${following}`;
+      const key = `${views.map((v) => `${v.id}:${v.online ? 1 : 0}:${v.score}:${v.badge}`).join()}|${following}`;
       if (key !== lastKey) {
         lastKey = key;
         render();
@@ -77,12 +99,33 @@ export function setupUi(onFollow: (id: string) => void) {
         r.value.className = n < 15 ? 'low' : '';
       }
       doing.textContent = v.dead ? '💀 dead, respawning soon' : `${DOING[v.action] ?? v.action} · at (${v.x}, ${v.y})${v.online ? '' : ' · owner away'}`;
+      score.textContent = `🏆 season ${v.score} · this life ${v.life} · ${v.trophies} achievements${v.badge ? ` · ${v.badge}` : ''}`;
+      adminRow.hidden = !adminKey();
+      if (adminRow.dataset.agent !== v.id) adminOut.textContent = '';
+      adminRow.dataset.agent = v.id;
+    },
+    promptAdminKey: () => {
+      const k = prompt('Admin key (kept in this browser; empty to forget):');
+      try {
+        if (k !== null) localStorage.setItem('tg-admin', k);
+      } catch {
+        // storage blocked: admin controls stay hidden
+      }
     },
     events: (events: GameEvent[], reset = false) => {
-      if (reset) shown.length = 0;
-      for (const e of events) if (e.type !== 'move') shown.unshift(e.text);
-      shown.length = Math.min(shown.length, 8);
-      feed.replaceChildren(...shown.map((t) => Object.assign(document.createElement('div'), { textContent: t })));
+      if (reset) lines.length = 0;
+      const fresh = events.filter((e) => e.type !== 'move');
+      if (!fresh.length && !reset) return;
+      lines.push(...fresh);
+      lines.splice(0, Math.max(0, lines.length - 40));
+      const atBottom = feed.scrollHeight - feed.scrollTop - feed.clientHeight < 30;
+      feed.replaceChildren(...lines.map((e) => {
+        const row = el('div', e.type === 'chat' ? 'chat' : 'sys');
+        if (e.type === 'chat') row.append(el('span', 'speaker', `${e.name}: `), e.text);
+        else row.textContent = e.text;
+        return row;
+      }));
+      if (atBottom || reset) feed.scrollTop = feed.scrollHeight; // don't yank viewers reading back
     },
   };
 }
