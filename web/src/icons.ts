@@ -27,6 +27,14 @@ const P: Record<string, string> = {
   smith: 'M9 1.5l4 2.5-1.5 2.4-1.6-1L4.5 14.5 2.5 13.2 7.9 4.1l-1.5-1z',
   mason: 'M1.5 4h13v3h-13zM1.5 9h13v3h-13zM6 4v3M10 9v3',
   scout: 'M8 3.5C4.4 3.5 1.8 6.3 1 8c.8 1.7 3.4 4.5 7 4.5s6.2-2.8 7-4.5c-.8-1.7-3.4-4.5-7-4.5zm0 1.8a2.7 2.7 0 1 1 0 5.4 2.7 2.7 0 0 1 0-5.4z',
+  // trading and treasure
+  trade: 's:M2 5h11l-3-3M14 11H3l3 3',
+  map: 'M1.5 3.5 5.5 2l5 1.5 4-1.5v10.5l-4 1.5-5-1.5-4 1.5zM5.5 3.3v9.4M10.5 4.8v9.4',
+  clue: 's:M6 6a2 2 0 1 1 3 1.7c-.6.4-1 .9-1 1.6V10M8 12.5v.5',
+  gem: 'M4 2h8l3 4-7 8-7-8zM1 6h14M5.5 2 8 14l2.5-12',
+  brick: 'M1.5 4h13v3h-13zM1.5 9h13v3h-13zM6 4v3M10 9v3',
+  herb: 'M8 15V7M8 9C8 5 5 3 2 3c0 3 2 6 6 6zm0-2c0-3 2-5 6-5 0 3-2 5-6 5z',
+  chest: 'M2 6.5h12V14H2zM2 6.5 3.5 3h9L14 6.5M7 8.5h2v2H7z',
   // bag items
   wood: 'M3 5.5h8.5a2.5 2.5 0 0 1 0 5H3a2.5 2.5 0 0 1 0-5zm8.5 1.3a1.2 1.2 0 1 0 0 2.4 1.2 1.2 0 0 0 0-2.4z',
   berries: 'M5 7a2.6 2.6 0 1 1 0 5.2A2.6 2.6 0 0 1 5 7zm6 0a2.6 2.6 0 1 1 0 5.2A2.6 2.6 0 0 1 11 7zM8 2.5a2.6 2.6 0 1 1 0 5.2 2.6 2.6 0 0 1 0-5.2z',
@@ -68,6 +76,7 @@ export const COLORS: Record<string, string> = {
   waterskin: '#c49a6c', backpack: '#9b6b3d', cooked_meat: '#c0583f', grass_salad: '#8be36b', marshmallow: '#f4efe6', roasted_marshmallow: '#e0b074', miner: '#c0c6cc',
   dead: '#d9d9d9', away: '#9fb59a', wood: '#b07a45', berries: '#e0355b', stone: '#a7a39c', fiber: '#8be36b', meat: '#e8766a',
   hide: '#c49a6c', apple: '#e84a3c', club: '#9b6b3d', battery: '#58d68d', crystal: '#7fd8ff', mason: '#c8643c',
+  trade: '#ffd166', map: '#e8d9b0', clue: '#e8d9b0', gem: '#d04fd8', gem_sword: '#d04fd8', lucky_charm: '#58d68d', brick: '#b5563a', mud: '#6b4a2b', herb: '#3fae5a', bandage: '#f4efe6', chest: '#b07a45', kiln: '#b5563a',
 };
 
 const NS = 'http://www.w3.org/2000/svg';
@@ -76,10 +85,12 @@ const NS = 'http://www.w3.org/2000/svg';
 // Items that share a drawing.
 const ALIAS: Record<string, string> = {
   stone_axe: 'axe', iron_axe: 'axe', stone_pickaxe: 'pickaxe', iron_pickaxe: 'pickaxe', miner: 'pickaxe', hide_armor: 'armor', iron_armor: 'armor',
-  cooked_meat: 'meat', roasted_marshmallow: 'marshmallow', workbench: 'smith', campfire: 'torch', furnace: 'stone',
+  cooked_meat: 'meat', roasted_marshmallow: 'marshmallow', workbench: 'smith', campfire: 'torch', furnace: 'stone', kiln: 'brick', mud: 'stone', gem_sword: 'attack', lucky_charm: 'gem', bandage: 'health',
 };
 
 export function icon(name: string, title = name.replaceAll('_', ' '), color = COLORS[name]): SVGSVGElement {
+  if (name.startsWith('treasure_map:')) return icon('map', 'treasure map');
+  if (name.startsWith('clue:')) return icon('clue', 'clue');
   const d = P[name] ?? P[ALIAS[name]] ?? P.item, stroke = d.startsWith('s:');
   const svg = document.createElementNS(NS, 'svg');
   svg.setAttribute('viewBox', '0 0 16 16');

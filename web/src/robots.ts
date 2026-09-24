@@ -3,6 +3,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import type { AgentView } from '../../shared/types.ts';
+import { icon } from './icons.ts';
 
 export const HEIGHT = 1.2; // robot height in tiles, about tree height
 // Kenney Blocky Characters (CC0): the heart robot, the bolt robot and the crash-test dummy.
@@ -98,6 +99,16 @@ export class Robots {
       else if (f) b.root.rotation.y = Math.atan2(f[0] + 0.5 - b.root.position.x, f[1] + 0.5 - b.root.position.z);
       b.mixer.update(dt);
     }
+  }
+
+  /** Shows an icon over a robot for a few seconds (a completed trade, say). */
+  flash(id: string | undefined, name: string, ms = 5000): void {
+    const b = id ? this.bots.get(id) : undefined;
+    if (!b) return;
+    const el = icon(name);
+    el.classList.add('flash');
+    b.tag.prepend(el);
+    setTimeout(() => el.remove(), ms);
   }
 
   spawn(v: AgentView): Bot {

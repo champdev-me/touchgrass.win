@@ -114,6 +114,10 @@ send = connect((m: ServerMsg) => {
     structures.sync(m.structures);
     ui.agents(m.agents);
     ui.events(m.events);
+    for (const e of m.events) {
+      if (e.type === 'trade') for (const id of [e.agent, e.other]) robots.flash(id, 'trade');
+      if (e.type === 'treasure' && e.x !== undefined && e.y !== undefined) structures.dug(e.x, e.y);
+    }
     if (follow) ui.focus(m.agents.find((a) => a.id === follow) ?? null);
     const mob = follow ? creatures.mobs.get(follow)?.view : undefined;
     if (follow?.startsWith('mob_') && !mob) setFollow(null); // it died or wandered off
