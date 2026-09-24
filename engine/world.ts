@@ -86,19 +86,33 @@ export class World {
     return a;
   }
 
-  join(id: string, role: Role, model: string | null): Agent {
+  join(id: string, role: Role, model: string | null, now = Date.now()): Agent {
     const a = this.get(id);
     if (model) a.model = model;
     if (!a.joined) {
       a.joined = true;
       a.role = role;
       a.spawnedAt = this.tick;
+      a.online = true;
+      a.lastSeenAt = now;
       this.emit('join', say('join', a.name, this.rng), a);
     } else {
       this.note(a, 'Welcome back. Your robot missed you. Probably.');
     }
     this.touch(a);
     return a;
+  }
+
+  /** Any tool call counts as presence; coming back after being away is announced. */
+  seen(id: string, now = Date.now()): void {
+    const a = this.agents.get(id);
+    if (!a?.joined) return;
+    a.lastSeenAt = now;
+    if (!a.online) {
+      a.online = true;
+      this.emit('return', say('return', a.name, this.rng), a);
+    }
+    this.dirty.add(a.id);
   }
 
   observe(id: string) {
@@ -195,7 +209,7 @@ export class World {
     return false;
   }
 
-  step(): TickDelta {
+  step(now = Date.now()): TickDelta {
     this.tick++;
     const { dayTick } = timeOf(this.tick);
     if (dayTick === 0) this.emit('dawn', say('dawn', '', this.rng));
@@ -210,6 +224,12 @@ export class World {
         a.task = null;
         this.note(a, 'Your robot glitched and forgot what it was doing.');
       }
+    }
+    for (const a of this.agents.values()) {
+      if (!a.joined || !a.online || now - a.lastSeenAt <= B.awayAfterMs) continue;
+      a.online = false;
+      this.dirty.add(a.id);
+      this.emit('leave', say('leave', a.name, this.rng), a);
     }
     this.regrow();
     for (const [i, pile] of this.loot) {
@@ -329,7 +349,7 @@ export class World {
         id: a.id, name: a.name, color: a.color, role: a.role, model: a.model, x: a.x, y: a.y,
         moving: a.task?.type === 'move_to' || (a.task?.type === 'gather' && a.task.path.length > 0),
         health: Math.round(a.health), food: Math.round(a.food), water: Math.round(a.water), energy: Math.round(a.energy),
-        dead: a.dead, action: a.dead ? 'dead' : (a.task?.type ?? 'idle'),
+        dead: a.dead, action: a.dead ? 'dead' : (a.task?.type ?? 'idle'), online: a.online,
       }));
   }
 

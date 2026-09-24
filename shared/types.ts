@@ -44,6 +44,8 @@ export interface Agent {
   spawnedAt: number;
   autoEat: boolean;
   stats: Record<string, number>;
+  online: boolean;
+  lastSeenAt: number; // ms, last tool call of any kind
 }
 
 export interface GameError {
@@ -78,6 +80,7 @@ export interface AgentView {
   energy: number;
   dead: boolean;
   action: string;
+  online: boolean;
 }
 
 export interface GameEvent {

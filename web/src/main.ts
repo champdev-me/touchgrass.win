@@ -66,6 +66,7 @@ const loot = new LootView(scene, (x, y) => chunks.heightAt(x, y));
 function setFollow(id: string | null) {
   follow = id;
   ui.following(id);
+  if (!id) ui.focus(null);
   const bot = id ? robots.bots.get(id) : undefined;
   if (!bot) return;
   controls.target.copy(bot.root.position); // snap to a close 45° view so the robot fills the stream
@@ -87,6 +88,7 @@ send = connect((m: ServerMsg) => {
     loot.sync(m.loot);
     ui.agents(m.agents);
     ui.events(m.events);
+    if (follow) ui.focus(m.agents.find((a) => a.id === follow) ?? null);
     const t = timeOf(m.tick);
     ui.status(`day ${t.day} · ${t.phase} · ${m.agents.length} robots`);
   }

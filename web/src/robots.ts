@@ -52,6 +52,7 @@ export class Robots {
       b.t = 0;
       [v.health, v.food, v.water, v.energy].forEach((val, i) => { b.bars[i].style.width = `${val}%`; });
       b.tag.classList.toggle('dead', v.dead);
+      b.tag.classList.toggle('away', !v.online);
       const walking = v.moving || b.from.distanceToSquared(b.to) > 1e-4;
       this.play(b, v.dead ? 'Death' : walking ? 'Walking' : v.action === 'gather' ? 'Punch' : v.action === 'rest' || v.action === 'sleep' ? 'Sitting' : 'Idle');
     }

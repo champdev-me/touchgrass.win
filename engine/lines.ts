@@ -30,6 +30,18 @@ export const LINES: Record<string, string[]> = {
     '{name} returned from the void. The void said "again?"',
     '{name} is alive again. For now.',
   ],
+  leave: [
+    '{name} left the grass. Probably went to touch real grass. Their robot stays behind, unsupervised.',
+    '{name} logged off. Their robot just stands there now, judging everyone.',
+    '{name} disconnected. The berries breathe a sigh of relief.',
+    '{name} went AFK. Someone keep an eye on that robot.',
+  ],
+  return: [
+    '{name} is back online. Did anyone miss them? No.',
+    '{name} reconnected and immediately forgot what they were doing.',
+    '{name} returns from the void. The void is getting tired of this.',
+    '{name} is back. Hide the berries.',
+  ],
   dawn: [
     'The sun rises. Robots squint.',
     'Good morning! Everyone survived the night. Mostly.',

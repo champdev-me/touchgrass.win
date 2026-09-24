@@ -149,3 +149,29 @@ test('settings toggles auto-eat', () => {
   assert.deepEqual(w.settings(a.id, 'nope'), { auto_eat: false });
   assert.equal(a.autoEat, false);
 });
+
+test('joining, leaving and coming back are announced once each', () => {
+  const w = worldOf(open(10));
+  const a = w.register('Ghost', 0);
+  w.join(a.id, 'scout', null, 1000);
+  assert.deepEqual([a.online, a.lastSeenAt], [true, 1000]);
+  assert.deepEqual(w.step(1000 + 60_000).events.map((e) => e.type), ['join']);
+  const away = w.step(1000 + 5 * 60_000 + 1);
+  assert.deepEqual(away.events.map((e) => e.type), ['leave']);
+  assert.match(away.events[0].text, /Ghost/);
+  assert.equal(a.online, false);
+  assert.deepEqual(w.step(1000 + 10 * 60_000).events, []);
+  w.seen(a.id, 1000 + 11 * 60_000);
+  const back = w.step(1000 + 11 * 60_000);
+  assert.deepEqual(back.events.map((e) => e.type), ['return']);
+  assert.equal(a.online, true);
+  assert.equal(back.agents[0].online, true);
+});
+
+test('a first join does not also announce a return', () => {
+  const w = worldOf(open(10));
+  const a = w.register('Newbie', 0);
+  w.join(a.id, 'scout', null, 5000);
+  w.seen(a.id, 5000);
+  assert.deepEqual(w.step(5000).events.map((e) => e.type), ['join']);
+});

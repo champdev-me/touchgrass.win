@@ -10,6 +10,8 @@ export function handleAction(world: World, req: ActionRequest): ActionResult {
   } catch (e) {
     if (e instanceof GameFail) return { ok: false, error: { error: e.code, message: e.message, hint: e.hint }, cooldownMs: 0 };
     throw e;
+  } finally {
+    world.seen(req.agentId);
   }
 }
 

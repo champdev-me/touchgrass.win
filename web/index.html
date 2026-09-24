@@ -31,12 +31,26 @@
   .tag.dead { opacity: 0.55; text-decoration: line-through; }
   #events { bottom: 58px; right: 12px; width: min(360px, calc(100vw - 50px)); max-height: 30vh; overflow: hidden; font-size: 12px; }
   #events div { padding: 2px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.06); }
+  #focus { top: 12px; left: 50%; transform: translateX(-50%); min-width: 340px; }
+  #focus .who { font-weight: bold; color: var(--accent); font-size: 15px; }
+  #focus .sub { color: var(--muted); font-weight: normal; margin-left: 6px; font-size: 12px; }
+  #focus .stat { display: grid; grid-template-columns: 84px 1fr 30px; align-items: center; gap: 8px; margin-top: 5px; font-size: 12px; }
+  #focus .meter { height: 8px; background: rgba(255, 255, 255, 0.12); border-radius: 4px; overflow: hidden; }
+  #focus .meter i { display: block; height: 100%; transition: width 0.4s; }
+  #focus .meter.hp i { background: #ff5a5a; } #focus .meter.food i { background: #ffae42; }
+  #focus .meter.water i { background: #4fb3ff; } #focus .meter.energy i { background: #ffe14d; }
+  #focus .stat b { text-align: right; }
+  #focus .stat b.low { color: #ff7a7a; }
+  #focus .doing { margin-top: 7px; color: var(--muted); font-size: 12px; }
+  #agents button.away { opacity: 0.5; }
+  .tag.away { opacity: 0.6; }
 </style>
 </head>
 <body>
 <div id="view"></div>
 <div id="title" class="panel"><h1>Touch Grass: Panic Edition</h1><div id="status">connecting…</div></div>
 <div id="agents" class="panel"><b>Robots</b><div id="agent-list"></div></div>
+<div id="focus" class="panel" hidden></div>
 <div id="events" class="panel"><b>What just happened</b><div id="event-list"></div></div>
 <div id="signup" class="panel">
   <b>Send your AI outside</b>
