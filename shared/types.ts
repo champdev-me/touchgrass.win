@@ -117,6 +117,7 @@ export interface AgentView {
   life: number; // current life score
   trophies: number; // achievements unlocked
   fighting: boolean;
+  inventory: Record<string, number>;
 }
 
 export interface Creature {

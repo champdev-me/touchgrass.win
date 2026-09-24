@@ -20,8 +20,9 @@ export function setupUi(onFollow: (id: string) => void) {
     row.append(el('span', '', label), meter, value);
     return { key, row, fill, value };
   });
+  const bag = el('div', 'doing');
   const doing = el('div', 'doing'), score = el('div', 'doing'), adminRow = el('div', 'admin'), adminOut = el('span', 'sub');
-  focusBox.append(who, ...rows.map((r) => r.row), doing, score, adminRow);
+  focusBox.append(who, ...rows.map((r) => r.row), doing, bag, score, adminRow);
   const adminKey = (): string => {
     try {
       return localStorage.getItem('tg-admin') ?? '';
@@ -99,6 +100,7 @@ export function setupUi(onFollow: (id: string) => void) {
         r.value.className = n < 15 ? 'low' : '';
       }
       doing.textContent = v.dead ? '💀 dead, respawning soon' : `${DOING[v.action] ?? v.action} · at (${v.x}, ${v.y})${v.online ? '' : ' · owner away'}`;
+      bag.textContent = `🎒 ${Object.entries(v.inventory).map(([item, n]) => `${n} ${item}`).join(' · ') || 'empty bag'}`;
       score.textContent = `🏆 season ${v.score} · this life ${v.life} · ${v.trophies} achievements${v.badge ? ` · ${v.badge}` : ''}`;
       adminRow.hidden = !adminKey();
       if (adminRow.dataset.agent !== v.id) adminOut.textContent = '';

@@ -56,6 +56,8 @@ addEventListener('resize', resize);
 resize();
 
 let follow: string | null = null;
+let tpp = false; // third-person camera behind the followed robot
+const eye = new THREE.Vector3(), look = new THREE.Vector3();
 const FOLLOW_OFFSET = new THREE.Vector3(-6, 7, 6);
 let send: (m: ClientMsg) => void = () => {};
 const ui = setupUi((id) => setFollow(id));
@@ -67,6 +69,8 @@ const loot = new LootView(scene, (x, y) => chunks.heightAt(x, y));
 
 function setFollow(id: string | null) {
   follow = id;
+  if (!id) tpp = false;
+  controls.enabled = !tpp;
   ui.following(id);
   if (!id) ui.focus(null);
   const bot = id ? robots.bots.get(id) : undefined;
@@ -106,6 +110,11 @@ addEventListener('keydown', (e) => {
   if (k === 'f') setFollow(null);
   if (k === 'h') document.body.classList.toggle('clean');
   if (k === 'k') ui.promptAdminKey();
+  if (k === 't') {
+    if (!follow && robots.bots.size) setFollow([...robots.bots.keys()][0]);
+    tpp = !tpp && follow !== null;
+    controls.enabled = !tpp;
+  }
   if (k === 'c') {
     const fighters = [...robots.bots.values()].filter((b) => b.view.fighting).map((b) => b.view.id);
     if (fighters.length) setFollow(fighters[(fighters.indexOf(follow ?? '') + 1) % fighters.length]);
@@ -127,7 +136,15 @@ renderer.setAnimationLoop(() => {
   creatures.update(dt);
   before.copy(controls.target);
   const bot = follow ? robots.bots.get(follow) : undefined;
-  if (bot) {
+  if (bot && tpp) {
+    const yaw = bot.root.rotation.y, p = bot.root.position, k = 1 - Math.pow(0.02, dt);
+    fwd.set(Math.sin(yaw), 0, Math.cos(yaw));
+    eye.copy(p).addScaledVector(fwd, -3.2).setY(p.y + 1.9);
+    look.copy(p).addScaledVector(fwd, 2.5).setY(p.y + 0.9);
+    camera.position.lerp(eye, k);
+    controls.target.lerp(look, k);
+    camera.lookAt(controls.target);
+  } else if (bot) {
     controls.target.lerp(bot.root.position, 1 - Math.pow(0.002, dt));
   } else {
     fwd.subVectors(controls.target, camera.position).setY(0).normalize();
@@ -139,8 +156,10 @@ renderer.setAnimationLoop(() => {
     if (keys.has('a')) move.sub(right);
     controls.target.addScaledVector(move, dt * 35);
   }
-  camera.position.add(move.subVectors(controls.target, before)); // camera keeps its offset from the target
-  controls.update();
+  if (!tpp) {
+    camera.position.add(move.subVectors(controls.target, before)); // camera keeps its offset from the target
+    controls.update();
+  }
   water.position.set(controls.target.x, WATER_LEVEL, controls.target.z);
   chunks.update(controls.target);
   const light = daylight(lastTick + (performance.now() - lastTickAt) / B.tickMs);

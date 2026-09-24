@@ -421,6 +421,7 @@ export class World {
         life: a.lifeScore,
         trophies: Object.keys(a.achievements).length,
         fighting: this.inCombat(a),
+        inventory: a.inventory,
       }));
   }
 

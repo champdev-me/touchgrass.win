@@ -15,7 +15,7 @@ const LOOK: Record<Exclude<CreatureKind, 'roomba'>, { file: string; height: numb
   goblin: { file: 'graveyard/character-zombie.glb', height: 0.8 },
   golem: { file: 'pets/animal-polar.glb', height: 2.2, tint: '#7fa36a' },
 };
-const CLIPS: Record<string, string[]> = { idle: ['idle'], walk: ['walk'], run: ['run', 'sprint'] }; // names differ per pack
+const CLIPS: Record<string, string[]> = { idle: ['idle'], walk: ['walk'], run: ['run', 'sprint'], dance: ['dance'] }; // names differ per pack
 
 interface Model {
   scene: THREE.Object3D;
@@ -25,6 +25,7 @@ interface Model {
 }
 
 interface Mob {
+  kind: CreatureKind;
   root: THREE.Group;
   tag: HTMLDivElement;
   hp: HTMLElement;
@@ -83,7 +84,9 @@ export class Creatures {
       m.hp.style.width = `${(100 * v.hp) / v.maxHp}%`;
       m.tag.classList.toggle('angry', v.mode === 'chase');
       const moving = m.from.distanceToSquared(m.to) > 1e-4;
-      this.play(m, !moving ? 'idle' : v.mode === 'chase' || v.mode === 'flee' ? 'run' : 'walk');
+      const still = v.kind === 'duck' ? 'dance' : 'idle'; // the duck is confused
+      this.play(m, !moving ? still : v.mode === 'chase' || v.mode === 'flee' ? 'run' : 'walk');
+      if (v.kind === 'duck' && Math.random() < 0.03) this.quack(m);
     }
     for (const [id, m] of this.mobs) {
       if (seen.has(id)) continue;
@@ -97,6 +100,7 @@ export class Creatures {
     for (const m of this.mobs.values()) {
       m.t = Math.min(1, m.t + (dt * 1000) / this.tickMs);
       m.root.position.lerpVectors(m.from, m.to, m.t);
+      if (m.kind === 'rabbit' && m.from.distanceToSquared(m.to) > 1e-4) m.root.position.y += Math.sin(m.t * Math.PI) * 0.35; // hop
       const dx = m.to.x - m.from.x, dz = m.to.z - m.from.z;
       if (Math.abs(dx) + Math.abs(dz) > 1e-3) m.root.rotation.y = Math.atan2(dx, dz);
       m.mixer?.update(dt);
@@ -124,10 +128,19 @@ export class Creatures {
     this.scene.add(root);
     const mixer = model.clips.length ? new THREE.AnimationMixer(body) : null;
     const actions = new Map(mixer ? model.clips.map((c) => [c.name, mixer.clipAction(c)] as const) : []);
-    const m: Mob = { root, tag, hp, from: root.position.clone(), to: root.position.clone(), t: 1, mixer, actions, clip: '' };
+    const m: Mob = { kind: v.kind, root, tag, hp, from: root.position.clone(), to: root.position.clone(), t: 1, mixer, actions, clip: '' };
     this.play(m, 'idle');
     this.mobs.set(v.id, m);
     return m;
+  }
+
+  quack(m: Mob): void {
+    if (m.tag.querySelector('.quack')) return;
+    const q = document.createElement('span');
+    q.className = 'quack';
+    q.textContent = ['quack?', 'quack!?', '...quack', 'where am i'][Math.floor(Math.random() * 4)];
+    m.tag.prepend(q);
+    setTimeout(() => q.remove(), 1800);
   }
 
   play(m: Mob, want: string): void {
