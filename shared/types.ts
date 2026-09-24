@@ -164,6 +164,7 @@ export interface GameEvent {
   text: string;
   agent?: string;
   name?: string; // speaker, on 'chat' events
+  other?: string; // the second robot, on 'trade' events
   x?: number;
   y?: number;
 }

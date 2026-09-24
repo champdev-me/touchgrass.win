@@ -13,6 +13,7 @@ import { armorOf, bestTool, useGear } from './gear.ts';
 import { chunksPerRow, dominantTerrain, explore } from './explore.ts';
 import { NODE_DEF, chunkOf, fullAmount, wrongRole, type ResourceNode } from './nodes.ts';
 import { buildObservation } from './observe.ts';
+import { expireOffers, type Offer } from './trade.ts';
 import { findPath } from './path.ts';
 import { addScore } from './score.ts';
 import { findTarget, runTask } from './tasks.ts';
@@ -51,6 +52,8 @@ export class World {
   dirtyChunks = new Set<string>();
   nodeChanges: [number, number][] = [];
   loot = new Map<number, LootPile>();
+  offers = new Map<string, Offer>(); // memory only: a restart clears open offers
+  nextOfferId = 1;
   lootDirty = false;
   chatLog: string[] = [];
   chunkTerrain: Uint8Array | null = null;
@@ -344,6 +347,7 @@ export class World {
       this.emit('leave', say('leave', a.name, this.rng), a);
     }
     stepCreatures(this);
+    expireOffers(this);
     this.regrow();
     for (const [i, pile] of this.loot) {
       if (pile.expiresAt <= this.tick) {
@@ -585,8 +589,8 @@ export class World {
     this.dirty.add(a.id);
   }
 
-  emit(type: string, text: string, a?: Agent): void {
-    this.events.push({ tick: this.tick, type, text, agent: a?.id, x: a?.x, y: a?.y });
+  emit(type: string, text: string, a?: Agent, other?: Agent): void {
+    this.events.push({ tick: this.tick, type, text, agent: a?.id, x: a?.x, y: a?.y, ...(other ? { other: other.id } : {}) });
     if (type !== 'move') this.log(text);
   }
 

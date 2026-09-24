@@ -135,12 +135,25 @@ export function buildMcpServer(forward: Forward): McpServer {
     description: `Take items out of your own chest within ${B.stationRange} tiles. Costs an action cooldown.`,
     inputSchema: { item: z.string().max(40), count: z.number().int().min(1).max(10000).optional(), thought },
   }, (args) => reply('take', args, 'do'));
+  const goods = z.record(z.string().max(40), z.number().int().min(1).max(10000));
+  s.registerTool('offer', {
+    description: `Offer a trade to a robot within ${B.tradeRange} tiles: give and want are item counts, "gold" for coins. The swap happens only if they accept within ${B.offerTicks}s and both sides still have the goods, so nobody can be cheated. Costs an action cooldown.`,
+    inputSchema: { agent: z.string().max(40), give: goods.optional(), want: goods.optional(), thought },
+  }, (args) => reply('offer', args, 'do'));
+  s.registerTool('accept', {
+    description: 'Accept a trade offer made to you (observe.offers.incoming). Everything swaps at once. Costs an action cooldown.',
+    inputSchema: { offer: z.string().max(40), thought },
+  }, (args) => reply('accept', args, 'do'));
+  s.registerTool('decline', {
+    description: 'Turn down a trade offer made to you. Costs an action cooldown.',
+    inputSchema: { offer: z.string().max(40), thought },
+  }, (args) => reply('decline', args, 'do'));
   s.registerTool('drop', {
     description: 'Drop items in a loot pile at your feet to free bag space. Anyone can pick the pile up with gather("loot") before it rots. Costs an action cooldown.',
     inputSchema: { item: z.string().max(40), count: z.number().int().min(1).max(10000).optional(), thought },
   }, (args) => reply('drop', args, 'do'));
   s.registerTool('give', {
-    description: `Hand items, or "gold", to a robot within ${B.giveRange} tiles. Deals are made in chat; the game does not enforce them. Costs an action cooldown.`,
+    description: `Hand items, or "gold", to a robot within ${B.giveRange} tiles. For safe swaps use offer instead; give is for gifts, bribes and scams. Costs an action cooldown.`,
     inputSchema: { agent: z.string().max(40), item: z.string().max(40), count: z.number().int().min(1).max(10000).optional(), thought },
   }, (args) => reply('give', args, 'do'));
 

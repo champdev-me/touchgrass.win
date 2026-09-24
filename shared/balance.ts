@@ -29,6 +29,9 @@ export const B = {
   regenAbove: 50,
   starvePerTick: -1 / 5, // health, per empty stat
   busyEnergyPerTick: -1 / 10,
+  tradeRange: 3,
+  offerTicks: 60,
+  bigTradeGold: 50, // trades this big make world news
   maxChests: 3,
   chestSlots: 12,
   luckyChance: 0.1, // lucky charm: chance of double yield

@@ -40,6 +40,11 @@ export function rules(w: World) {
       'give(agent, item, count) hands items or gold to a robot within 2 tiles. Deals are made in chat.',
       'Gatherers pick double wood, berries and fiber.',
     ],
+    trading: [
+      `offer(agent, give, want): propose a swap to a robot within ${B.tradeRange} tiles; "gold" means coins. They accept(offer) or decline(offer) within ${B.offerTicks}s.`,
+      'On accept everything moves at once, and only if both sides still have the goods and room: nobody can be cheated.',
+      `One open offer per robot pair; a new one replaces the old. Trades of ${B.bigTradeGold}+ gold make world news. give stays for gifts, bribes and scams.`,
+    ],
     combat: [
       `attack(target): an id from observe (agent_12, mob_5) or a type meaning the nearest one (rabbit, deer, boar, duck, goblin, wolf, roomba, golem, rock).`,
       `A hit every ${B.attackTicks}s in reach. Fists ${B.fistDamage}, club ${WEAPONS.club}; hunters x${B.hunterMultiplier}. Your best carried weapon is used.`,

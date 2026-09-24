@@ -6,6 +6,7 @@ import { TERRAIN as T, type Agent, type NodeKind, type Task, type Vec } from '..
 import { CREATURES } from '../shared/creatures.ts';
 import { ACHIEVEMENTS } from './achievements.ts';
 import { weaponOf } from './combat.ts';
+import { offerLines } from './trade.ts';
 import type { World } from './world.ts';
 
 const GRID: Record<number, string> = { [T.DEEP]: '~', [T.SHALLOW]: ',', [T.SAND]: ':', [T.MEADOW]: '.', [T.FOREST]: 'f', [T.HILLS]: '^', [T.RUINS]: 'r', [T.PLAZA]: '#', [T.MOUNTAIN]: 'm', [T.HIGH]: 'm', [T.PEAK]: 'm' };
@@ -108,6 +109,7 @@ export function buildObservation(w: World, a: Agent) {
       const mine = `yours, ${slotsUsed(s.items ?? {})}/${B.chestSlots} slots${items.length ? `: ${items.map(([i, n]) => `${i} ${n}`).join(', ')}` : ', empty'}`;
       return `chest (${s.owner === a.id ? mine : `${w.agents.get(s.owner)?.name ?? 'someone'}'s, locked`}) ${where(x, y)}`;
     }),
+    offers: offerLines(w, a),
     inbox,
     world_chat: w.chatLog.slice(-B.chatHistory),
     roles: w.census(),

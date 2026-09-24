@@ -15,7 +15,7 @@ import { redisUrl, sleep } from './helpers.ts';
 
 type Signup = { agentId: string; token: string; mcpUrl: string; message?: string };
 // Tool replies are either an observe-like payload or a GameError; tests read whichever applies.
-type Reply = { you: { name: string; pos: Vec }; grid: string[] } & GameError;
+type Reply = { you: { name: string; pos: Vec; inventory: Record<string, number> }; grid: string[]; offer?: string; offers: { incoming: string[] } } & GameError;
 type ChunkMsg = Extract<ServerMsg, { type: 'chunk' }>;
 
 let redis: Redis;
@@ -140,6 +140,36 @@ test('an agent joins, cannot double-act, walks and arrives', async () => {
   await c.close();
 });
 
+test('two robots meet and trade over MCP with offer and accept', async () => {
+  const [sa, sb] = await Promise.all([signup('Trader Ann', '3.3.3.1'), signup('Trader Bob', '3.3.3.2')]);
+  const [a, b] = await Promise.all([mcp(sa.body.token), mcp(sb.body.token)]);
+  const ja = await call(a, 'join_game', { role: 'smith' }); // the kit brings 6 wood
+  await call(b, 'join_game', { role: 'scout' });
+  await sleep(5100);
+  const [ax, ay] = ja.data.you.pos;
+  let walking = false;
+  for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]) {
+    if (!(await call(b, 'move_to', { x: ax + dx, y: ay + dy })).isError) {
+      walking = true;
+      break;
+    }
+  }
+  assert.ok(walking, 'no free tile next to Ann');
+  let bpos: Vec = [-99, -99];
+  for (let i = 0; i < 20 && Math.max(Math.abs(bpos[0] - ax), Math.abs(bpos[1] - ay)) > B.tradeRange; i++) {
+    await sleep(1100); // observe allows one call a second
+    bpos = (await call(b, 'observe')).data.you?.pos ?? bpos;
+  }
+  const o = await call(a, 'offer', { agent: sb.body.agentId, give: { wood: 2 } });
+  assert.equal(o.isError, false, JSON.stringify(o.data));
+  await sleep(5100); // Bob's move_to cooldown
+  const got = await call(b, 'accept', { offer: o.data.offer });
+  assert.equal(got.isError, false, JSON.stringify(got.data));
+  await sleep(1100);
+  assert.equal((await call(b, 'observe')).data.you.inventory.wood, 2);
+  await Promise.all([a.close(), b.close()]);
+});
+
 test('spectators get hello, ticks and chunks; junk is ignored', async () => {
   const ws = new WebSocket(`ws://127.0.0.1:${gw.port}/ws`);
   const msgs: ServerMsg[] = [];
@@ -180,7 +210,7 @@ test('survival tools are exposed over MCP and chunks carry resource nodes', asyn
   const { body } = await signup('Survivor', '5.5.5.5');
   const c = await mcp(body.token);
   const { tools } = await c.listTools();
-  assert.deepEqual(tools.map((t) => t.name).sort(), ['achievements', 'attack', 'build', 'craft', 'drink', 'drop', 'eat', 'emote', 'flee', 'fuel_campfire', 'gather', 'give', 'join_game', 'leaderboard', 'map', 'move_to', 'notes', 'observe', 'read_chat', 'rest', 'rules', 'say', 'say_world', 'settings', 'sleep', 'store', 'take']);
+  assert.deepEqual(tools.map((t) => t.name).sort(), ['accept', 'achievements', 'attack', 'build', 'craft', 'decline', 'drink', 'drop', 'eat', 'emote', 'flee', 'fuel_campfire', 'gather', 'give', 'join_game', 'leaderboard', 'map', 'move_to', 'notes', 'observe', 'offer', 'read_chat', 'rest', 'rules', 'say', 'say_world', 'settings', 'sleep', 'store', 'take']);
   await call(c, 'join_game', { role: 'gatherer' });
   const s = await call(c, 'settings', { auto_eat: false });
   assert.equal((s.data as unknown as { auto_eat: boolean }).auto_eat, false);
