@@ -33,7 +33,7 @@ test('a wolf pack hunts a lone robot and bites every 2 ticks', () => {
   const w = world();
   const a = joined(w, 'Loner', [30, 30]);
   const pack = [spawnCreature(w, 'wolf', [35, 30], 7), spawnCreature(w, 'wolf', [35, 31], 7), spawnCreature(w, 'wolf', [35, 29], 7)];
-  for (let i = 0; i < 8; i++) w.step(0);
+  for (let i = 0; i < 6; i++) w.step(0);
   assert.ok(pack.every((wf) => wf.mode === 'chase' && wf.target === a.id));
   assert.ok(a.health < 100 && !a.dead, String(a.health));
   assert.ok(w.observe(a.id).inbox.some((l) => l.includes('wolf pack is hunting you')));
@@ -97,4 +97,22 @@ test('death by monster names the killer and is never "starved at the buffet"', (
   const e = w.step(0).events.find((x) => x.type === 'death')!;
   assert.ok(a.dead && !e.text.includes('berries three tiles') && !a.stats['death:starved_at_buffet']);
   assert.match(e.text, /Snack/);
+});
+
+test('a monster that spawns out of sight comes for you', () => {
+  const w = world();
+  const a = joined(w, 'Target', [30, 30]);
+  const wolf = spawnCreature(w, 'wolf', [30 + 28, 30]); // the far edge of the spawn ring
+  w.step(0);
+  assert.deepEqual([wolf.mode, wolf.target], ['chase', a.id]);
+});
+
+test('wolves keep pace with a walking robot and bite the moment it stops', () => {
+  const w = world();
+  const a = joined(w, 'Walker', [30, 30]);
+  w.moveTo(a.id, 40, 30);
+  const wolf = spawnCreature(w, 'wolf', [26, 30]);
+  Object.assign(wolf, { mode: 'chase', target: a.id, until: 1000 });
+  for (let i = 0; i < 8; i++) w.step(0);
+  assert.ok(a.health < 100, String(a.health));
 });

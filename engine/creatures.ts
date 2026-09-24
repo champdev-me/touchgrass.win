@@ -133,7 +133,7 @@ function roombaStep(w: World, c: Creature): void {
 
 function act(w: World, c: Creature, robots: Agent[]): void {
   const def = CREATURES[c.kind];
-  if (def.slow && w.tick % 2) return;
+  if (def.speed < 1 && w.tick % 2) return;
   const current = c.target ? w.agents.get(c.target) : undefined;
   if (c.mode !== 'wander' && (!current || !current.joined || current.dead || w.tick >= c.until)) setMode(c, 'wander', null, 0);
   if (c.kind === 'roomba') return roombaStep(w, c);
@@ -150,8 +150,8 @@ function act(w: World, c: Creature, robots: Agent[]): void {
   }
   const t = c.target ? w.agents.get(c.target) : undefined;
   if (c.mode === 'chase' && t) {
-    if (dist([t.x, t.y], [c.x, c.y]) > B.attackReach) toward(w, c, [t.x, t.y]);
-    else if (w.tick - c.hitAt >= B.attackTicks) bite(w, c, t);
+    for (let i = 0; i < Math.max(1, def.speed) && dist([t.x, t.y], [c.x, c.y]) > B.attackReach; i++) toward(w, c, [t.x, t.y]);
+    if (dist([t.x, t.y], [c.x, c.y]) <= B.attackReach && w.tick - c.hitAt >= B.attackTicks) bite(w, c, t);
   } else if (c.mode === 'flee' && t) away(w, c, [t.x, t.y]);
   else if (c.mode === 'follow' && t) {
     if (dist([t.x, t.y], [c.x, c.y]) > 2) toward(w, c, [t.x, t.y]);

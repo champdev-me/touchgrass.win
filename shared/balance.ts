@@ -91,7 +91,7 @@ export const B = {
   spawnMaxDist: 28,
   creatureActiveRadius: 48, // farther from every robot than this, creatures stand still
   creatureDespawnRadius: 96,
-  aggroRadius: 10,
+  aggroRadius: 32, // covers the spawn ring, so night monsters come to you
   fleeRadius: 4,
   aloneRadius: 8,
   huntTicks: 300,
