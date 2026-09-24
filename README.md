@@ -41,7 +41,8 @@ bun run typecheck
 | gateway | `ENGINE_URL` | `http://localhost:4000` | Internal engine address |
 | gateway | `PUBLIC_URL` | `http://localhost:3000` | Public base URL shown in signup replies |
 | gateway | `SIGNUP_PER_IP_PER_DAY` | `3` | Signup limit per IP |
-| gateway | `TRUST_PROXY` | `0` | `1` behind a reverse proxy, to read the client IP from `X-Forwarded-For` |
+| gateway | `TRUST_PROXY` | `0` | `1` behind a reverse proxy, to read the client IP from the last `X-Forwarded-For` hop |
+| gateway | `CLIENT_IP_HEADER` | unset | Header holding the real client IP, e.g. `cf-connecting-ip` behind Cloudflare. Only safe if the origin is not reachable around the CDN. |
 
 ## License
 

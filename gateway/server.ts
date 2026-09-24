@@ -5,6 +5,7 @@ import type { Redis } from '../shared/redis.ts';
 import type { ActionResult, ClientMsg, GameError, TickDelta } from '../shared/types.ts';
 import { agentForToken, hashToken, newToken } from './auth.ts';
 import { isRude } from './filter.ts';
+import { clientIp } from './ip.ts';
 import { buildMcpServer, type Forward } from './mcp.ts';
 import { claimSlot, startCooldown } from './ratelimit.ts';
 
@@ -16,6 +17,7 @@ export interface GatewayOpts {
   publicUrl: string;
   signupPerIpPerDay: number;
   trustProxy: boolean;
+  clientIpHeader?: string;
 }
 
 type Registered = { ok: boolean; agentId?: string; error?: GameError };
@@ -132,9 +134,7 @@ export async function startGateway(o: GatewayOpts) {
         if (pathname === '/ws') return srv.upgrade(req) ? undefined : json(400, { error: 'expected_websocket' });
         if (pathname === '/mcp') return await handleMcp(req);
         if (req.method === 'POST' && pathname === '/signup') {
-          // Only the last hop is added by our proxy; earlier entries are client-controlled.
-          const fwd = req.headers.get('x-forwarded-for')?.split(',').at(-1)?.trim();
-          return await handleSignup(req, (o.trustProxy && fwd) || srv.requestIP(req)?.address || 'unknown');
+          return await handleSignup(req, clientIp(req.headers, srv.requestIP(req)?.address, o));
         }
         if (req.method === 'GET' && pathname === '/health') return await handleHealth();
         if (req.method === 'GET') return await serveStatic(pathname);
