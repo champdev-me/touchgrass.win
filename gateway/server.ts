@@ -122,6 +122,7 @@ export async function startGateway(o: GatewayOpts) {
   }
 
   let lastTick = 0;
+  const chunkBudget = new WeakMap<object, { used: number; since: number }>();
   const server = Bun.serve({
     port: o.port,
     maxRequestBodySize: 64 * 1024,
@@ -131,7 +132,8 @@ export async function startGateway(o: GatewayOpts) {
         if (pathname === '/ws') return srv.upgrade(req) ? undefined : json(400, { error: 'expected_websocket' });
         if (pathname === '/mcp') return await handleMcp(req);
         if (req.method === 'POST' && pathname === '/signup') {
-          const fwd = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim();
+          // Only the last hop is added by our proxy; earlier entries are client-controlled.
+          const fwd = req.headers.get('x-forwarded-for')?.split(',').at(-1)?.trim();
           return await handleSignup(req, (o.trustProxy && fwd) || srv.requestIP(req)?.address || 'unknown');
         }
         if (req.method === 'GET' && pathname === '/health') return await handleHealth();
@@ -156,9 +158,14 @@ export async function startGateway(o: GatewayOpts) {
           return;
         }
         if (msg?.type !== 'chunks' || !Array.isArray(msg.list)) return;
+        const now = Date.now();
+        let budget = chunkBudget.get(ws);
+        if (!budget || now - budget.since > B.chunkWindowMs) chunkBudget.set(ws, (budget = { used: 0, since: now }));
         for (const item of msg.list.slice(0, 64)) {
           const [cx, cy] = Array.isArray(item) ? item : [];
           if (!Number.isInteger(cx) || !Number.isInteger(cy)) continue;
+          if (budget.used >= B.chunkRequestsPerWindow) return;
+          budget.used++;
           const data = await r.hGet('terrain', `${cx},${cy}`);
           if (data) ws.send(JSON.stringify({ type: 'chunk', cx, cy, data }));
         }

@@ -7,6 +7,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { startEngine } from '../engine/server.ts';
 import { startGateway } from '../gateway/server.ts';
+import { B } from '../shared/balance.ts';
 import { connectRedis, type Redis } from '../shared/redis.ts';
 import type { GameError, ServerMsg, Vec } from '../shared/types.ts';
 import { redisUrl, sleep } from './helpers.ts';
@@ -70,6 +71,25 @@ test('signup checks names, uniqueness and the per-IP limit', async () => {
   await signup('Gamma Bot', '1.1.1.1');
   assert.equal((await signup('Delta Bot', '1.1.1.1')).status, 429);
   assert.equal((await signup('Delta Bot', '9.9.9.9')).status, 200);
+});
+
+test('a spoofed X-Forwarded-For prefix cannot dodge the signup limit', async () => {
+  // The proxy appends the real client IP last; anything before it is client-controlled.
+  for (let i = 0; i < 3; i++) assert.equal((await signup(`Spoof ${i}`, `10.0.0.${i}, 4.4.4.4`)).status, 200);
+  assert.equal((await signup('Spoof 3', '10.0.0.99, 4.4.4.4')).status, 429);
+});
+
+test('a spectator socket cannot flood chunk requests', async () => {
+  const ws = new WebSocket(`ws://127.0.0.1:${gw.port}/ws`);
+  let chunks = 0;
+  ws.addEventListener('message', (e) => { if ((JSON.parse(String(e.data)) as ServerMsg).type === 'chunk') chunks++; });
+  await new Promise((ok) => ws.addEventListener('open', ok, { once: true }));
+  const all: Vec[] = [];
+  for (let cy = 0; cy < 8; cy++) for (let cx = 0; cx < 8; cx++) all.push([cx, cy]);
+  for (let i = 0; i < 10; i++) ws.send(JSON.stringify({ type: 'chunks', list: all })); // 640 requests, 64 distinct chunks
+  await sleep(1500);
+  assert.equal(chunks, B.chunkRequestsPerWindow);
+  ws.close();
 });
 
 test('a bad token cannot connect', async () => {

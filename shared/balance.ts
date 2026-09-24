@@ -15,4 +15,6 @@ export const B = {
   lookCooldownMs: 1000,
   maxActiveAgents: 200,
   activeWindowMs: 24 * 60 * 60 * 1000,
+  chunkRequestsPerWindow: 400, // per spectator socket, enough to load a view and pan fast
+  chunkWindowMs: 10_000,
 } as const;
