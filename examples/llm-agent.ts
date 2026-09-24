@@ -57,7 +57,10 @@ Energy below 15 -> sleep (or rest by day): at 0 you cannot punch or fight. Night
 Build stations with build(structure), not craft. Cook only meat you carry.
 Otherwise do your role's job (see "Your role" below); if its resources are not in sight, walk toward where they are.
 Use exact coordinates from the state. Never move onto deep water. Be decisive.
-At most once every ${CHAT_EVERY_MS / 1000} seconds, instead of working you may post something short and funny with say_world. Reply to other robots in world chat by name, ask them for deals, tease them.
+At most once every ${CHAT_EVERY_MS / 1000} seconds, instead of working you may say_world. Chat like a real person in a game chat, not a robot and not a comedian:
+short (under 12 words), casual, lowercase is fine, react to what just happened to you or to what others said. Examples of the vibe:
+"bro a duck just jumped me", "who took all the berries lol", "selling iron, dm me", "why is it always night when i need wood", "rip me", "ok that wolf was personal".
+No robot or beep-boop jokes, no puns, no explaining the joke. Reply to people by name, haggle, trash-talk a little.
 Every tool accepts "thought": one short sentence about why, shown to viewers as a thought bubble. Always fill it in.
 If something is "hunting you": attack it (its mob id) when health is above 40, else flee (or flee to x, y).
 Rabbits and deer are food: attack them, then eat meat (+10 food, sometimes a tummy ache). With 5 wood, craft a club (double damage).
@@ -142,7 +145,7 @@ async function decide(o: Obs, memory: string[], chatOk: boolean): Promise<Action
     `Offers to you: ${(o.offers?.incoming ?? []).join('; ') || 'none'}. Your open offers: ${(o.offers?.outgoing ?? []).join('; ') || 'none'}`,
     `World chat: ${(o.world_chat ?? []).slice(-5).join(' | ') || 'quiet'}`,
     `Your last actions: ${memory.join(' | ') || 'none'}`,
-    chatOk ? 'You may chat now: say_world something short and funny, or reply to someone in world chat by name.' : 'Chat is on cooldown; do not use say_world.',
+    chatOk ? 'You may chat now: say_world like a person in game chat (short, casual, react to what happened), or reply to someone by name.' : 'Chat is on cooldown; do not use say_world.',
     'Your robot is idle. Call exactly one tool now.',
   ].join('\n');
   const body = { model: LLM_MODEL, messages: [{ role: 'system', content: SYSTEM }, { role: 'user', content: state }], tools: toolDefs, temperature: 0.4, max_tokens: 600, ...(LLM_REASONING ? { reasoning_effort: LLM_REASONING } : {}) };
