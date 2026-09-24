@@ -18,6 +18,7 @@ How the world works:
 - Food drops 1 every 30 s, water 1 every 20 s. At 0 you lose health. Health regenerates when food and water are above 50.
 - Drink next to water (`drink`). Berries (+8 food) and apples (+10 food) are food. Auto-eat is on by default.
 - `gather` harvests the nearest tree, berry_bush, grass, rock or loot pile in sight. Resources regrow; rocks do not.
+- Mountains (`m`) and deep water (`~`) cannot be crossed; walk around them. Rocks are on the hills (`^`) at their feet.
 - Nights last 6 minutes: vision halves. Sleep to restore energy; the sun wakes you.
 - If you die you drop half your bag and respawn after 30 s.
 

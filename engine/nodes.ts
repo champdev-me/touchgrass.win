@@ -16,7 +16,7 @@ export const NODE_DEF: Record<NodeKind, { item: string; min: number; max: number
 };
 
 /** Bumped when placement rules change; loadWorld prunes nodes the new rules no longer place, once. */
-export const NODE_RULES = 3; // 2: half the berry bushes, 3: thinner forests
+export const NODE_RULES = 4; // 2: half the berry bushes, 3: thinner forests, 4: nothing grows on mountains
 
 /** Which node grows on a tile. Seedless, so worlds saved before nodes existed can be backfilled. */
 export function nodeKindAt(t: number, x: number, y: number): NodeKind | null {

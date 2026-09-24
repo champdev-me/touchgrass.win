@@ -19,10 +19,10 @@ export function buildChunkGeometry(tiles: Uint8Array, n: number, x0: number, y0:
   };
   for (let j = 0; j < n; j++) {
     for (let i = 0; i < n; i++) {
-      const t = tiles[j * n + i], h = heightOf(t), x = x0 + i, z = y0 + j;
+      const x = x0 + i, z = y0 + j, t = tiles[j * n + i], h = heightOf(t, x, z);
       c.set(COLOR[t] ?? '#ff00ff');
       quad([[x, h, z], [x, h, z + 1], [x + 1, h, z + 1], [x + 1, h, z]], 0.94 + (((x * 73856093) ^ (z * 19349663)) & 15) / 150);
-      const lo = (nx: number, nz: number) => Math.min(h, heightOf(at(nx, nz)));
+      const lo = (nx: number, nz: number) => Math.min(h, heightOf(at(nx, nz), nx, nz));
       let l = lo(x, z - 1);
       if (l < h) quad([[x + 1, h, z], [x + 1, l, z], [x, l, z], [x, h, z]], 0.8);
       l = lo(x, z + 1);
@@ -86,7 +86,7 @@ export class ChunkView {
   }
 
   heightAt(x: number, y: number): number {
-    return heightOf(this.tileAt(x, y));
+    return heightOf(this.tileAt(x, y), x, y);
   }
 
   update(center: THREE.Vector3): void {

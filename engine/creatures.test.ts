@@ -178,3 +178,24 @@ test('every untamed animal kicks robots that come close: deer 5, boar 6, duck 1'
     assert.equal(c.mode, 'flee', kind);
   }
 });
+
+test('kicks are news at most every 30 s, never interrupt work, and a duck spares the robot it follows', () => {
+  const w = world(() => 0.01);
+  const a = joined(w, 'Ann', [20, 20]);
+  const b = joined(w, 'Bob', [40, 40]);
+  Object.assign(a, { energy: 50, task: { type: 'rest' } });
+  spawnCreature(w, 'rabbit', [22, 20]);
+  spawnCreature(w, 'rabbit', [42, 40]);
+  const d = w.step(0);
+  assert.equal(d.events.filter((e) => e.type === 'kick').length, 1);
+  assert.deepEqual([a.health, b.health], [97, 97]);
+  assert.deepEqual(a.task, { type: 'rest' });
+  assert.ok(w.observe(b.id).inbox.some((l) => l.includes('kicked you')));
+
+  const w2 = world(() => 0.01);
+  const mom = joined(w2, 'Mom', [20, 20]);
+  const duck = spawnCreature(w2, 'duck', [21, 20]);
+  Object.assign(duck, { mode: 'follow', target: mom.id, until: 1000 });
+  for (let i = 0; i < 5; i++) w2.step(0);
+  assert.equal(mom.health, 100);
+});

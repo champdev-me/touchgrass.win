@@ -52,14 +52,39 @@ export function generateTerrain(seed: string, size: number = B.mapSize): Uint8Ar
   }
   const h = Math.min(B.plazaHalf, size / 4);
   for (let y = c - h; y < c + h; y++) for (let x = c - h; x < c + h; x++) tiles[y * size + x] = T.PLAZA;
+  raiseMountains(tiles, size);
   return tiles;
+}
+
+/** Bumped when terrain rules change; loadWorld re-applies them to older saved worlds once. */
+export const TERRAIN_RULES = 2;
+
+/** Hill interiors become impassable mountains (peaks deeper in). Idempotent, so old worlds convert on load. */
+export function raiseMountains(tiles: Uint8Array, size: number): void {
+  const d = new Int32Array(tiles.length);
+  for (let i = 0; i < d.length; i++) d[i] = tiles[i] === T.HILLS ? 1 << 20 : 0;
+  const near = (x: number, y: number) => (x < 0 || y < 0 || x >= size || y >= size ? 1 : d[y * size + x] + 1);
+  // Two-pass chamfer: Chebyshev distance from each hill tile to the nearest non-hill tile.
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const i = y * size + x;
+      if (d[i]) d[i] = Math.min(d[i], near(x - 1, y), near(x, y - 1), near(x - 1, y - 1), near(x + 1, y - 1));
+    }
+  }
+  for (let y = size - 1; y >= 0; y--) {
+    for (let x = size - 1; x >= 0; x--) {
+      const i = y * size + x;
+      if (d[i]) d[i] = Math.min(d[i], near(x + 1, y), near(x, y + 1), near(x + 1, y + 1), near(x - 1, y + 1));
+    }
+  }
+  for (let i = 0; i < tiles.length; i++) if (d[i] >= B.mountainFrom) tiles[i] = d[i] >= B.peakFrom ? T.PEAK : T.MOUNTAIN;
 }
 
 export function tileAt(tiles: Uint8Array, x: number, y: number, size: number = B.mapSize): number {
   return x < 0 || y < 0 || x >= size || y >= size ? T.DEEP : tiles[y * size + x];
 }
 
-export const walkable = (t: number): boolean => t !== T.DEEP;
+export const walkable = (t: number): boolean => t !== T.DEEP && t !== T.MOUNTAIN && t !== T.PEAK;
 export const stepCost = (t: number): number => (t === T.SHALLOW ? 2 : 1);
 
 export function chunkBytes(tiles: Uint8Array, cx: number, cy: number, size: number = B.mapSize): Uint8Array {

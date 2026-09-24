@@ -2,7 +2,7 @@ import { B } from '../shared/balance.ts';
 import { TERRAIN as T, type Agent, type Vec } from '../shared/types.ts';
 import type { World } from './world.ts';
 
-const CHAR: Record<number, string> = { [T.DEEP]: '~', [T.SHALLOW]: ',', [T.SAND]: ':', [T.MEADOW]: '.', [T.FOREST]: 'f', [T.HILLS]: '^', [T.RUINS]: 'r', [T.PLAZA]: '#' };
+const CHAR: Record<number, string> = { [T.DEEP]: '~', [T.SHALLOW]: ',', [T.SAND]: ':', [T.MEADOW]: '.', [T.FOREST]: 'f', [T.HILLS]: '^', [T.RUINS]: 'r', [T.PLAZA]: '#', [T.MOUNTAIN]: 'm', [T.PEAK]: 'm' };
 
 export const chunksPerRow = (size: number): number => Math.ceil(size / B.chunkSize);
 
@@ -49,7 +49,7 @@ export function renderMap(w: World, a: Agent) {
   const you: Vec = [a.x, a.y];
   return {
     map,
-    legend: { '@': 'you are here', '?': 'unexplored', '~': 'mostly deep water', ',': 'shallow water', ':': 'sand', '.': 'meadow', f: 'forest', '^': 'hills', r: 'ruins', '#': 'the Plaza' },
+    legend: { '@': 'you are here', '?': 'unexplored', '~': 'mostly deep water', ',': 'shallow water', ':': 'sand', '.': 'meadow', f: 'forest', '^': 'hills', r: 'ruins', '#': 'the Plaza', m: 'mountains' },
     scale: `Each cell is a ${B.chunkSize}x${B.chunkSize}-tile chunk: column c, row r covers x ${B.chunkSize}*c to ${B.chunkSize}*c+${B.chunkSize - 1}, same for y.`,
     explored: `${seen.size}/${n * n} chunks`,
     you,

@@ -1,6 +1,6 @@
 import type { CreatureKind } from './creatures.ts';
 
-export const TERRAIN = { DEEP: 0, SHALLOW: 1, SAND: 2, MEADOW: 3, FOREST: 4, HILLS: 5, RUINS: 6, PLAZA: 7 } as const;
+export const TERRAIN = { DEEP: 0, SHALLOW: 1, SAND: 2, MEADOW: 3, FOREST: 4, HILLS: 5, RUINS: 6, PLAZA: 7, MOUNTAIN: 8, PEAK: 9 } as const;
 export type Terrain = (typeof TERRAIN)[keyof typeof TERRAIN];
 
 export const ROLES = ['gatherer', 'hunter', 'builder', 'medic', 'scout'] as const;

@@ -58,7 +58,8 @@ export class World {
   urgent = false;
   creatures = new Map<string, Creature>();
   nextMobId = 1;
-  creaturesDirty = false; // flush on the next tick instead of waiting for the 5-tick flush
+  creaturesDirty = false;
+  lastKickNews = -1_000_000; // flush on the next tick instead of waiting for the 5-tick flush
 
   constructor(tiles: Uint8Array, size: number = B.mapSize, rng: () => number = Math.random) {
     this.tiles = tiles;
@@ -147,7 +148,10 @@ export class World {
     if (!Number.isInteger(x) || !Number.isInteger(y) || x < 0 || y < 0 || x >= this.size || y >= this.size) {
       throw new GameFail('bad_target', 'That place is outside the world.', `Use whole numbers from 0 to ${this.size - 1}.`);
     }
-    if (!walkable(this.at(x, y))) throw new GameFail('blocked', 'That is deep water. Your robot cannot swim that deep.', 'Pick a land or shallow-water tile.');
+    if (!walkable(this.at(x, y))) {
+      const deep = this.at(x, y) === T.DEEP;
+      throw new GameFail('blocked', deep ? 'That is deep water. Your robot cannot swim that deep.' : 'That is a mountain. Your robot is not a goat.', 'Pick a land or shallow-water tile.');
+    }
     const path = findPath(this.at, [a.x, a.y], [x, y]);
     if (!path) throw new GameFail('no_path', 'Your robot cannot find a way there.', `Targets must be within ${B.pathRadius} tiles and reachable without crossing deep water.`);
     a.task = { type: 'move_to', target: [x, y], path };
@@ -341,7 +345,7 @@ export class World {
   }
 
   /** Damage from a creature or robot; true when it was the killing blow. */
-  hurt(a: Agent, damage: number, cause: string, by: string): boolean {
+  hurt(a: Agent, damage: number, cause: string, by: string, alarm = true): boolean {
     if (a.dead) return false;
     const fresh = this.tick - a.lastHurtAt > B.combatTicks;
     a.lastHurtAt = this.tick;
@@ -351,7 +355,7 @@ export class World {
       this.kill(a, cause, by);
       return true;
     }
-    if (fresh) this.alarm(a, `${by} is attacking you!`);
+    if (fresh && alarm) this.alarm(a, `${by} is attacking you!`);
     return false;
   }
 
@@ -494,6 +498,18 @@ export class World {
   touch(a: Agent): void {
     a.lastActionAt = Date.now();
     this.dirty.add(a.id);
+  }
+
+  /** Closest walkable tile, for robots stranded by terrain changes. */
+  nearestWalkable(x: number, y: number): Vec {
+    for (let r = 1; r < 128; r++) {
+      for (let dy = -r; dy <= r; dy++) {
+        for (let dx = -r; dx <= r; dx++) {
+          if (Math.max(Math.abs(dx), Math.abs(dy)) === r && walkable(this.at(x + dx, y + dy)) && this.at(x + dx, y + dy) !== T.SHALLOW) return [x + dx, y + dy];
+        }
+      }
+    }
+    return this.plaza;
   }
 
   pickSpawn(): Vec {

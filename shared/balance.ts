@@ -10,6 +10,8 @@ export const B = {
   scoutVision: 15,
   nightVisionFactor: 0.5,
   plazaHalf: 20,
+  mountainFrom: 3, // hill tiles this far from the hill edge become mountains
+  peakFrom: 6, // ...and snowy peaks from here
   spawnMinPlazaDist: 50,
   inboxMax: 20,
   doCooldownMs: 5000,
@@ -92,6 +94,7 @@ export const B = {
   animalSpawnMin: 8, // animals appear where the follow cam can see them
   animalSpawnMax: 20,
   animalKickChance: 0.03, // per tick while a robot is within fleeRadius
+  kickNewsTicks: 30, // at most one kick per this many ticks makes world chat
   creatureActiveRadius: 48, // farther from every robot than this, creatures stand still
   creatureDespawnRadius: 96,
   aggroRadius: 32, // covers the spawn ring, so night monsters come to you

@@ -132,3 +132,28 @@ test('berry bushes and trees that the current rules no longer place are pruned o
   assert.equal((await loadWorld(r))!.nodes.has(old), true);
   await r.close();
 });
+
+test('worlds saved before mountains get them on load; robots inside are walked out', async () => {
+  const r = await connectRedis(redisUrl(14));
+  await r.flushDb();
+  const n = 64, tiles = new Uint8Array(n * n).fill(T.MEADOW);
+  for (let y = 10; y < 40; y++) for (let x = 10; x < 40; x++) tiles[y * n + x] = T.HILLS;
+  const w = new World(tiles, n, () => 0.5);
+  w.nodes.set(w.index(25, 25), { kind: 'rock', left: 3, regrowAt: 0 });
+  await saveTerrain(r, tiles, n);
+  await saveAllNodes(r, w);
+  const a = w.register('Climber', 0);
+  w.join(a.id, 'scout', null, 0);
+  [a.x, a.y] = [25, 25];
+  await flush(r, w);
+  await r.hDel(K.meta, 'terrainRules');
+
+  const back = (await loadWorld(r))!;
+  const b = back.agents.get(a.id)!;
+  assert.equal(back.at(25, 25), T.PEAK);
+  assert.ok(back.at(b.x, b.y) === T.HILLS || back.at(b.x, b.y) === T.MEADOW, `${b.x},${b.y}`);
+  assert.equal(back.nodes.has(back.index(25, 25)), false);
+  const again = (await loadWorld(r))!;
+  assert.equal(again.at(25, 25), T.PEAK); // saved, not recomputed from old terrain
+  await r.close();
+});
