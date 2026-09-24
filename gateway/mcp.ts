@@ -106,6 +106,10 @@ export function buildMcpServer(forward: Forward): McpServer {
     inputSchema: {},
   }, () => reply('map', {}, 'look'));
 
+  s.registerTool('how', {
+    description: 'Ask how to make, build or get something (bed, stone_axe, iron, wood, brick...) or about a topic (land, trade, treasure, roles). Answers with the steps and the exact tool calls, for your role. Free.',
+    inputSchema: { thing: z.string().max(40) },
+  }, (args) => reply('how', args, 'look'));
   s.registerTool('rules', {
     description: 'Every rule, number and achievement in the game. Free.',
     inputSchema: {},

@@ -17,7 +17,7 @@ const LLM_MODEL = process.env.LLM_MODEL ?? 'gemma4:12b';
 const LLM_KEY = process.env.LLM_KEY ?? '';
 const LLM_REASONING = process.env.LLM_REASONING; // e.g. none: thinking models answer fast and do call a tool
 const ROLE = process.env.ROLE ?? 'gatherer';
-const ACTIONS = ['move_to', 'gather', 'eat', 'drink', 'rest', 'sleep', 'say_world', 'attack', 'craft', 'flee', 'build', 'offer', 'accept', 'decline', 'give', 'store', 'take', 'chart', 'search', 'drop'];
+const ACTIONS = ['move_to', 'gather', 'eat', 'drink', 'rest', 'sleep', 'say_world', 'attack', 'craft', 'flee', 'build', 'offer', 'accept', 'decline', 'give', 'store', 'take', 'chart', 'search', 'drop', 'how'];
 const CHAT_EVERY_MS = Number(process.env.CHAT_EVERY_S ?? 60) * 1000;
 const MEMORY = Number(process.env.LLM_MEMORY ?? 6); // past actions shown to the model each turn
 
@@ -64,6 +64,7 @@ No robot or beep-boop jokes, no puns, no explaining the joke. Reply to people by
 Every tool accepts "thought": one short sentence about why, shown to viewers as a thought bubble. Always fill it in.
 If something is "hunting you": attack it (its mob id) when health is above 40, else flee (or flee to x, y).
 Rabbits and deer are food: attack them, then eat meat (+10 food, sometimes a tummy ache). With 5 wood, craft a club (double damage).
+Not sure how to make, build or get something? Call how {"thing": "bed"} (free): it answers with the steps and exact calls.
 Roles own the economy: you can only gather, craft and build what your role allows; a wrong_role error names who to trade with.
 There is no shop. Trade with robots within 3 tiles: offer(agent, give, want) with item counts ("gold" for coins); they accept or decline within 60 s and the swap is all-or-nothing. Haggle in world chat. Accept fair offers in "Offers to you".
 Health only comes back while food is 90+, so eat often. Punching and fighting cost energy.
@@ -133,6 +134,7 @@ function fallback(o: Obs, skip = ''): Action {
 }
 
 async function decide(o: Obs, memory: string[], chatOk: boolean): Promise<Action | null> {
+  const answer = lastAnswer;
   const me = o.you;
   const state = [
     `You are ${me.name} (${me.id}), a ${me.role}. Lines in world chat starting with "${me.name}:" are your own; never reply to yourself or trade with yourself.`,
@@ -146,6 +148,7 @@ async function decide(o: Obs, memory: string[], chatOk: boolean): Promise<Action
     `Offers to you: ${(o.offers?.incoming ?? []).join('; ') || 'none'}. Your open offers: ${(o.offers?.outgoing ?? []).join('; ') || 'none'}`,
     `World chat: ${(o.world_chat ?? []).slice(-5).map((l) => (l.startsWith(`${me.name}:`) ? `(you) ${l}` : l)).join(' | ') || 'quiet'}`,
     `Your last actions: ${memory.join(' | ') || 'none'}`,
+    ...(answer ? [`Answer to your last how: ${answer}`] : []),
     chatOk ? 'You may chat now: say_world like a person in game chat (short, casual, react to what happened), or reply to someone by name.' : 'Chat is on cooldown; do not use say_world.',
     'Your robot is idle. Call exactly one tool now.',
   ].join('\n');
@@ -172,6 +175,7 @@ const joined = await call('join_game', { role: ROLE, model: LLM_MODEL });
 log(joined.ok ? `joined as ${String((joined.data.you as { name: string }).name)}` : `join_game: ${String(joined.data.error)}`);
 const memory: string[] = [];
 let lastChat = 0;
+let lastAnswer = ''; // the latest how answer, shown until the next one
 
 for (;;) {
   const look = await call('observe').catch(() => null);
@@ -206,6 +210,7 @@ for (;;) {
     res = await call(act.name, withThought(act));
   }
   if (res.ok && act.name === 'say_world') lastChat = Date.now();
+  if (res.ok && act.name === 'how') lastAnswer = ((res.data.steps as string[] | undefined) ?? []).join(' | ');
   const outcome = res.ok ? 'ok' : String(res.data.error);
   memory.push(`${act.name}${Object.keys(act.args).length ? JSON.stringify(act.args) : ''} -> ${outcome}`);
   memory.splice(0, Math.max(0, memory.length - MEMORY));

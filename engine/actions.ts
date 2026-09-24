@@ -3,6 +3,7 @@ import { checkAchievements, listAchievements } from './achievements.ts';
 import { startAttack } from './combat.ts';
 import { build, craft, demolish, fuel } from './craft.ts';
 import { buyLand, switchRole } from './bases.ts';
+import { howTo } from './how.ts';
 import { store, take } from './chest.ts';
 import { accept, decline, drop, give, offer } from './trade.ts';
 import { chart, search } from './treasure.ts';
@@ -125,6 +126,8 @@ function run(world: World, { agentId, tool, args }: ActionRequest): unknown {
       return renderMap(world, world.joined(agentId));
     case 'rules':
       return rules(world);
+    case 'how':
+      return howTo(world, agentId, String(args.thing ?? ''));
     case 'achievements':
       return listAchievements(world, world.joined(agentId));
     case 'leaderboard':
