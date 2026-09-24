@@ -177,11 +177,17 @@ for (;;) {
   }
   let act = (await decide(o, memory, Date.now() - lastChat >= CHAT_EVERY_MS)) ?? fallback(o);
   if (act.name === 'say_world' && Date.now() - lastChat < CHAT_EVERY_MS) act = fallback(o);
+  if (act.name === 'say_world' && act.args.text === undefined && typeof act.args.message === 'string') {
+    act.args.text = act.args.message; // some models say message instead of text
+    delete act.args.message;
+  }
   if (act.name === 'gather' && act.args.until === undefined) act.args.until = 8; // "until the bag is full" keeps it silent for ages
   const withThought = (a: Action) => ({ ...a.args, thought: String(a.args.thought ?? a.why).slice(0, 120) });
   let res = await call(act.name, withThought(act));
   if (!res.ok && res.data.error !== 'rate_limited') {
-    const why = String(res.data.error);
+    const why = String(res.data.error), tried = `${act.name}${JSON.stringify(act.args)}`;
+    log(`model's pick ${tried} failed: ${why} (${String(res.data.message ?? '').slice(0, 120)})`);
+    memory.push(`${tried} -> FAILED ${why}: ${String(res.data.message ?? '').slice(0, 100)} ${String(res.data.hint ?? '').slice(0, 80)}`); // so it learns
     act = fallback(o, act.name);
     act.why = `${act.why} (model's pick failed: ${why})`;
     res = await call(act.name, withThought(act));
