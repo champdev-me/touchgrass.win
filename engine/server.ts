@@ -2,7 +2,8 @@ import { B } from '../shared/balance.ts';
 import type { Redis } from '../shared/redis.ts';
 import type { ActionRequest } from '../shared/types.ts';
 import { handleAction } from './actions.ts';
-import { flush, loadWorld, saveAgentNow, saveTerrain } from './persist.ts';
+import { flush, loadWorld, saveAgentNow, saveAllNodes, saveTerrain } from './persist.ts';
+import { generateNodes } from './nodes.ts';
 import { appendReplay } from './replay.ts';
 import { generateTerrain } from './terrain.ts';
 import { GameFail, World } from './world.ts';
@@ -24,9 +25,11 @@ export async function startEngine(o: EngineOpts) {
   } else {
     const size = o.size ?? B.mapSize;
     w = new World(generateTerrain(o.seed, size), size);
+    w.nodes = generateNodes(w.tiles, size);
     await saveTerrain(r, w.tiles, size);
+    await saveAllNodes(r, w);
     await flush(r, w);
-    console.log(`[engine] generated a new ${size}x${size} world from seed "${o.seed}"`);
+    console.log(`[engine] generated a new ${size}x${size} world from seed "${o.seed}" with ${w.nodes.size} resource nodes`);
   }
   const world = w;
 

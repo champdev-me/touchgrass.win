@@ -1,12 +1,12 @@
-import { B } from '../shared/balance.ts';
 import { ROLES, type ActionRequest, type ActionResult, type Role } from '../shared/types.ts';
 import { GameFail, type World } from './world.ts';
 
-const DO_TOOLS = new Set(['join_game', 'move_to']);
+const DO_TOOLS = new Set(['join_game', 'move_to', 'gather', 'eat', 'drink', 'rest', 'sleep']);
 
 export function handleAction(world: World, req: ActionRequest): ActionResult {
   try {
-    return { ok: true, data: run(world, req), cooldownMs: DO_TOOLS.has(req.tool) ? B.doCooldownMs : 0 };
+    const data = run(world, req);
+    return { ok: true, data, cooldownMs: DO_TOOLS.has(req.tool) ? world.cooldownFor(req.agentId) : 0 };
   } catch (e) {
     if (e instanceof GameFail) return { ok: false, error: { error: e.code, message: e.message, hint: e.hint }, cooldownMs: 0 };
     throw e;
@@ -14,6 +14,7 @@ export function handleAction(world: World, req: ActionRequest): ActionResult {
 }
 
 function run(world: World, { agentId, tool, args }: ActionRequest): unknown {
+  const withView = (result: object) => ({ ...result, observe: world.observe(agentId) });
   switch (tool) {
     case 'join_game': {
       const role = args.role as Role;
@@ -23,11 +24,21 @@ function run(world: World, { agentId, tool, args }: ActionRequest): unknown {
     }
     case 'observe':
       return world.observe(agentId);
-    case 'move_to': {
-      const res = world.moveTo(agentId, Number(args.x), Number(args.y));
-      return { ...res, message: 'Your robot starts walking with great confidence.', observe: world.observe(agentId) };
-    }
+    case 'move_to':
+      return withView({ ...world.moveTo(agentId, Number(args.x), Number(args.y)), message: 'Your robot starts walking with great confidence.' });
+    case 'gather':
+      return withView({ ...world.gather(agentId, String(args.target), typeof args.until === 'number' ? args.until : undefined), message: 'Your robot rolls up its sleeves. It has no sleeves.' });
+    case 'eat':
+      return withView({ ...world.eatItem(agentId, String(args.item)), message: 'Nom. Robots should not need this, yet here we are.' });
+    case 'drink':
+      return withView({ ...world.drink(agentId), message: 'Glug. Hydrated circuits.' });
+    case 'rest':
+      return withView({ ...world.rest(agentId), message: 'You sit down and contemplate the grass.' });
+    case 'sleep':
+      return withView({ ...world.sleep(agentId), message: 'Zzz. You dream of electric sheep.' });
+    case 'settings':
+      return world.settings(agentId, args.auto_eat);
     default:
-      throw new GameFail('unknown_tool', `There is no "${tool}" in this world.`, 'Use join_game, observe or move_to.');
+      throw new GameFail('unknown_tool', `There is no "${tool}" in this world.`, 'Use join_game, observe, move_to, gather, eat, drink, rest, sleep or settings.');
   }
 }

@@ -32,3 +32,36 @@ test('failures explain themselves and cost no cooldown', () => {
   const unknown = handleAction(w, { agentId: id, tool: 'fly', args: {} });
   assert.equal(!unknown.ok && unknown.error.error, 'unknown_tool');
 });
+
+test('survival tools are wired and a low stat shortens the cooldown to 3 s', () => {
+  const { w, id } = setup();
+  handleAction(w, { agentId: id, tool: 'join_game', args: { role: 'gatherer' } });
+  const a = w.agents.get(id)!;
+  a.inventory = { berries: 2 };
+  a.water = 10;
+  const ate = handleAction(w, { agentId: id, tool: 'eat', args: { item: 'berries' } });
+  assert.deepEqual([ate.ok, ate.cooldownMs], [true, 3000]);
+  const dry = handleAction(w, { agentId: id, tool: 'drink', args: {} });
+  assert.deepEqual([dry.ok, dry.cooldownMs, !dry.ok && dry.error.error], [false, 0, 'no_water']);
+  a.x = 4;
+  const drank = handleAction(w, { agentId: id, tool: 'drink', args: {} });
+  assert.deepEqual([drank.ok, drank.cooldownMs], [true, 5000]);
+  const set = handleAction(w, { agentId: id, tool: 'settings', args: { auto_eat: false } });
+  assert.deepEqual([set.ok && set.data, set.cooldownMs], [{ auto_eat: false }, 0]);
+  assert.equal(handleAction(w, { agentId: id, tool: 'rest', args: {} }).ok, true);
+  assert.equal(handleAction(w, { agentId: id, tool: 'sleep', args: {} }).ok, true);
+  const none = handleAction(w, { agentId: id, tool: 'gather', args: { target: 'rock' } });
+  assert.equal(!none.ok && none.error.error, 'none_nearby');
+});
+
+test('the dead can only look', () => {
+  const { w, id } = setup();
+  handleAction(w, { agentId: id, tool: 'join_game', args: { role: 'scout' } });
+  const a = w.agents.get(id)!;
+  a.dead = true;
+  a.respawnAt = w.tick + 10;
+  const move = handleAction(w, { agentId: id, tool: 'move_to', args: { x: 1, y: 1 } });
+  assert.deepEqual([move.ok, move.cooldownMs, !move.ok && move.error.error], [false, 0, 'dead']);
+  const look = handleAction(w, { agentId: id, tool: 'observe', args: {} });
+  assert.equal(look.ok, true);
+});
