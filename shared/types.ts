@@ -11,6 +11,15 @@ export type NodeKind = (typeof NODE_KINDS)[number];
 export const GATHER_TARGETS = [...NODE_KINDS, 'loot'] as const;
 export type GatherTarget = (typeof GATHER_TARGETS)[number];
 
+export const EMOTES = ['dance', 'wave', 'bow', 'cry', 'flex'] as const;
+export type Emote = (typeof EMOTES)[number];
+
+export interface Bubble {
+  kind: 'say' | 'world' | 'thought';
+  text: string;
+  until: number; // tick
+}
+
 /** A resource node inside a chunk: [local tile index, NODE_KINDS index, units left, regrow tick]. */
 export type PackedNode = [number, number, number, number];
 
@@ -46,6 +55,20 @@ export interface Agent {
   stats: Record<string, number>;
   online: boolean;
   lastSeenAt: number; // ms, last tool call of any kind
+  lifeScore: number;
+  seasonScore: number;
+  bestLife: number;
+  wallet: number;
+  achievements: Record<string, number>; // achievement id -> tick unlocked
+  explored: number[]; // chunk indices visited
+  notes: string;
+  mutedUntil: number; // ms epoch
+  banned: boolean;
+  bubble: Bubble | null;
+  emote: { name: Emote; until: number } | null;
+  badge: { emoji: string; until: number } | null;
+  lastWorldChatTick: number;
+  lastCountedChatTick: number;
 }
 
 export interface GameError {
@@ -81,6 +104,12 @@ export interface AgentView {
   dead: boolean;
   action: string;
   online: boolean;
+  bubble: { kind: Bubble['kind']; text: string } | null;
+  emote: Emote | null;
+  badge: string | null;
+  score: number; // season score
+  life: number; // current life score
+  trophies: number; // achievements unlocked
 }
 
 export interface GameEvent {
@@ -88,6 +117,7 @@ export interface GameEvent {
   type: string;
   text: string;
   agent?: string;
+  name?: string; // speaker, on 'chat' events
   x?: number;
   y?: number;
 }

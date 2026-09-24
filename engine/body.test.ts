@@ -7,9 +7,13 @@ import { tickBody } from './body.ts';
 const near = (a: number, b: number) => Math.abs(a - b) < 1e-6;
 const bot = (over: Partial<Agent> = {}) => normalizeAgent({ id: 'agent_1', name: 'Bot', ...over });
 
-test('old records get full stats, an empty bag and auto-eat on', () => {
+test('old records get full stats, an empty bag, auto-eat on, and zeroed social fields', () => {
   const a = normalizeAgent({ id: 'agent_1', name: 'Old', x: 5, y: 6 });
   assert.deepEqual([a.health, a.food, a.water, a.energy, a.inventory, a.autoEat, a.dead, a.x], [100, 100, 100, 100, {}, true, false, 5]);
+  assert.deepEqual([a.lifeScore, a.seasonScore, a.bestLife, a.wallet, a.achievements, a.explored, a.notes, a.banned, a.bubble], [0, 0, 0, 0, {}, [], '', false, null]);
+  const b = normalizeAgent({ id: 'agent_2', name: 'Other' });
+  b.explored.push(1);
+  assert.deepEqual(normalizeAgent({ id: 'agent_3', name: 'Third' }).explored, []);
 });
 
 test('food drops 1 per 30 s and water 1 per 20 s', () => {

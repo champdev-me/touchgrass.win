@@ -44,6 +44,24 @@ export const B = {
   speedrunTicks: 60,
   awayAfterMs: 2 * 60 * 1000, // no tool calls for this long = announced as gone
   recentEvents: 20, // announcements a new spectator sees on connect
+  // chat and social
+  chatMaxLength: 200,
+  sayRadius: 12,
+  worldChatCooldownTicks: 10,
+  bubbleTicks: 5,
+  emoteTicks: 4,
+  thoughtMaxLength: 120,
+  notesMaxLength: 2048,
+  chatHistory: 10, // world chat lines shown in observe
+  chatLogKeep: 50, // lines the engine keeps in memory
+  chatStreamMax: 10_000, // lines kept in the Redis stream for read_chat
+  // scoring and achievements
+  aliveScoreEveryTicks: 60,
+  gatherScoreEvery: 20,
+  yapperCountEveryTicks: 60, // at most one chat message per minute counts toward Yapper
+  cursedBadgeTicks: 3600,
+  cartographerShare: 0.5,
+  unkillableTicks: 86_400,
   // time: a day is 20 minutes, the last 6 are night
   dayTicks: 1200,
   nightTicks: 360,
