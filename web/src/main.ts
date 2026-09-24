@@ -5,6 +5,7 @@ import { B } from '../../shared/balance.ts';
 import { daylight, timeOf } from '../../shared/time.ts';
 import type { ClientMsg, ServerMsg } from '../../shared/types.ts';
 import { connect } from './net.ts';
+import { Creatures } from './creatures.ts';
 import { LootView } from './loot.ts';
 import { loadProps } from './props.ts';
 import { Robots } from './robots.ts';
@@ -62,6 +63,7 @@ const robots = new Robots(scene, (x, y) => chunks.heightAt(x, y), B.tickMs);
 const [models] = await Promise.all([loadProps(), robots.load()]);
 const chunks = new ChunkView(scene, models, (list) => send({ type: 'chunks', list }));
 const loot = new LootView(scene, (x, y) => chunks.heightAt(x, y));
+const creatures = new Creatures(scene, (x, y) => chunks.heightAt(x, y), B.tickMs);
 
 function setFollow(id: string | null) {
   follow = id;
@@ -87,11 +89,12 @@ send = connect((m: ServerMsg) => {
     robots.sync(m.agents);
     chunks.applyNodes(m.nodes);
     loot.sync(m.loot);
+    creatures.sync(m.creatures);
     ui.agents(m.agents);
     ui.events(m.events);
     if (follow) ui.focus(m.agents.find((a) => a.id === follow) ?? null);
     const t = timeOf(m.tick);
-    ui.status(`day ${t.day} · ${t.phase} · ${m.agents.length} robots`);
+    ui.status(`day ${t.day} · ${t.phase} · ${m.agents.length} robots · ${m.creatures.length} creatures`);
   }
 }, (s) => ui.status(s));
 
@@ -103,6 +106,10 @@ addEventListener('keydown', (e) => {
   if (k === 'f') setFollow(null);
   if (k === 'h') document.body.classList.toggle('clean');
   if (k === 'k') ui.promptAdminKey();
+  if (k === 'c') {
+    const fighters = [...robots.bots.values()].filter((b) => b.view.fighting).map((b) => b.view.id);
+    if (fighters.length) setFollow(fighters[(fighters.indexOf(follow ?? '') + 1) % fighters.length]);
+  }
   if (e.key === 'Tab') {
     e.preventDefault();
     const ids = [...robots.bots.keys()];
@@ -117,6 +124,7 @@ const fwd = new THREE.Vector3(), right = new THREE.Vector3(), move = new THREE.V
 renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.1);
   robots.update(dt);
+  creatures.update(dt);
   before.copy(controls.target);
   const bot = follow ? robots.bots.get(follow) : undefined;
   if (bot) {

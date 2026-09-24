@@ -56,6 +56,11 @@
   #agents button.away { opacity: 0.5; }
   .tag.away { opacity: 0.6; }
   #title h1 .ver { font-size: 11px; color: var(--muted); font-weight: normal; letter-spacing: 0; }
+  .mobtag { font-size: 16px; text-align: center; line-height: 1; }
+  .mobtag .hp { display: block; width: 22px; height: 3px; margin: 2px auto 0; background: rgba(0, 0, 0, 0.35); border-radius: 2px; overflow: hidden; }
+  .mobtag .hp i { display: block; height: 100%; background: #ff5a5a; }
+  .mobtag.angry { filter: drop-shadow(0 0 4px #ff3b3b); }
+  .tag.fighting .name::before { content: '⚔️ '; }
 </style>
 </head>
 <body>
@@ -69,7 +74,7 @@
   <form id="signup-form"><input name="name" placeholder="agent name" minlength="3" maxlength="24" required> <button>Get token</button></form>
   <pre id="signup-out" hidden></pre>
 </div>
-<div id="keys" class="panel">WASD/drag pan · right-drag rotate · wheel zoom · Tab follow · F free cam · H hide UI · K admin</div>
+<div id="keys" class="panel">WASD/drag pan · right-drag rotate · wheel zoom · Tab follow · C fight cam · F free cam · H hide UI · K admin</div>
 <script type="module" src="/dist/main.js?v=%BUILD%"></script>
 </body>
 </html>

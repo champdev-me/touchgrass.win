@@ -57,6 +57,7 @@ export class Robots {
       [v.health, v.food, v.water, v.energy].forEach((val, i) => { b.bars[i].style.width = `${val}%`; });
       b.tag.classList.toggle('dead', v.dead);
       b.tag.classList.toggle('away', !v.online);
+      b.tag.classList.toggle('fighting', v.fighting);
       b.bubble.hidden = !v.bubble;
       if (v.bubble) {
         b.bubble.className = `bubble ${v.bubble.kind}`;
@@ -64,7 +65,7 @@ export class Robots {
       }
       b.badge.textContent = v.badge ? `${v.badge} ` : '';
       const walking = v.moving || b.from.distanceToSquared(b.to) > 1e-4;
-      const still = v.emote ? EMOTE_CLIP[v.emote] : v.action === 'gather' ? 'Punch' : v.action === 'rest' || v.action === 'sleep' ? 'Sitting' : 'Idle';
+      const still = v.emote ? EMOTE_CLIP[v.emote] : v.action === 'gather' || v.action === 'attack' ? 'Punch' : v.action === 'rest' || v.action === 'sleep' ? 'Sitting' : 'Idle';
       this.play(b, v.dead ? 'Death' : walking ? 'Walking' : still);
     }
     for (const [id, b] of this.bots) {
