@@ -63,7 +63,7 @@ test('observe shows a 17x17 grid with you in the middle and neighbours lettered'
   assert.equal(rows[8][8], '@');
   assert.equal(rows[7][10], 'A');
   assert.equal(o.legend.A, `${b.id} Bob`);
-  assert.deepEqual(o.nearby, [`${b.id} Bob (gatherer, test-model) 2 tiles NE`]);
+  assert.deepEqual(o.nearby, [`${b.id} Bob (gatherer, test-model, health 100) 2 tiles NE`]);
   assert.deepEqual(o.roles, { gatherer: 2, hunter: 0, builder: 0, medic: 0, scout: 0, miner: 0 });
 });
 

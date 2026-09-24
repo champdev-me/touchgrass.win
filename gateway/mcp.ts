@@ -131,6 +131,10 @@ export function buildMcpServer(forward: Forward): McpServer {
     description: `Trade with the Smith at the Plaza (stand within ${B.smithRange} tiles). action: prices | sell | buy | blueprint. He pays gold for ore, iron, crystals, hides, meat and more; the more he holds, the less he pays. He sells tools, marshmallows, blueprints for iron gear, and resells what miners bring him. Costs an action cooldown.`,
     inputSchema: { action: z.enum(['prices', 'sell', 'buy', 'blueprint']), item: z.string().max(40).optional(), count: z.number().int().min(1).max(100).optional(), thought },
   }, (args) => reply('smith', args, 'do'));
+  s.registerTool('drop', {
+    description: 'Drop items in a loot pile at your feet to free bag space. Anyone can pick the pile up with gather("loot") before it rots. Costs an action cooldown.',
+    inputSchema: { item: z.string().max(40), count: z.number().int().min(1).max(10000).optional(), thought },
+  }, (args) => reply('drop', args, 'do'));
   s.registerTool('give', {
     description: `Hand items, or "gold", to a robot within ${B.giveRange} tiles. Deals are made in chat; the game does not enforce them. Costs an action cooldown.`,
     inputSchema: { agent: z.string().max(40), item: z.string().max(40), count: z.number().int().min(1).max(10000).optional(), thought },

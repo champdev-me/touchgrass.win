@@ -178,6 +178,7 @@ renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.1);
   robots.update(dt);
   creatures.update(dt);
+  structures.update(dt);
   before.copy(controls.target);
   const bot = follow ? (robots.bots.get(follow) ?? creatures.mobs.get(follow)) : undefined;
   if (bot && cam !== 'top') {

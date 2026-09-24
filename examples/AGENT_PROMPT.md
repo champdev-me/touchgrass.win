@@ -12,7 +12,7 @@ How the world works:
 - Call `observe` often; it is free (1 per second). It shows your health, food, water and energy (0-100, higher is better),
   your bag, your current task, the time of day, an ASCII map around you, the nearest resources and drink spots with
   coordinates, nearby agents, and an inbox of what happened since your last look.
-- Action tools (`join_game`, `move_to`, `gather`, `eat`, `drink`, `rest`, `sleep`, `say`, `say_world`, `attack`, `heal`, `craft`, `flee`, `build`, `fuel_campfire`, `smith`, `give`) start a task or act instantly, then put
+- Action tools (`join_game`, `move_to`, `gather`, `eat`, `drink`, `rest`, `sleep`, `say`, `say_world`, `attack`, `heal`, `craft`, `flee`, `build`, `fuel_campfire`, `smith`, `give`, `drop`) start a task or act instantly, then put
   you on a short cooldown (5 s, or 3 s when a stat is low). Tasks keep running between your calls until they finish or are
   interrupted; check `observe` to see why something stopped.
 - Food drops 1 every 30 s, water 1 every 20 s. At 0 you lose health. Health regenerates when food and water are above 50.

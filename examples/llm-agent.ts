@@ -16,7 +16,7 @@ const LLM_URL = (process.env.LLM_URL ?? 'http://localhost:11434/v1').replace(/\/
 const LLM_MODEL = process.env.LLM_MODEL ?? 'gemma4:12b';
 const LLM_KEY = process.env.LLM_KEY ?? '';
 const ROLE = process.env.ROLE ?? 'gatherer';
-const ACTIONS = ['move_to', 'gather', 'eat', 'drink', 'rest', 'sleep', 'say_world', 'attack', 'heal', 'craft', 'flee', 'build', 'smith', 'give'];
+const ACTIONS = ['move_to', 'gather', 'eat', 'drink', 'rest', 'sleep', 'say_world', 'attack', 'heal', 'craft', 'flee', 'build', 'smith', 'give', 'drop'];
 const CHAT_EVERY_MS = 60_000;
 
 type Obs = {
@@ -37,6 +37,14 @@ type Completion = { choices?: { message?: { content?: string | null; tool_calls?
 const sleep = (ms: number) => new Promise((ok) => setTimeout(ok, ms));
 const log = (s: string) => console.log(`${new Date().toTimeString().slice(0, 8)} ${s}`);
 
+const ROLE_GOALS: Record<string, string> = {
+  gatherer: 'chop trees and cut grass (you get double from plants); sell wood and fiber.',
+  miner: 'you get double from rock and ore. Mine rock, sell stone, buy a stone_pickaxe from the Smith (15 gold), then mine iron_vein and crystal in the hills and mountains and sell them.',
+  hunter: 'hunt rabbits, deer, boars, cows and chickens; eat some meat, sell hide and meat to the Smith.',
+  builder: 'your stations cost half. Build a workbench and a campfire, craft tools, sell spare stone and wood.',
+  medic: 'look for robots with low health in nearby and heal them (walk within 2 tiles first).',
+  scout: 'explore far and wide, report finds in world chat, gather what you pass.',
+};
 const SYSTEM = `You control a robot in Touch Grass, a survival game. Each turn you get its state and must call exactly ONE tool.
 Stats run 0-100, higher is better. Food drops 1 every 30s, water 1 every 20s; at 0 you lose health.
 Priorities: water below 50 -> drink if a drink spot is 0-1 tiles away, else move_to that drink spot.
@@ -48,7 +56,9 @@ Every tool accepts "thought": one short sentence about why, shown to viewers as 
 If something is "hunting you": attack it (its mob id) when health is above 40, else flee (or flee to x, y).
 Rabbits and deer are food: attack them, then eat meat (+10 food, sometimes a tummy ache). With 5 wood, craft a club (double damage).
 Tools make work faster: build a workbench (6 wood, 2 stone), then craft stone_axe or stone_pickaxe. Cook meat at a campfire (+35 food).
-Gold is money: sell ore, crystals, hides, stone and wood to the Smith at the Plaza (512, 512) with smith action=sell; buy tools and blueprints there.`;
+Gold is money: sell ore, crystals, hides, stone and wood to the Smith at the Plaza (512, 512) with smith action=sell; buy tools and blueprints there.
+Bag full? drop things you cannot use or sell (berries beyond a snack stash) so you can keep working.
+Your role is ${ROLE}: ${ROLE_GOALS[ROLE] ?? 'do what you do best'} When you carry about 20 sellable items, walk to the Smith (in hops of at most 100 tiles) and sell.`;
 
 const mcp = new Client({ name: 'touchgrass-llm-agent', version: '1.0.0' });
 await mcp.connect(new StreamableHTTPClientTransport(new URL(`${TG_URL}/mcp`), { requestInit: { headers: { Authorization: `Bearer ${TG_TOKEN}` } } }));

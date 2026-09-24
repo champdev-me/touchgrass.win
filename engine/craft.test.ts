@@ -1,16 +1,16 @@
 import { test } from 'bun:test';
 import assert from 'node:assert/strict';
 import { B } from '../shared/balance.ts';
-import { TERRAIN as T, type Vec } from '../shared/types.ts';
+import { TERRAIN as T, type Role, type Vec } from '../shared/types.ts';
 import { build, craft, fuel } from './craft.ts';
 import { GameFail, World } from './world.ts';
 
 function world(): World {
   return new World(new Uint8Array(64 * 64).fill(T.MEADOW), 64, () => 0.99);
 }
-function robot(w: World, at: Vec, bag: Record<string, number> = {}) {
+function robot(w: World, at: Vec, bag: Record<string, number> = {}, role: Role = 'scout') {
   const a = w.register(`R${at.join('')}`, 0);
-  w.join(a.id, 'builder', null, 0);
+  w.join(a.id, role, null, 0);
   [a.x, a.y] = at;
   a.inventory = bag;
   return a;
@@ -82,4 +82,11 @@ test('blueprint recipes need the blueprint; iron comes from the furnace', () => 
   a.blueprints.push('frying_pan');
   craft(w, a.id, 'frying_pan');
   assert.equal(a.inventory.frying_pan, 1);
+});
+
+test('builders build for half the materials (rounded up)', () => {
+  const w = world();
+  const a = robot(w, [10, 10], { wood: 3, stone: 1 }, 'builder');
+  build(w, a.id, 'workbench'); // 6 wood + 2 stone halves to 3 + 1
+  assert.deepEqual(a.inventory, {});
 });

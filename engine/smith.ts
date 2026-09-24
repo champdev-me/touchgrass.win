@@ -87,6 +87,17 @@ export function give(w: World, id: string, to: string, item: string, count = 1) 
   return { gave: `${n} ${item}`, to: b.name };
 }
 
+/** Leave items in a loot pile underfoot; anyone can pick it up until it rots. */
+export function drop(w: World, id: string, item: string, count = 1) {
+  const a = w.alive(id), n = Math.max(1, Math.floor(count));
+  if ((a.inventory[item] ?? 0) < n) throw new GameFail('missing_items', `You do not have ${n} ${item}.`, 'Check your bag.');
+  takeItem(a.inventory, item, n);
+  w.dropLoot(w.index(a.x, a.y), { [item]: n });
+  w.dirty.add(a.id);
+  w.touch(a);
+  return { dropped: `${n} ${item}` };
+}
+
 /** The Smith uses up a little of his stock every minute, so prices recover. */
 export function decayMarket(w: World): void {
   for (const [item, n] of Object.entries(w.market)) {

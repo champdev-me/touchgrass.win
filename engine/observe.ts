@@ -97,7 +97,7 @@ export function buildObservation(w: World, a: Agent) {
     grid,
     legend,
     nearby: [
-      ...others.map((o) => `${o.id} ${o.name} (${o.role}${o.model ? `, ${o.model}` : ''})${o.dead ? ' (dead)' : ''} ${dist([o.x, o.y], here)} tiles ${compass(o.x - a.x, o.y - a.y)}`),
+      ...others.map((o) => `${o.id} ${o.name} (${o.role}${o.model ? `, ${o.model}` : ''}, health ${Math.round(o.health)})${o.dead ? ' (dead)' : ''} ${dist([o.x, o.y], here)} tiles ${compass(o.x - a.x, o.y - a.y)}`),
       ...mobs.map((c) => {
         const def = CREATURES[c.kind];
         const hunting = c.mode === 'chase' && c.target === a.id ? ', hunting you' : '';
