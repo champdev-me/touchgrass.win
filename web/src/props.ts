@@ -1,10 +1,25 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { TERRAIN as T } from '../../shared/types.ts';
+import { hash01 } from '../../shared/hash.ts';
+import { NODE_KINDS, type NodeKind } from '../../shared/types.ts';
 import { heightOf } from './tiles.ts';
 
 export type Models = Map<string, THREE.Mesh[]>;
+/** A chunk's nodes: local tile index -> [NODE_KINDS index, units left]. */
+export type ChunkNodes = Map<number, [number, number]>;
+
 const NAMES = ['tree_default', 'tree_oak', 'tree_pineRoundA', 'plant_bush', 'grass_large', 'stone_largeA'];
+const TREES = ['tree_default', 'tree_oak', 'tree_pineRoundA'];
+const MODEL: Record<NodeKind, (x: number, y: number) => string> = {
+  tree: (x, y) => TREES[Math.floor(hash01(x, y) * TREES.length)],
+  berry_bush: () => 'plant_bush',
+  grass: () => 'grass_large',
+  rock: () => 'stone_largeA',
+};
+const SCALE: Record<NodeKind, number> = { tree: 1, berry_bush: 1.6, grass: 1.2, rock: 1 };
+const berryGeo = new THREE.SphereGeometry(0.06, 6, 4);
+const berryMat = new THREE.MeshLambertMaterial({ color: '#d62246' });
+const BERRY_OFFSETS = [[0.12, 0.3, 0.05], [-0.1, 0.26, 0.1], [0.02, 0.34, -0.12]];
 
 export async function loadProps(): Promise<Models> {
   const loader = new GLTFLoader(), out: Models = new Map();
@@ -22,42 +37,33 @@ export async function loadProps(): Promise<Models> {
   return out;
 }
 
-export function hash01(x: number, y: number): number {
-  let h = (x * 374761393 + y * 668265263) | 0;
-  h = Math.imul(h ^ (h >>> 13), 1274126177);
-  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
-}
-
-// ponytail: decoration only; 0.0.1-2 replaces trees/rocks with real resource nodes from the engine
-export function propFor(t: number, x: number, y: number): string | null {
-  const r = hash01(x, y);
-  if (t === T.FOREST) return r < 0.15 ? 'tree_pineRoundA' : r < 0.3 ? 'tree_default' : r < 0.45 ? 'tree_oak' : r > 0.93 ? 'plant_bush' : null;
-  if (t === T.MEADOW) return r < 0.02 ? 'tree_default' : r < 0.07 ? 'grass_large' : r > 0.985 ? 'plant_bush' : null;
-  if (t === T.HILLS) return r < 0.12 ? 'stone_largeA' : null;
-  return null;
-}
-
-/** One InstancedMesh per model part per chunk keeps draw calls low. */
-export function buildProps(models: Models, tiles: Uint8Array, n: number, x0: number, y0: number): THREE.Group {
-  const byKind = new Map<string, THREE.Matrix4[]>();
+/** One InstancedMesh per model part per chunk keeps draw calls low. Empty nodes are not drawn. */
+export function buildProps(models: Models, tiles: Uint8Array, nodes: ChunkNodes, n: number, x0: number, y0: number): THREE.Group {
+  const byModel = new Map<string, THREE.Matrix4[]>();
+  const berries: THREE.Matrix4[] = [];
   const q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0);
-  for (let j = 0; j < n; j++) {
-    for (let i = 0; i < n; i++) {
-      const t = tiles[j * n + i], x = x0 + i, y = y0 + j, kind = propFor(t, x, y);
-      if (!kind) continue;
-      const r = hash01(y, x), s = 0.85 + r * 0.3;
-      q.setFromAxisAngle(up, r * Math.PI * 2);
-      const m = new THREE.Matrix4().compose(new THREE.Vector3(x + 0.5, heightOf(t), y + 0.5), q, new THREE.Vector3(s, s, s));
-      (byKind.get(kind) ?? byKind.set(kind, []).get(kind)!).push(m);
-    }
+  for (const [local, [k, left]] of nodes) {
+    if (left <= 0) continue;
+    const kind = NODE_KINDS[k], x = x0 + (local % n), y = y0 + Math.floor(local / n);
+    const r = hash01(y, x), s = SCALE[kind] * (0.85 + r * 0.3);
+    q.setFromAxisAngle(up, r * Math.PI * 2);
+    const m = new THREE.Matrix4().compose(new THREE.Vector3(x + 0.5, heightOf(tiles[local]), y + 0.5), q, new THREE.Vector3(s, s, s));
+    const name = MODEL[kind](x, y);
+    (byModel.get(name) ?? byModel.set(name, []).get(name)!).push(m);
+    if (kind === 'berry_bush') for (const [bx, by, bz] of BERRY_OFFSETS) berries.push(m.clone().multiply(new THREE.Matrix4().makeTranslation(bx, by, bz)));
   }
   const group = new THREE.Group(), tmp = new THREE.Matrix4();
-  for (const [kind, mats] of byKind) {
-    for (const mesh of models.get(kind) ?? []) {
+  for (const [name, mats] of byModel) {
+    for (const mesh of models.get(name) ?? []) {
       const inst = new THREE.InstancedMesh(mesh.geometry, mesh.material, mats.length);
-      mats.forEach((m, k) => inst.setMatrixAt(k, tmp.multiplyMatrices(m, mesh.matrixWorld)));
+      mats.forEach((m, i) => inst.setMatrixAt(i, tmp.multiplyMatrices(m, mesh.matrixWorld)));
       group.add(inst);
     }
+  }
+  if (berries.length) {
+    const inst = new THREE.InstancedMesh(berryGeo, berryMat, berries.length);
+    berries.forEach((m, i) => inst.setMatrixAt(i, m));
+    group.add(inst);
   }
   return group;
 }

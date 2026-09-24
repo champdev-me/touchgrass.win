@@ -16,6 +16,7 @@ export interface Bot {
   from: THREE.Vector3;
   to: THREE.Vector3;
   t: number;
+  bars: HTMLElement[];
 }
 
 export class Robots {
@@ -49,7 +50,10 @@ export class Robots {
       b.from.copy(b.root.position);
       b.to.set(v.x + 0.5, this.heightAt(v.x, v.y), v.y + 0.5);
       b.t = 0;
-      this.play(b, v.moving || b.from.distanceToSquared(b.to) > 1e-4 ? 'Walking' : 'Idle');
+      [v.health, v.food, v.water, v.energy].forEach((val, i) => { b.bars[i].style.width = `${val}%`; });
+      b.tag.classList.toggle('dead', v.dead);
+      const walking = v.moving || b.from.distanceToSquared(b.to) > 1e-4;
+      this.play(b, v.dead ? 'Death' : walking ? 'Walking' : v.action === 'gather' ? 'Punch' : v.action === 'rest' || v.action === 'sleep' ? 'Sitting' : 'Idle');
     }
     for (const [id, b] of this.bots) {
       if (seen.has(id)) continue;
@@ -80,7 +84,20 @@ export class Robots {
     });
     const tag = document.createElement('div');
     tag.className = 'tag';
-    tag.textContent = v.model ? `${v.name} · ${v.model}` : v.name;
+    const name = document.createElement('div');
+    name.className = 'name';
+    name.textContent = v.model ? `${v.name} · ${v.model}` : v.name;
+    const barRow = document.createElement('div');
+    barRow.className = 'bars';
+    const bars = ['hp', 'food', 'water', 'energy'].map((cls) => {
+      const bar = document.createElement('span');
+      bar.className = `bar ${cls}`;
+      const fill = document.createElement('i');
+      bar.append(fill);
+      barRow.append(bar);
+      return fill;
+    });
+    tag.append(name, barRow);
     const label = new CSS2DObject(tag);
     label.position.y = (HEIGHT + 0.3) / this.scale;
     root.add(label);
@@ -88,10 +105,17 @@ export class Robots {
     this.scene.add(root);
     const mixer = new THREE.AnimationMixer(root);
     const b: Bot = {
-      view: v, root, tag, mixer, clip: '', t: 1,
+      view: v, root, tag, mixer, clip: '', t: 1, bars,
       actions: new Map(this.clips.map((c) => [c.name, mixer.clipAction(c)])),
       from: root.position.clone(), to: root.position.clone(),
     };
+    for (const once of ['Death', 'Sitting']) {
+      const act = b.actions.get(once);
+      if (act) {
+        act.setLoop(THREE.LoopOnce, 1);
+        act.clampWhenFinished = true;
+      }
+    }
     this.play(b, 'Idle');
     this.bots.set(v.id, b);
     return b;

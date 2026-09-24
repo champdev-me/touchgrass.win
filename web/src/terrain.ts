@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { B } from '../../shared/balance.ts';
-import { TERRAIN as T, type Vec } from '../../shared/types.ts';
-import { buildProps, type Models } from './props.ts';
+import { TERRAIN as T, type PackedNode, type Vec } from '../../shared/types.ts';
+import { buildProps, type ChunkNodes, type Models } from './props.ts';
 import { COLOR, heightOf } from './tiles.ts';
 
 const VIEW = 5; // chunks around the camera that get meshes
@@ -49,6 +49,8 @@ export class ChunkView {
   tiles = new Map<string, Uint8Array>();
   meshes = new Map<string, THREE.Group>();
   asked = new Set<string>();
+  nodes = new Map<string, ChunkNodes>();
+  stale = new Set<string>();
 
   constructor(scene: THREE.Scene, models: Models, request: (list: Vec[]) => void) {
     this.scene = scene;
@@ -60,8 +62,22 @@ export class ChunkView {
     this.asked.clear();
   }
 
-  add(cx: number, cy: number, b64: string): void {
-    this.tiles.set(`${cx},${cy}`, Uint8Array.from(atob(b64), (ch) => ch.charCodeAt(0)));
+  add(cx: number, cy: number, b64: string, packed: PackedNode[]): void {
+    const key = `${cx},${cy}`;
+    this.tiles.set(key, Uint8Array.from(atob(b64), (ch) => ch.charCodeAt(0)));
+    this.nodes.set(key, new Map(packed.map(([local, k, left]) => [local, [k, left] as [number, number]])));
+  }
+
+  /** Applies per-tick node changes ([global tile index, units left]); affected chunks re-render soon. */
+  applyNodes(changes: [number, number][]): void {
+    for (const [i, left] of changes) {
+      const x = i % B.mapSize, y = Math.floor(i / B.mapSize);
+      const key = `${Math.floor(x / this.n)},${Math.floor(y / this.n)}`;
+      const entry = this.nodes.get(key)?.get((y % this.n) * this.n + (x % this.n));
+      if (!entry) continue;
+      entry[1] = left;
+      if (this.meshes.has(key)) this.stale.add(key);
+    }
   }
 
   tileAt(x: number, y: number): number {
@@ -91,6 +107,18 @@ export class ChunkView {
         }
       }
     }
+    for (const key of this.stale) {
+      if (built >= BUILDS_PER_FRAME) break;
+      this.stale.delete(key);
+      const g = this.meshes.get(key);
+      if (!g) continue;
+      const [cx, cy] = key.split(',').map(Number);
+      const old = g.children[1];
+      g.remove(old);
+      old.traverse((o) => { if (o instanceof THREE.InstancedMesh) o.dispose(); });
+      g.add(buildProps(this.models, this.tiles.get(key)!, this.nodes.get(key) ?? new Map(), this.n, cx * this.n, cy * this.n));
+      built++;
+    }
     for (let i = 0; i < want.length; i += 64) this.request(want.slice(i, i + 64)); // gateway serves ≤64 per message
     for (const [key, g] of this.meshes) {
       const [cx, cy] = key.split(',').map(Number);
@@ -101,7 +129,7 @@ export class ChunkView {
   build(key: string, cx: number, cy: number, tiles: Uint8Array): void {
     const x0 = cx * this.n, y0 = cy * this.n, g = new THREE.Group();
     g.add(new THREE.Mesh(buildChunkGeometry(tiles, this.n, x0, y0, (x, y) => this.tileAt(x, y)), material));
-    g.add(buildProps(this.models, tiles, this.n, x0, y0));
+    g.add(buildProps(this.models, tiles, this.nodes.get(key) ?? new Map(), this.n, x0, y0));
     this.scene.add(g);
     this.meshes.set(key, g);
   }

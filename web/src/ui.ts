@@ -1,8 +1,10 @@
-import type { AgentView } from '../../shared/types.ts';
+import type { AgentView, GameEvent } from '../../shared/types.ts';
 
 export function setupUi(onFollow: (id: string) => void) {
   const $ = (id: string) => document.getElementById(id)!;
   const list = $('agent-list');
+  const feed = $('event-list');
+  const shown: string[] = [];
   let following: string | null = null, lastKey = '', lastViews: AgentView[] = [];
 
   const render = () => {
@@ -45,6 +47,11 @@ export function setupUi(onFollow: (id: string) => void) {
       following = id;
       lastKey = '';
       render();
+    },
+    events: (events: GameEvent[]) => {
+      for (const e of events) if (e.type !== 'move') shown.unshift(e.text);
+      shown.length = Math.min(shown.length, 8);
+      feed.replaceChildren(...shown.map((t) => Object.assign(document.createElement('div'), { textContent: t })));
     },
   };
 }
