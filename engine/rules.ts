@@ -28,8 +28,8 @@ export function rules(w: World) {
       `emote: ${EMOTES.join(', ')}.`,
     ],
     crafting: [
-      ...Object.entries(RECIPES).map(([item, r]) => `${item}: ${r.station}, ${Object.entries(r.needs).map(([m, n]) => `${n} ${m}`).join(' + ')}`),
-      `stations (build): ${Object.entries(STRUCTURES).map(([k, n]) => `${k} = ${Object.entries(n).map(([m, c]) => `${c} ${m}`).join(' + ')}`).join('; ')}. Use them within ${B.stationRange} tiles; a campfire burns ${B.campfireTicks / 60} min per wood.`,
+      ...Object.entries(RECIPES).map(([item, r]) => `${item}: ${r.station}, ${Object.entries(r.needs).map(([m, n]) => `${n} ${m}`).join(' + ')}${r.roles ? ` (${r.roles.join(', ')})` : ''}`),
+      `stations (build): ${Object.entries(STRUCTURES).map(([k, d]) => `${k} = ${Object.entries(d.needs).map(([m, c]) => `${c} ${m}`).join(' + ')}${d.roles ? ` (${d.roles.join(', ')})` : ''}`).join('; ')}. Chests: max ${B.maxChests} each, ${B.chestSlots} slots, owner only. Use them within ${B.stationRange} tiles; a campfire burns ${B.campfireTicks / 60} min per wood.`,
     ],
     tools: [
       'By hand: trees and rocks 3 ticks per unit, iron veins and crystals 4 (and they need a pickaxe). A stone tool halves that, iron halves it again.',

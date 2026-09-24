@@ -29,6 +29,9 @@ export const B = {
   regenAbove: 50,
   starvePerTick: -1 / 5, // health, per empty stat
   busyEnergyPerTick: -1 / 10,
+  maxChests: 3,
+  chestSlots: 12,
+  luckyChance: 0.1, // lucky charm: chance of double yield
   punchEnergy: 0.3, // per tick spent punching a node
   swingEnergy: 1, // per strike in a fight
   restEnergyPerTick: 1,

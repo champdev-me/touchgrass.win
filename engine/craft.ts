@@ -14,6 +14,7 @@ export function craft(w: World, id: string, item: string, count = 1) {
   const a = w.alive(id);
   const r = RECIPES[item];
   if (!r) throw new GameFail('unknown_recipe', `Nobody knows how to make "${item}".`, `Recipes: ${Object.keys(RECIPES).join(', ')}. The rules tool lists what each needs.`);
+  if (r.roles && !r.roles.includes(a.role!)) throw new GameFail('wrong_role', `Only ${r.roles.join(' or ')}s can make ${item}.`, `Offer a ${r.roles[0]} something for it.`);
   const n = Math.max(1, Math.min(20, Math.floor(count)));
   if (r.station !== 'hand' && !w.stationNear(a, r.station)) throw new GameFail('no_station', `You need a ${r.station === 'campfire' ? 'lit campfire' : r.station} within ${B.stationRange} tiles.`, `build(${r.station}) one first.`);
   if (!has(a, r.needs, n)) throw new GameFail('missing_materials', `You need ${missing(a, r.needs, n)} more.`, 'Gather, trade or buy them.');
@@ -37,7 +38,11 @@ export function build(w: World, id: string, kind: string) {
   const a = w.alive(id);
   if (!isStructure(kind)) throw new GameFail('bad_structure', `You cannot build "${kind}".`, `Buildable: ${Object.keys(STRUCTURES).join(', ')}.`);
   if (w.at(a.x, a.y) === T.PLAZA) throw new GameFail('plaza_rules', 'No building in the Plaza. It is for trading.', 'Walk out of the Plaza first.');
-  const cost = STRUCTURES[kind];
+  const def = STRUCTURES[kind], cost = def.needs;
+  if (def.roles && !def.roles.includes(a.role!)) throw new GameFail('wrong_role', `Only ${def.roles.join(' or ')}s can build a ${kind}.`, `Ask a ${def.roles[0]} to build one; anyone may use it.`);
+  if (kind === 'chest' && [...w.structures.values()].filter((s) => s.kind === 'chest' && s.owner === a.id).length >= B.maxChests) {
+    throw new GameFail('too_many_chests', `You already own ${B.maxChests} chests.`, 'Empty one and use that.');
+  }
   if (!has(a, cost)) throw new GameFail('missing_materials', `You need ${missing(a, cost)} more.`, 'Gather them first.');
   const spot = ([[1, 0], [-1, 0], [0, 1], [0, -1]] as Vec[]).map(([dx, dy]): Vec => [a.x + dx, a.y + dy])
     .find(([x, y]) => walkable(w.at(x, y)) && w.at(x, y) !== T.SHALLOW && w.at(x, y) !== T.PLAZA && !w.solid(x, y) && Math.abs(w.height(x, y) - w.height(a.x, a.y)) <= B.maxClimb);

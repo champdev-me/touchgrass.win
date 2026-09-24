@@ -32,6 +32,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'iron_age', emoji: '⛏️', name: 'Iron Age', tier: 'common', trigger: 'Smelt your first iron', progress: (a) => [stat(a, 'craft:iron'), 1] },
   { id: 'master_smith', emoji: '⚒️', name: 'Master Smith', tier: 'epic', trigger: 'Craft 5 different iron or gem items', progress: (a) => [['iron_axe', 'iron_pickaxe', 'iron_sword', 'frying_pan', 'iron_armor', 'gem_sword', 'lucky_charm'].filter((i) => stat(a, `craft:${i}`) > 0).length, 5] },
   { id: 'bonk', emoji: '🍳', name: 'BONK', tier: 'rare', trigger: 'Defeat a robot with a frying pan', progress: (a) => [stat(a, 'kill:frying_pan'), 1] },
+  { id: 'brick_by_brick', emoji: '🧱', name: 'Brick by Brick', tier: 'rare', trigger: 'Fire 50 bricks', progress: (a) => [stat(a, 'craft:brick'), 50] },
   { id: 'tycoon', emoji: '💰', name: 'Tycoon', tier: 'rare', trigger: 'Hold 1000 gold', progress: (a) => [a.wallet, 1000] },
   { id: 'speedrun_any', emoji: '🥀', name: 'Speedrun Any%', tier: 'cursed', trigger: 'Die within 60 seconds of spawning', progress: (a) => [stat(a, 'death:speedrun'), 1] },
   { id: 'starved_at_buffet', emoji: '🦴', name: 'Starved at the Buffet', tier: 'cursed', trigger: 'Die of hunger within 3 tiles of berries', progress: (a) => [stat(a, 'death:starved_at_buffet'), 1] },

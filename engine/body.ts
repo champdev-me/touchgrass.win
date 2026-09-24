@@ -18,6 +18,7 @@ export function eat(a: Agent, item: string, rng: () => number = Math.random): bo
   a.food = clamp(a.food + f.food);
   a.water = clamp(a.water + f.water);
   a.energy = clamp(a.energy + (f.energy ?? 0));
+  a.health = clamp(a.health + (f.health ?? 0));
   const ache = Boolean(f.tummy) && rng() < B.tummyAcheChance;
   if (ache) a.energy = clamp(a.energy - B.tummyAcheEnergy);
   return ache;

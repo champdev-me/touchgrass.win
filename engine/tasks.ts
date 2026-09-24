@@ -164,7 +164,8 @@ function harvest(w: World, a: Agent, t: GatherTask): Activity {
   const node = w.nodes.get(t.node)!;
   const def = NODE_DEF[node.kind];
   const plant = node.kind === 'tree' || node.kind === 'berry_bush' || node.kind === 'grass' || node.kind === 'herb';
-  const per = plant && a.role === 'gatherer' ? B.gathererMultiplier : 1; // gatherers pick double
+  const lucky = (a.inventory.lucky_charm ?? 0) > 0 && w.rng() < B.luckyChance ? 2 : 1;
+  const per = (plant && a.role === 'gatherer' ? B.gathererMultiplier : 1) * lucky; // gatherers pick double
   // Bushes and grass (one tick) are picked in one go; trees and rocks give one unit per round of punches.
   const units = def.ticks === 1 ? Math.min(node.left, Math.ceil((t.until - t.got) / per)) : 1;
   for (let u = 0; u < units; u++) {

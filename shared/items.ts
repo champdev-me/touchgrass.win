@@ -2,7 +2,7 @@ import { B } from './balance.ts';
 import type { Role } from './types.ts';
 
 export type Inventory = Record<string, number>;
-export type Station = 'hand' | 'workbench' | 'campfire' | 'furnace';
+export type Station = 'hand' | 'workbench' | 'campfire' | 'furnace' | 'kiln';
 export type ItemKind = 'material' | 'food' | 'tool' | 'weapon' | 'armor' | 'gear';
 
 export interface ItemDef {
@@ -20,7 +20,8 @@ export interface ItemDef {
 export const ITEMS: Record<string, ItemDef> = {
   wood: { kind: 'material' }, stone: { kind: 'material' }, fiber: { kind: 'material' }, hide: { kind: 'material' },
   iron_ore: { kind: 'material' }, iron: { kind: 'material' }, crystal: { kind: 'material' },
-  mud: { kind: 'material' }, gem: { kind: 'material' }, herb: { kind: 'material' },
+  mud: { kind: 'material' }, gem: { kind: 'material' }, herb: { kind: 'material' }, brick: { kind: 'material' },
+  bandage: { kind: 'food' },
   berries: { kind: 'food' }, apple: { kind: 'food' }, meat: { kind: 'food' }, battery: { kind: 'food' }, cooked_meat: { kind: 'food' },
   grass_salad: { kind: 'food' }, marshmallow: { kind: 'food' }, roasted_marshmallow: { kind: 'food' },
   stone_axe: { kind: 'tool', uses: 100, tool: { nodes: ['tree'], tier: 1 } },
@@ -31,14 +32,16 @@ export const ITEMS: Record<string, ItemDef> = {
   stone_spear: { kind: 'weapon', uses: 150, damage: 14, reach: 2 },
   iron_sword: { kind: 'weapon', uses: 400, damage: 20 },
   frying_pan: { kind: 'weapon', uses: 400, damage: 12, knockback: true },
+  gem_sword: { kind: 'weapon', uses: 500, damage: 28 },
   hide_armor: { kind: 'armor', armor: 0.2 },
   iron_armor: { kind: 'armor', armor: 0.4, slow: true },
   torch: { kind: 'gear', uses: 600 }, // night ticks of light
   waterskin: { kind: 'gear', uses: 5 }, // drinks; refills at water
   backpack: { kind: 'gear' },
+  lucky_charm: { kind: 'gear' }, // a chance of double yield on any gather
 };
 
-export const FOOD: Record<string, { food: number; water: number; energy?: number; tummy?: boolean }> = {
+export const FOOD: Record<string, { food: number; water: number; energy?: number; health?: number; tummy?: boolean }> = {
   berries: { food: 8, water: 2 },
   apple: { food: 10, water: 0 },
   meat: { food: 10, water: 0, tummy: true }, // raw: may upset the stomach
@@ -47,35 +50,46 @@ export const FOOD: Record<string, { food: number; water: number; energy?: number
   marshmallow: { food: 2, water: 0 },
   roasted_marshmallow: { food: 5, water: 0, energy: 5 },
   battery: { food: 0, water: 0, energy: 50 }, // from Roombas; do not ask
+  bandage: { food: 0, water: 0, health: 15 }, // applied, not eaten; robots do not judge
 };
 export const FOOD_ITEMS = Object.keys(FOOD);
 
-export const RECIPES: Record<string, { station: Station; needs: Inventory }> = {
+export const RECIPES: Record<string, { station: Station; needs: Inventory; roles?: Role[] }> = {
   torch: { station: 'hand', needs: { wood: 1, fiber: 1 } },
   club: { station: 'hand', needs: { wood: 5 } },
   grass_salad: { station: 'hand', needs: { fiber: 5 } },
-  stone_axe: { station: 'workbench', needs: { wood: 3, stone: 3, fiber: 2 } },
-  stone_pickaxe: { station: 'workbench', needs: { wood: 3, stone: 2, fiber: 2 } },
-  stone_spear: { station: 'workbench', needs: { wood: 3, stone: 3, fiber: 2 } },
-  waterskin: { station: 'workbench', needs: { hide: 2, fiber: 2 } },
-  hide_armor: { station: 'workbench', needs: { hide: 6, fiber: 4 } },
+  stone_axe: { station: 'workbench', needs: { wood: 3, stone: 3, fiber: 2 }, roles: ['smith'] },
+  stone_pickaxe: { station: 'workbench', needs: { wood: 3, stone: 2, fiber: 2 }, roles: ['smith'] },
+  stone_spear: { station: 'workbench', needs: { wood: 3, stone: 3, fiber: 2 }, roles: ['smith'] },
+  waterskin: { station: 'workbench', needs: { hide: 2, fiber: 2 }, roles: ['smith'] },
+  hide_armor: { station: 'workbench', needs: { hide: 6, fiber: 4 }, roles: ['smith'] },
   cooked_meat: { station: 'campfire', needs: { meat: 1 } },
+  brick: { station: 'kiln', needs: { mud: 2, wood: 1 }, roles: ['mason'] },
+  bandage: { station: 'hand', needs: { fiber: 2, herb: 1 }, roles: ['gatherer'] },
+  gem_sword: { station: 'workbench', needs: { iron: 4, gem: 2, wood: 2 }, roles: ['smith'] },
+  lucky_charm: { station: 'workbench', needs: { gem: 1, fiber: 2 }, roles: ['smith'] },
   roasted_marshmallow: { station: 'campfire', needs: { marshmallow: 1 } },
-  iron: { station: 'furnace', needs: { iron_ore: 1, wood: 1 } },
-  iron_axe: { station: 'workbench', needs: { iron: 3, wood: 2 } },
-  iron_pickaxe: { station: 'workbench', needs: { iron: 3, wood: 2 } },
-  iron_sword: { station: 'workbench', needs: { iron: 5, wood: 2 } },
-  frying_pan: { station: 'workbench', needs: { iron: 3 } },
-  iron_armor: { station: 'workbench', needs: { iron: 8 } },
-  backpack: { station: 'workbench', needs: { hide: 5, fiber: 5 } },
+  iron: { station: 'furnace', needs: { iron_ore: 1, wood: 1 }, roles: ['smith'] },
+  iron_axe: { station: 'workbench', needs: { iron: 3, wood: 2 }, roles: ['smith'] },
+  iron_pickaxe: { station: 'workbench', needs: { iron: 3, wood: 2 }, roles: ['smith'] },
+  iron_sword: { station: 'workbench', needs: { iron: 5, wood: 2 }, roles: ['smith'] },
+  frying_pan: { station: 'workbench', needs: { iron: 3 }, roles: ['smith'] },
+  iron_armor: { station: 'workbench', needs: { iron: 8 }, roles: ['smith'] },
+  backpack: { station: 'workbench', needs: { hide: 5, fiber: 5 }, roles: ['smith'] },
 };
 
 /** Weapon damage by item; bare fists are B.fistDamage. */
 export const WEAPONS: Record<string, number> = Object.fromEntries(Object.entries(ITEMS).flatMap(([k, d]) => (d.damage ? [[k, d.damage]] : [])));
 
 
-export type StructureKind = 'workbench' | 'campfire' | 'furnace';
-export const STRUCTURES: Record<StructureKind, Inventory> = { workbench: { wood: 6, stone: 2 }, campfire: { wood: 5, stone: 3 }, furnace: { stone: 10 } };
+export type StructureKind = 'workbench' | 'campfire' | 'furnace' | 'kiln' | 'chest';
+export const STRUCTURES: Record<StructureKind, { needs: Inventory; roles?: Role[] }> = {
+  chest: { needs: { wood: 4 } },
+  campfire: { needs: { wood: 5, stone: 3 } },
+  workbench: { needs: { wood: 6, stone: 2 }, roles: ['smith'] },
+  kiln: { needs: { stone: 8 }, roles: ['mason'] },
+  furnace: { needs: { stone: 4, brick: 6 }, roles: ['mason'] },
+};
 export const isStructure = (s: string): s is StructureKind => s in STRUCTURES;
 
 /** Given on join and respawn for each item the robot does not already carry. */
