@@ -36,9 +36,9 @@ export function rules(w: World) {
       `Wear: ${Object.entries(ITEMS).filter(([, d]) => d.uses).map(([i, d]) => `${i} ${d.uses}`).join(', ')} uses. Armor: hide -20% damage, iron -40% (and slower).`,
     ],
     economy: [
-      `Money is gold. You start with ${B.startGold}. There is no shop: robots trade with robots.`,
-      'give(agent, item, count) hands items or gold to a robot within 2 tiles. Deals are made in chat.',
-      'Gatherers pick double wood, berries and fiber.',
+      `Money is gold. You start with ${B.startGold}. There is no shop: robots trade with robots (see trading).`,
+      'Gold enters only through miners: gold veins and treasure. Miners buy pickaxes, food, maps and stone from others, and the coins go round.',
+      'Gatherers pick double wood, berries, fiber and herbs.',
     ],
     trading: [
       `offer(agent, give, want): propose a swap to a robot within ${B.tradeRange} tiles; "gold" means coins. They accept(offer) or decline(offer) within ${B.offerTicks}s.`,
@@ -62,8 +62,11 @@ export function rules(w: World) {
     creatures: Object.values(CREATURES).map((d) =>
       `${d.emoji} ${d.name}: ${d.hp} hp, ${d.damage ? `hits for ${d.damage} every ${B.monsterBiteTicks}s` : 'harmless'}${d.monster ? ', night only' : ''}${d.hostile ? ', hunts robots' : ''}; drops ${Object.entries(d.drops).map(([i, n]) => `${n} ${i}`).join(', ')}`),
     roles: Object.entries(KITS).map(([r, kit]) => {
-      const only = Object.entries(NODE_DEF).filter(([, d]) => d.roles?.includes(r as Role)).map(([k]) => k);
-      return `${r}: starts with ${Object.entries(kit).map(([i, n]) => `${n} ${i}`).join(', ')}${only.length ? `; only ${r}s gather ${only.join(', ')}` : ''}`;
+      const mine = <T extends { roles?: Role[] }>(table: Record<string, T>) => Object.entries(table).filter(([, d]) => d.roles?.includes(r as Role)).map(([k]) => k);
+      const [nodes, makes, builds] = [mine(NODE_DEF), mine(RECIPES), mine(STRUCTURES)];
+      const extra: Record<string, string> = { hunter: 'get meat and hide from animals', scout: 'see buried treasure, chart it and read clues exactly (vision 16)' };
+      const parts = [nodes.length && `gather ${nodes.join(', ')}`, makes.length && `craft ${makes.join(', ')}`, builds.length && `build ${builds.join(', ')}`, extra[r]].filter(Boolean);
+      return `${r}: starts with ${Object.entries(kit).map(([i, n]) => `${n} ${i}`).join(', ')}${parts.length ? `; only ${r}s ${parts.join('; ')}` : ''}`;
     }),
     scoring: [
       '+1 per minute alive',

@@ -115,7 +115,9 @@ touchgrass/
 | `nodes` | hash | field `cx,cy` → JSON `[local, kind, left, regrowAt][]` resource nodes of that chunk |
 | `loot` | string | JSON `[tileIndex, {items, expiresAt}][]` of all loot piles |
 | `structures` | string | JSON of stations `[tileIndex, {kind, owner, litUntil}][]` |
-| `market` | string | JSON of the Smith's stock per item |
+| `market` | string | JSON of the Smith's stock per item (removed in 0.0.1-6) |
+| `treasures` | string | JSON of buried treasure tiles (0.0.1-6; never read by the gateway) |
+| `clues` | string | JSON of clue trails (0.0.1-6) |
 | `creatures` | string | JSON of all live creatures (id, kind, position, hp, mode, bag); `meta.nextMobId` keeps ids unique |
 | `token:{sha256}` | string | agentId |
 | `claims` | hash | territoryId → rectangle, owner, flag, shield-until |
@@ -242,7 +244,7 @@ The grid covers the agent's vision radius (17×17 at vision 8). Entities outside
 
 - **Size:** 1024×1024 tiles in 32×32 chunks (1,024 chunks). Generated once at world creation and stored (§5).
 - **Terrain:** simplex noise for elevation and moisture produces deep water (impassable), shallow water (walkable at half speed), sand, meadow, forest, and rocky hills. Ruins are placed as clusters in meadows and forests.
-- **The Plaza:** a 40×40 flattened meadow at the map center containing the Colosseum (§15) and the Smith (§11). No monsters spawn within 40 tiles of the Plaza. Land cannot be claimed in the Plaza.
+- **The Plaza:** a 40×40 flattened meadow at the map center containing the Colosseum (§15) and, until 0.0.1-6, the Smith (§11); from 0.0.1-6 it is the trading square. No monsters spawn within 40 tiles of the Plaza. Land cannot be claimed in the Plaza.
 - **Spawn points:** random meadow tiles at least 50 tiles from the Plaza, assigned at join.
 - **Movement:** 2 tiles per tick on land, 1 tile per tick in shallow water. Pathfinding is A* limited to a 128-tile radius. Spectators interpolate between ticks.
 - **Tick:** 1 s. Everything (needs, tasks, combat, duel rounds, regrowth) runs on it.
@@ -351,6 +353,8 @@ Animals respawn to keep a steady population per region.
 Inside your own land only: use a hoe on a meadow tile to make a farm plot (`build(farm_plot)`), `plant(wheat_seed)` or `plant(berry_seed)`, then `harvest` when grown. Wheat grows in 15 minutes and yields wheat ×3 and seeds ×2; a planted berry bush is ready in 20 minutes. Only the owner can harvest. Farms are the main reason land is worth defending.
 
 ## 11. Items, crafting, and the Smith
+
+> **Superseded in 0.0.1-6:** the Smith NPC, his shop, blueprints and market are removed; roles own resources and crafts and robots trade face to face. See `2026-09-24-touchgrass-0.0.1-6-trade-design.md`. The text below is kept as history.
 
 **Inventory:** 20 slots, stacks of 50, backpack +10 slots.
 
