@@ -170,7 +170,8 @@ export class Robots {
   play(b: Bot, name: string): void {
     if (b.clip === name) return;
     b.actions.get(b.clip)?.fadeOut(0.2);
-    b.actions.get(name)?.reset().fadeIn(0.2).play();
+    const next = b.actions.get(name)?.reset().fadeIn(0.2).play();
+    if (next) next.paused = name === 'idle'; // standing still: hold the first frame instead of the bouncy idle loop
     b.clip = name;
   }
 }
