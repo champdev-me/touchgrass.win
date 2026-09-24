@@ -418,7 +418,10 @@ export class World {
       this.bubble(a, 'say', say('flee', a.name, this.rng, CREATURES[charging.kind].name));
       this.note(a, `Reflex: a ${CREATURES[charging.kind].name} is charging at you. You run!`);
     }
-    const news = tickBody(a, runTask(this, a));
+    const activity = runTask(this, a);
+    const news = tickBody(a, activity);
+    const bed = activity === 'sleep' ? this.bedOf(a) : null;
+    if (bed && dist(bed, [a.x, a.y]) <= 1) a.energy = Math.min(100, a.energy + (B.bedSleepMultiplier - 1) * B.sleepEnergyPerTick); // a proper bed
     this.dirty.add(a.id);
     if (news.ate) {
       this.note(a, `Reflex: you ate ${news.ate}.`);
@@ -545,7 +548,7 @@ export class World {
     a.food = B.respawnStats;
     a.water = B.respawnStats;
     a.energy = 100;
-    [a.x, a.y] = a.spawn;
+    [a.x, a.y] = this.bedOf(a) ?? a.spawn; // your bed, else your flag
     a.spawnedAt = this.tick;
     this.dirty.add(a.id);
     this.emit('respawn', say('respawn', a.name, this.rng), a);
@@ -572,6 +575,11 @@ export class World {
     a.name = name;
     this.dirty.add(a.id);
     if (a.joined) this.emit('rename', `${old} is now ${name}.`, a);
+  }
+
+  bedOf(a: Agent): Vec | null {
+    for (const [i, s] of this.structures) if (s.kind === 'bed' && s.owner === a.id) return this.xy(i);
+    return null;
   }
 
   baseAt(x: number, y: number): Base | null {

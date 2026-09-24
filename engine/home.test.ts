@@ -106,3 +106,27 @@ test('new robots: carpenters and farmers get their kits', () => {
   w.join(f.id, 'farmer', null, 0);
   assert.deepEqual([c.inventory, f.inventory.hoe, f.inventory.wheat_seed], [{ wood: 10 }, 1, 3]);
 });
+
+test('a bed is your respawn point, and sleeping by it restores energy three times as fast', () => {
+  const w = world();
+  const c = homed(w, 'Sleepy', 'carpenter', { wood: 10, fiber: 10 });
+  const b = baseOf(w, c.id)!;
+  w.kill(c, 'test');
+  w.respawn(c);
+  assert.deepEqual([c.x, c.y], b.flag);
+  c.inventory = { wood: 10, fiber: 10 }; // dying dropped half the bag
+  build(w, c.id, 'bed', b.flag[0] + 1, b.flag[1]);
+  w.kill(c, 'test');
+  w.respawn(c);
+  assert.deepEqual([c.x, c.y], [b.flag[0] + 1, b.flag[1]]);
+  c.energy = 10;
+  w.sleep(c.id);
+  w.step(0);
+  const byBed = c.energy - 10;
+  const o = homed(w, 'Camper', 'scout');
+  [o.x, o.y] = [b.flag[0] + 30, b.flag[1]];
+  o.energy = 10;
+  w.sleep(o.id);
+  w.step(0);
+  assert.equal(Math.round(byBed * 100), Math.round((o.energy - 10) * 3 * 100));
+});

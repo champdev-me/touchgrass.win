@@ -35,6 +35,7 @@ export const B = {
   baseTries: 300,
   baseMaxSide: 32,
   switchRoleTicks: 600,
+  bedSleepMultiplier: 3,
   tradeRange: 3,
   offerTicks: 60,
   bigTradeGold: 50, // trades this big make world news
