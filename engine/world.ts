@@ -3,6 +3,7 @@ import { dist } from '../shared/geo.ts';
 import { FOOD, room, type Inventory } from '../shared/items.ts';
 import { timeOf } from '../shared/time.ts';
 import { GATHER_TARGETS, ROLES, TERRAIN as T, type Agent, type AgentView, type Bubble, type GameEvent, type GatherTarget, type Role, type TickDelta, type Vec } from '../shared/types.ts';
+import { checkAchievements } from './achievements.ts';
 import { AGENT_COLORS, normalizeAgent } from './agent.ts';
 import { BUFFET_SUFFIX, say } from './lines.ts';
 import { eat, tickBody } from './body.ts';
@@ -50,6 +51,9 @@ export class World {
   lootDirty = false;
   chatLog: string[] = [];
   chunkTerrain: Uint8Array | null = null;
+  firsts: Record<string, string> = {}; // achievement id -> agent id of the server first
+  firstsDirty = false;
+  urgent = false; // flush on the next tick instead of waiting for the 5-tick flush
 
   constructor(tiles: Uint8Array, size: number = B.mapSize, rng: () => number = Math.random) {
     this.tiles = tiles;
@@ -272,9 +276,11 @@ export class World {
     }
     for (const alert of news.alerts) this.interrupt(a, alert);
     if (news.death) this.kill(a, news.death);
-    if (a.dead) return;
-    explore(this, a);
-    if (this.tick > a.spawnedAt && (this.tick - a.spawnedAt) % B.aliveScoreEveryTicks === 0) addScore(this, a, 1);
+    if (!a.dead) {
+      explore(this, a);
+      if (this.tick > a.spawnedAt && (this.tick - a.spawnedAt) % B.aliveScoreEveryTicks === 0) addScore(this, a, 1);
+    }
+    checkAchievements(this, a);
   }
 
   takeFromNode(i: number, node: ResourceNode): void {

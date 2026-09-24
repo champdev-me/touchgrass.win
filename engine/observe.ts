@@ -3,6 +3,7 @@ import { compass, dist } from '../shared/geo.ts';
 import { slotsUsed } from '../shared/items.ts';
 import { timeOf } from '../shared/time.ts';
 import { TERRAIN as T, type Agent, type NodeKind, type Task, type Vec } from '../shared/types.ts';
+import { ACHIEVEMENTS } from './achievements.ts';
 import type { World } from './world.ts';
 
 const GRID: Record<number, string> = { [T.DEEP]: '~', [T.SHALLOW]: ',', [T.SAND]: ':', [T.MEADOW]: '.', [T.FOREST]: 'f', [T.HILLS]: '^', [T.RUINS]: 'r', [T.PLAZA]: '#' };
@@ -68,6 +69,9 @@ export function buildObservation(w: World, a: Agent) {
       health: Math.round(a.health), food: Math.round(a.food), water: Math.round(a.water), energy: Math.round(a.energy),
       inventory: a.inventory, slots: `${slotsUsed(a.inventory)}/${B.inventorySlots}`, auto_eat: a.autoEat,
       dead: a.dead, respawn_in_seconds: a.dead ? Math.max(0, a.respawnAt - w.tick) : undefined,
+      score: { life: a.lifeScore, season: a.seasonScore, best_life: a.bestLife, wallet: a.wallet },
+      achievements: `${Object.keys(a.achievements).length}/${ACHIEVEMENTS.length} unlocked`,
+      badge: a.badge && a.badge.until >= w.tick ? a.badge.emoji : undefined,
     },
     task: describeTask(a.task),
     time: { day: time.day, phase: time.phase, [time.phase === 'day' ? 'seconds_to_night' : 'seconds_to_day']: time.secondsToSwitch },
@@ -78,6 +82,7 @@ export function buildObservation(w: World, a: Agent) {
     resources,
     landmarks: [`the Plaza (${px}, ${py}) is ${dist([px, py], here)} tiles ${compass(px - a.x, py - a.y)}`],
     inbox,
+    world_chat: w.chatLog.slice(-B.chatHistory),
     roles: w.census(),
   };
 }

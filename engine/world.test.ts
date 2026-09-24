@@ -156,7 +156,7 @@ test('joining, leaving and coming back are announced once each', () => {
   const a = w.register('Ghost', 0);
   w.join(a.id, 'scout', null, 1000);
   assert.deepEqual([a.online, a.lastSeenAt], [true, 1000]);
-  assert.deepEqual(w.step(1000 + 1000).events.map((e) => e.type), ['join']);
+  assert.deepEqual(w.step(1000 + 1000).events.map((e) => e.type).filter((t) => t !== 'achievement'), ['join']);
   const away = w.step(1000 + B.awayAfterMs + 1);
   assert.deepEqual(away.events.map((e) => e.type), ['leave']);
   assert.match(away.events[0].text, /Ghost/);
@@ -174,5 +174,5 @@ test('a first join does not also announce a return', () => {
   const a = w.register('Newbie', 0);
   w.join(a.id, 'scout', null, 5000);
   w.seen(a.id, 5000);
-  assert.deepEqual(w.step(5000).events.map((e) => e.type), ['join']);
+  assert.deepEqual(w.step(5000).events.map((e) => e.type).filter((t) => t !== 'achievement'), ['join']);
 });
