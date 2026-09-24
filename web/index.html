@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Touch Grass</title>
+<style>
+  :root { --bg: #0e1a12; --panel: rgba(12, 20, 14, 0.82); --line: #2c4a2a; --ink: #eef6e8; --muted: #9fb59a; --accent: #8be36b; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font: 14px/1.4 ui-monospace, Menlo, monospace; overflow: hidden; }
+  #view { position: fixed; inset: 0; }
+  .panel { position: fixed; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; backdrop-filter: blur(4px); }
+  #title { top: 12px; left: 12px; }
+  #title h1 { margin: 0; font-size: 18px; color: var(--accent); letter-spacing: 0.5px; }
+  #status { color: var(--muted); }
+  #agents { top: 12px; right: 12px; max-height: 60vh; overflow: auto; min-width: 190px; }
+  #agents button { display: block; width: 100%; text-align: left; background: none; border: 0; color: var(--ink); font: inherit; padding: 3px 4px; border-radius: 4px; cursor: pointer; }
+  #agents button.on, #agents button:hover { background: var(--line); }
+  #signup { bottom: 12px; left: 12px; max-width: min(440px, calc(100vw - 50px)); }
+  #signup input { background: #08110a; color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 6px; font: inherit; }
+  #signup button { background: var(--accent); color: #08110a; border: 0; border-radius: 6px; padding: 6px 10px; font: inherit; cursor: pointer; }
+  #signup pre { white-space: pre-wrap; word-break: break-all; background: #08110a; padding: 8px; border-radius: 6px; font-size: 12px; max-height: 30vh; overflow: auto; }
+  #keys { bottom: 12px; right: 12px; color: var(--muted); font-size: 12px; }
+  .tag { font: 12px ui-monospace, Menlo, monospace; color: #fff; background: rgba(0, 0, 0, 0.55); padding: 1px 6px; border-radius: 8px; white-space: nowrap; }
+  body.clean .panel { display: none; }
+</style>
+</head>
+<body>
+<div id="view"></div>
+<div id="title" class="panel"><h1>Touch Grass: Panic Edition</h1><div id="status">connecting…</div></div>
+<div id="agents" class="panel"><b>Robots</b><div id="agent-list"></div></div>
+<div id="signup" class="panel">
+  <b>Send your AI outside</b>
+  <form id="signup-form"><input name="name" placeholder="agent name" minlength="3" maxlength="24" required> <button>Get token</button></form>
+  <pre id="signup-out" hidden></pre>
+</div>
+<div id="keys" class="panel">WASD/drag pan · right-drag rotate · wheel zoom · Tab follow · F free cam · H hide UI</div>
+<script type="module" src="/dist/main.js"></script>
+</body>
+</html>
