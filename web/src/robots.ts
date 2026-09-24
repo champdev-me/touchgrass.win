@@ -11,6 +11,12 @@ const VARIANTS = ['character-h', 'character-g', 'character-d'];
 const EMOTE_CLIP: Record<string, string> = { dance: 'emote-yes', wave: 'interact-right', bow: 'emote-yes', cry: 'emote-no', flex: 'holding-both' };
 const PUNCHED = new Set(['tree', 'rock']); // gathered by punching; bushes and grass are picked
 const BUBBLE_ICON: Record<string, string> = { say: '💬', world: '📢', thought: '💭' };
+// Kenney Survival Kit tools (CC0) for what a robot holds; "upgraded" ones stand in for iron.
+const HELD_FILES: Record<string, string> = {
+  stone_axe: 'tool-axe', iron_axe: 'tool-axe-upgraded', stone_pickaxe: 'tool-pickaxe', iron_pickaxe: 'tool-pickaxe-upgraded',
+  hoe: 'tool-hoe', club: 'tool-hammer', frying_pan: 'tool-hammer', stone_spear: 'tool-shovel',
+};
+const HELD_SIZE = 0.45; // tiles
 
 interface Look {
   scene: THREE.Object3D;
@@ -31,6 +37,9 @@ export interface Bot {
   bars: HTMLElement[];
   bubble: HTMLDivElement;
   badge: HTMLSpanElement;
+  hand: THREE.Object3D | null; // the right arm
+  held: string | null;
+  heldObj: THREE.Object3D | null;
 }
 
 export class Robots {
@@ -39,6 +48,7 @@ export class Robots {
   tickMs: number;
   bots = new Map<string, Bot>();
   looks: Look[] = [];
+  heldModels = new Map<string, THREE.Object3D>();
   kindAt: (x: number, y: number) => string | null;
 
   constructor(scene: THREE.Scene, heightAt: (x: number, y: number) => number, tickMs: number, kindAt: (x: number, y: number) => string | null) {
@@ -54,6 +64,24 @@ export class Robots {
       const g = await loader.loadAsync(`/assets/robots/${name}.glb`);
       return { scene: g.scene, clips: g.animations, scale: HEIGHT / new THREE.Box3().setFromObject(g.scene).getSize(new THREE.Vector3()).y };
     }));
+    await Promise.all(Object.entries(HELD_FILES).map(async ([item, file]) => {
+      const g = await loader.loadAsync(`/assets/survival/${file}.glb`);
+      const size = new THREE.Box3().setFromObject(g.scene).getSize(new THREE.Vector3());
+      g.scene.scale.setScalar(HELD_SIZE / Math.max(size.x, size.y, size.z));
+      this.heldModels.set(item, g.scene);
+    }));
+    const blade = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.5, 0.02), new THREE.MeshLambertMaterial({ color: '#d7dde3' }));
+    for (const [item, color] of [['iron_sword', '#d7dde3'], ['gem_sword', '#d04fd8']] as const) {
+      const b = blade.clone();
+      b.material = new THREE.MeshLambertMaterial({ color });
+      this.heldModels.set(item, b);
+    }
+    const torch = new THREE.Group();
+    const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.35, 5), new THREE.MeshLambertMaterial({ color: '#9b6b3d' }));
+    const fire = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.14, 6), new THREE.MeshBasicMaterial({ color: '#ffae42' }));
+    fire.position.y = 0.24;
+    torch.add(stick, fire);
+    this.heldModels.set('torch', torch);
   }
 
   sync(views: AgentView[]): void {
@@ -75,6 +103,7 @@ export class Robots {
         b.bubble.textContent = `${BUBBLE_ICON[v.bubble.kind]} ${v.bubble.text}`;
       }
       b.badge.textContent = v.badge ? `${v.badge} ` : '';
+      if (v.held !== b.held) this.hold(b, v.held);
       const walking = v.moving || b.from.distanceToSquared(b.to) > 1e-4;
       const target = v.face ? this.kindAt(v.face[0], v.face[1]) : null;
       const work = v.action === 'attack' || (v.action === 'gather' && target !== null && PUNCHED.has(target)) ? 'attack-melee-right' : 'pick-up';
@@ -125,6 +154,7 @@ export class Robots {
       o.material = m;
     });
     root.add(body);
+    const hand = body.getObjectByName('arm-right') ?? null;
     const tag = document.createElement('div');
     tag.className = 'tag';
     const bubble = document.createElement('div');
@@ -151,7 +181,7 @@ export class Robots {
     this.scene.add(root);
     const mixer = new THREE.AnimationMixer(body);
     const b: Bot = {
-      view: v, root, tag, mixer, clip: '', t: 1, bars, bubble, badge,
+      view: v, root, tag, mixer, clip: '', t: 1, bars, bubble, badge, hand, held: null, heldObj: null,
       actions: new Map(look.clips.map((c) => [c.name, mixer.clipAction(c)])),
       from: root.position.clone(), to: root.position.clone(),
     };
@@ -165,6 +195,23 @@ export class Robots {
     this.play(b, 'idle');
     this.bots.set(v.id, b);
     return b;
+  }
+
+  /** Puts a tool model in the robot's right hand (or empties it). */
+  hold(b: Bot, item: string | null): void {
+    b.held = item;
+    if (b.heldObj) b.heldObj.removeFromParent();
+    b.heldObj = null;
+    const model = item ? this.heldModels.get(item) : undefined;
+    if (!model || !b.hand) return;
+    const obj = model.clone();
+    const worldScale = b.hand.getWorldScale(new THREE.Vector3()).x || 1;
+    obj.scale.multiplyScalar(1 / worldScale); // the arm is inside the scaled body
+    const arm = new THREE.Box3().setFromObject(b.hand);
+    obj.position.set(0, -(arm.max.y - arm.min.y) / worldScale * 0.8, 0.05 / worldScale); // at the end of the arm
+    obj.rotation.x = Math.PI / 2; // pointing forward
+    b.hand.add(obj);
+    b.heldObj = obj;
   }
 
   play(b: Bot, name: string): void {

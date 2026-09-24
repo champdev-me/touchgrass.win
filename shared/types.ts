@@ -99,6 +99,7 @@ export type ActionResult =
   | { ok: false; error: GameError; cooldownMs: number };
 
 export interface AgentView {
+  held: string | null; // the tool or weapon in its hand, for show
   id: string;
   name: string;
   color: string;

@@ -10,6 +10,7 @@ import { BUFFET_SUFFIX, say } from './lines.ts';
 import { eat, tickBody } from './body.ts';
 import { stepCreatures } from './creatures.ts';
 import { armorOf, bestTool, useGear } from './gear.ts';
+import { weaponOf } from './combat.ts';
 import { chunksPerRow, dominantTerrain, explore } from './explore.ts';
 import { NODE_DEF, chunkOf, fullAmount, wrongRole, type ResourceNode } from './nodes.ts';
 import { buildObservation } from './observe.ts';
@@ -581,6 +582,21 @@ export class World {
     if (a.joined) this.emit('rename', `${old} is now ${name}.`, a);
   }
 
+  /** What a robot holds right now: the tool for the job, its weapon in a fight, a torch at night. */
+  heldOf(a: Agent): string | null {
+    const t = a.task;
+    if (t?.type === 'gather') {
+      const kind = t.target === 'treasure' ? 'iron_vein' : this.nodes.get(t.node)?.kind;
+      return kind ? bestTool(a, kind)?.item ?? null : null;
+    }
+    if (t?.type === 'attack') {
+      const w = weaponOf(a).name;
+      return w === 'fists' ? null : w;
+    }
+    if (timeOf(this.tick).phase === 'night' && (a.inventory.torch ?? 0) > 0) return 'torch';
+    return null;
+  }
+
   bedOf(a: Agent): Vec | null {
     for (const [i, s] of this.structures) if (s.kind === 'bed' && s.owner === a.id) return this.xy(i);
     return null;
@@ -627,6 +643,7 @@ export class World {
         inventory: publicBag(a.inventory),
         gold: a.wallet,
         face: this.faceOf(a),
+        held: this.heldOf(a),
       }));
   }
 

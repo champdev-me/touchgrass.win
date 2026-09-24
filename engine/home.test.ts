@@ -148,3 +148,20 @@ test('a robot idle for 7 days loses its base; its buildings become ruins anyone 
   [s.x, s.y] = [fx, fy];
   assert.equal(code(() => demolish(w, s.id, fx + 1, fy)), 'ok');
 });
+
+test('robots visibly hold the tool for the job, their weapon in a fight, a torch at night', () => {
+  const w = world();
+  const g = homed(w, 'Chopper', 'gatherer', { stone_axe: 1, club: 1, torch: 1 });
+  g.wear.stone_axe = 100;
+  const [fx, fy] = baseOf(w, g.id)!.flag;
+  const held = () => w.views().find((v) => v.id === g.id)?.held;
+  assert.equal(held(), null);
+  w.nodes.set(w.index(fx + 1, fy), { kind: 'tree', left: 5, regrowAt: 0 });
+  w.gather(g.id, 'tree', 1);
+  assert.equal(held(), 'stone_axe');
+  g.task = { type: 'attack', target: 'mob_1', progress: 0 };
+  assert.equal(held(), 'club');
+  g.task = null;
+  w.tick = B.dayTicks - 10; // night
+  assert.equal(held(), 'torch');
+});
