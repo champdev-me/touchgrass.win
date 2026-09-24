@@ -65,9 +65,10 @@ Nodes (added by node rules version 7; placement is seedless like today, so exist
   - The world keeps 6 buried treasures on random walkable land tiles at least 64 tiles from the Plaza. They are persisted, but never sent to the public WebSocket, so a spectator page cannot leak them.
   - Only scouts see them: `observe.resources` shows `buried treasure at (x, y), ...` within the scout's doubled radius.
   - `chart { x, y }` (scout only, standing within 2 tiles, costs fiber 2) creates a `treasure_map` item for that treasure. The map is gear (one per slot), tradeable with `offer`, and `observe` shows each map as `treasure_map -> (x, y)`. Stored as the inventory key `treasure_map:x,y`.
-  - Scouts cannot dig. Only a miner holding the matching map can `gather treasure` at the spot (10 ticks, needs a pickaxe). Digging consumes the map, removes the treasure, and spawns a new one elsewhere; any other maps for it become worthless.
+  - Anyone holding the matching map can `gather treasure` at the spot: 10 ticks with a pickaxe, 30 without (host decision, 2026-09-24: treasure is a side quest open to all). Digging consumes the map, removes the treasure, and spawns a new one elsewhere; any other maps for it become worthless.
   - Loot: gold 30-80 into the wallet, plus one roll: gem x2 (40%), crystal x2 (30%), an iron tool (20%), a lucky_charm (10%).
-  - So a scout finds treasure and sells the map to a miner, a miner pays gold for it, and a treasure hunt can be watched from the stream.
+  - **Clue trails (side quest, host request):** gathering a tree, grass or rock has a `B.clueChance` = 1% chance per unit of turning up a `clue` item that starts a trail to one of the buried treasures. A clue points at the spot of the next find; `search` (anyone, on your own tile, within 1 tile of the spot) swaps it for the next step. Step 1 and 2 are clues, step 3 is the `treasure_map`. Scouts read a clue's exact spot; everyone else sees "somewhere within 8 tiles of (x, y), near <terrain>". Clues are items, so they can be sold (usually to scouts) with `offer`.
+  - So a scout can chart treasure it sees, anyone can follow a clue trail, and maps and clues change hands for gold on stream.
 
 Items: `mud`, `brick`, `gem`, `herb` (materials), `bandage` (a consumable used with `eat`: +15 health, no food or water), `treasure_map` (gear, see above).
 

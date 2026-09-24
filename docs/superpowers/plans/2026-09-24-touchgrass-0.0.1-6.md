@@ -1004,6 +1004,11 @@ git add -A && git commit -m "feat: buried treasure only scouts see, tradeable ma
 
 ---
 
+### Task 7b: Clue-trail side quest (host request, added during execution)
+
+**Files:** `engine/treasure.ts` (clues, `search`), `engine/tasks.ts` (clue roll in `harvest`, no-pickaxe dig time), `engine/world.ts` (`clues` map, `digFor` open to all), `engine/observe.ts` (`you.clues`), `shared/items.ts` (`isClue`, stack 1), `shared/balance.ts`, `engine/persist.ts` (`K.clues`), `engine/actions.ts`, `gateway/mcp.ts` (`search`), `engine/rules.ts`, `test/e2e.test.ts`.
+**Tests (engine/treasure.test.ts):** a gather roll can yield `clue:N`; scouts see the exact spot, others a vague area; `search` at the spot swaps clue 1 for clue 2 and clue 2 for the treasure map, elsewhere fails with `nothing_here`; anyone with a map digs, 3x slower without a pickaxe; clues trade with offer.
+
 ### Task 8: Rules, docs and agent prompt
 
 **Files:**
