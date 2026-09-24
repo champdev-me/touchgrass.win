@@ -2,7 +2,7 @@ import { test } from 'bun:test';
 import assert from 'node:assert/strict';
 import { B } from '../shared/balance.ts';
 import { TERRAIN as T, type Role } from '../shared/types.ts';
-import { baseOf, switchRole } from './bases.ts';
+import { baseOf, releaseIdle, switchRole } from './bases.ts';
 import { build, demolish } from './craft.ts';
 import { GameFail, World } from './world.ts';
 
@@ -129,4 +129,22 @@ test('a bed is your respawn point, and sleeping by it restores energy three time
   w.sleep(o.id);
   w.step(0);
   assert.equal(Math.round(byBed * 100), Math.round((o.energy - 10) * 3 * 100));
+});
+
+test('a robot idle for 7 days loses its base; its buildings become ruins anyone may demolish', () => {
+  const w = world();
+  const c = homed(w, 'Sleeper', 'carpenter', { wood: 10 });
+  const [fx, fy] = baseOf(w, c.id)!.flag;
+  build(w, c.id, 'wood_wall', fx + 1, fy);
+  const now = 10_000_000_000;
+  c.lastActionAt = now - B.idleReleaseMs + 1000;
+  releaseIdle(w, now);
+  assert.ok(baseOf(w, c.id));
+  c.lastActionAt = now - B.idleReleaseMs - 1;
+  releaseIdle(w, now);
+  assert.equal(baseOf(w, c.id), null);
+  assert.equal(w.structures.get(w.index(fx + 1, fy))?.owner, '');
+  const s = homed(w, 'Scavenger', 'scout');
+  [s.x, s.y] = [fx, fy];
+  assert.equal(code(() => demolish(w, s.id, fx + 1, fy)), 'ok');
 });

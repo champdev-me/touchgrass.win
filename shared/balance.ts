@@ -35,6 +35,7 @@ export const B = {
   baseTries: 300,
   baseMaxSide: 32,
   switchRoleTicks: 600,
+  idleReleaseMs: 7 * 24 * 3600 * 1000,
   bedSleepMultiplier: 3,
   wheatTicks: 900,
   berryCropTicks: 1200,

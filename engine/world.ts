@@ -15,7 +15,7 @@ import { NODE_DEF, chunkOf, fullAmount, wrongRole, type ResourceNode } from './n
 import { buildObservation } from './observe.ts';
 import { expireOffers, type Offer } from './trade.ts';
 import { spawnTreasures, type Clue } from './treasure.ts';
-import { lockCheck, placeBase } from './bases.ts';
+import { lockCheck, placeBase, releaseIdle } from './bases.ts';
 import { findPath } from './path.ts';
 import { addScore } from './score.ts';
 import { findTarget, runTask } from './tasks.ts';
@@ -391,6 +391,7 @@ export class World {
     stepCreatures(this);
     expireOffers(this);
     if (this.tick % 60 === 0) spawnTreasures(this);
+    if (this.tick % 3600 === 0) releaseIdle(this, Date.now());
     this.regrow();
     for (const [i, pile] of this.loot) {
       if (pile.expiresAt <= this.tick) {

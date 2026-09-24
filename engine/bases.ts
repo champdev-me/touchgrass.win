@@ -120,3 +120,16 @@ export function switchRole(w: World, id: string, role: string) {
   w.touch(a);
   return { role };
 }
+
+/** Robots with no action for a week lose their base; what they built becomes ruins. */
+export function releaseIdle(w: World, now: number): void {
+  for (const [owner] of w.bases) {
+    const a = w.agents.get(owner);
+    if (a && now - a.lastActionAt <= B.idleReleaseMs) continue;
+    w.bases.delete(owner);
+    w.basesDirty = true;
+    for (const s of w.structures.values()) if (s.owner === owner) s.owner = '';
+    w.structuresDirty = true;
+    if (a) w.note(a, 'You were gone a week: your base was released and your buildings are ruins now.');
+  }
+}
