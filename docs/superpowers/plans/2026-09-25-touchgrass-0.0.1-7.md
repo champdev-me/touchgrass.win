@@ -156,6 +156,21 @@ s.registerTool('buy_land', {
 - [ ] **Step 2:** `bun run build:web && bun run typecheck`; check in Brave if the tab is visible, otherwise ledger the skip.
 - [ ] **Step 3:** commit `feat(web): base outlines, walls, doors, beds and crops`.
 
+### Task 7b: Held tools, visible (host request, added during execution)
+
+- **Engine:** `AgentView.held: string | null`.
+  - While gathering: the best tool for that node (axe, pickaxe, hoe while tilling).
+  - While attacking: the weapon, or null for fists.
+  - At night with a torch: the torch.
+  - Otherwise: null.
+  - Test: a gathering robot with a stone_axe holds `stone_axe` on a tree; a fighting robot with a club holds `club`; an idle one holds null.
+- **Web:** attach the Kenney Survival Kit model to the robot's right hand.
+  - stone tools use `tool-axe`, `tool-pickaxe`, `tool-hoe`;
+  - iron tools use the `-upgraded` models;
+  - weapons: club and spear use `tool-hammer` / `tool-shovel` stand-ins until weapon models exist; swords use a thin grey box;
+  - torch: a small stick with the flame cone.
+- **Also for Task 7:** walls use `fence`/`fence-fortified`, doors `fence-doorway`, beds `bedroll`.
+
 ### Task 8: Rules, docs, agents
 
 - [ ] **Step 1: failing test:** `rules()` has `land` and `farming` sections and 8 role lines, and the role lines mention carpenter and farmer.
