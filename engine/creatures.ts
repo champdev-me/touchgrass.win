@@ -12,7 +12,7 @@ const STEPS: Vec[] = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1]
 const hasBag = (c: Creature) => Object.keys(c.bag).length > 0;
 
 export function spawnCreature(w: World, kind: CreatureKind, [x, y]: Vec, pack = 0): Creature {
-  const c: Creature = { id: `mob_${w.nextMobId++}`, kind, x, y, hp: CREATURES[kind].hp, mode: 'wander', target: null, until: 0, bag: {}, pack, hitAt: -B.attackTicks };
+  const c: Creature = { id: `mob_${w.nextMobId++}`, kind, x, y, hp: CREATURES[kind].hp, mode: 'wander', target: null, until: 0, bag: {}, pack, hitAt: -B.monsterBiteTicks };
   w.creatures.set(c.id, c);
   w.creaturesDirty = true;
   return c;
@@ -151,7 +151,7 @@ function act(w: World, c: Creature, robots: Agent[]): void {
   const t = c.target ? w.agents.get(c.target) : undefined;
   if (c.mode === 'chase' && t) {
     for (let i = 0; i < Math.max(1, def.speed) && dist([t.x, t.y], [c.x, c.y]) > B.attackReach; i++) toward(w, c, [t.x, t.y]);
-    if (dist([t.x, t.y], [c.x, c.y]) <= B.attackReach && w.tick - c.hitAt >= B.attackTicks) bite(w, c, t);
+    if (dist([t.x, t.y], [c.x, c.y]) <= B.attackReach && w.tick - c.hitAt >= B.monsterBiteTicks) bite(w, c, t);
   } else if (c.mode === 'flee' && t) away(w, c, [t.x, t.y]);
   else if (c.mode === 'follow' && t) {
     if (dist([t.x, t.y], [c.x, c.y]) > 2) toward(w, c, [t.x, t.y]);

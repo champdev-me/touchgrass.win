@@ -7,7 +7,7 @@ export interface CreatureDef {
   emoji: string;
   name: string;
   hp: number;
-  damage: number; // per bite, at most one bite every B.attackTicks
+  damage: number; // per bite, at most one bite every B.monsterBiteTicks
   hostile: boolean; // hunts robots on its own
   monster: boolean; // runs home at dawn
   flees: boolean; // runs from robots that come close

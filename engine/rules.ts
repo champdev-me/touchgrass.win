@@ -33,7 +33,7 @@ export function rules(w: World) {
       `craft: ${Object.entries(RECIPES).map(([item, r]) => `${item} = ${Object.entries(r).map(([m, n]) => `${n} ${m}`).join(' + ')}`).join('; ')}.`,
     ],
     creatures: Object.values(CREATURES).map((d) =>
-      `${d.emoji} ${d.name}: ${d.hp} hp, ${d.damage ? `hits for ${d.damage}` : 'harmless'}${d.monster ? ', night only' : ''}${d.hostile ? ', hunts robots' : ''}; drops ${Object.entries(d.drops).map(([i, n]) => `${n} ${i}`).join(', ')}`),
+      `${d.emoji} ${d.name}: ${d.hp} hp, ${d.damage ? `hits for ${d.damage} every ${B.monsterBiteTicks}s` : 'harmless'}${d.monster ? ', night only' : ''}${d.hostile ? ', hunts robots' : ''}; drops ${Object.entries(d.drops).map(([i, n]) => `${n} ${i}`).join(', ')}`),
     roles: ROLES,
     scoring: [
       '+1 per minute alive',

@@ -101,6 +101,7 @@ export const B = {
   roombaLootAgeTicks: 120,
   roombaSniffRadius: 20,
   wanderChance: 0.3,
+  monsterBiteTicks: 4, // slower than robots swing, so a lone robot has time to fight or run
   // time: a day is 20 minutes, the last 6 are night
   dayTicks: 1200,
   nightTicks: 360,

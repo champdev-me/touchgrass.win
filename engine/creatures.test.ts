@@ -116,3 +116,11 @@ test('wolves keep pace with a walking robot and bite the moment it stops', () =>
   for (let i = 0; i < 8; i++) w.step(0);
   assert.ok(a.health < 100, String(a.health));
 });
+
+test('a wolf pack gives a lone robot time to react (it survives 12 seconds)', () => {
+  const w = world();
+  const a = joined(w, 'Slowpoke', [30, 30]);
+  for (const at of [[31, 30], [31, 31], [31, 29]] as Vec[]) Object.assign(spawnCreature(w, 'wolf', at, 9), { mode: 'chase', target: a.id, until: 1000 });
+  for (let i = 0; i < 12; i++) w.step(0);
+  assert.ok(!a.dead && a.health < 100, String(a.health));
+});
