@@ -1,6 +1,7 @@
 import { resolve, sep } from 'node:path';
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
 import { B } from '../shared/balance.ts';
+import { VERSION } from '../shared/version.ts';
 import type { Redis } from '../shared/redis.ts';
 import type { ActionResult, ClientMsg, GameError, PackedNode, TickDelta } from '../shared/types.ts';
 import { agentForToken, hashToken, newToken } from './auth.ts';
@@ -107,7 +108,7 @@ export async function startGateway(o: GatewayOpts) {
       fetch(`${o.engineUrl}/health`, { signal: AbortSignal.timeout(2000) }).then((x) => x.ok, () => false),
       r.ping().then(() => true, () => false),
     ]);
-    return json(engine && redis ? 200 : 503, { engine, redis });
+    return json(engine && redis ? 200 : 503, { engine, redis, version: VERSION });
   }
 
   async function serveStatic(pathname: string): Promise<Response> {
@@ -120,7 +121,16 @@ export async function startGateway(o: GatewayOpts) {
     const path = resolve(webRoot, rel);
     if (!path.startsWith(webRoot + sep)) return json(404, { error: 'not_found' });
     const file = Bun.file(path);
-    return (await file.exists()) ? new Response(file) : json(404, { error: 'not_found' });
+    if (!(await file.exists())) return json(404, { error: 'not_found' });
+    if (rel === 'index.html') {
+      // A fresh bundle URL per build, so Cloudflare and browsers never serve an old UI after a deploy.
+      const bundle = Bun.file(resolve(webRoot, 'dist/main.js'));
+      const build = (await bundle.exists()) ? bundle.lastModified.toString(36) : 'dev';
+      const html = (await file.text()).replaceAll('%BUILD%', build).replaceAll('%VERSION%', VERSION);
+      return new Response(html, { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-cache' } });
+    }
+    const cache = rel.startsWith('dist/') ? 'public, max-age=31536000, immutable' : 'public, max-age=86400';
+    return new Response(file, { headers: { 'cache-control': cache } });
   }
 
   let lastTick = 0;

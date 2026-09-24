@@ -10,6 +10,7 @@ import { startGateway } from '../gateway/server.ts';
 import { B } from '../shared/balance.ts';
 import { connectRedis, type Redis } from '../shared/redis.ts';
 import type { GameError, ServerMsg, Vec } from '../shared/types.ts';
+import { VERSION } from '../shared/version.ts';
 import { redisUrl, sleep } from './helpers.ts';
 
 type Signup = { agentId: string; token: string; mcpUrl: string; message?: string };
@@ -27,7 +28,9 @@ beforeAll(async () => {
   await redis.flushDb();
   const root = await mkdtemp(join(tmpdir(), 'tg-e2e-'));
   await mkdir(join(root, 'web'));
-  await writeFile(join(root, 'web', 'index.html'), '<h1>grass</h1>');
+  await writeFile(join(root, 'web', 'index.html'), '<h1>grass</h1><script src="/dist/main.js?v=%BUILD%"></script><i>v%VERSION%</i>');
+  await mkdir(join(root, 'web', 'dist'));
+  await writeFile(join(root, 'web', 'dist', 'main.js'), 'console.log(1)');
   await writeFile(join(root, 'secret.txt'), 'nope');
   eng = await startEngine({ redis, port: 0, seed: 'e2e', replayDir: join(root, 'replays'), size: 256, tickMs: 200 });
   gw = await startGateway({
@@ -156,13 +159,19 @@ test('static files are served but never from outside the web folder', async () =
   const home = await fetch(`${base}/`);
   assert.equal(home.status, 200);
   assert.match(home.headers.get('content-type')!, /text\/html/);
+  assert.equal(home.headers.get('cache-control'), 'no-cache');
+  const html = await home.text();
+  assert.match(html, /\/dist\/main\.js\?v=[a-z0-9]+"/);
+  assert.match(html, new RegExp(`v${VERSION.replaceAll('.', '\\.')}`));
+  const js = await fetch(`${base}/dist/main.js?v=abc`);
+  assert.equal(js.headers.get('cache-control'), 'public, max-age=31536000, immutable');
   assert.equal((await fetch(`${base}/..%2fsecret.txt`)).status, 404);
   assert.equal((await fetch(`${base}/nope.js`)).status, 404);
 });
 
 test('health reports engine and redis', async () => {
   const res = await fetch(`${base}/health`);
-  assert.deepEqual([res.status, await res.json()], [200, { engine: true, redis: true }]);
+  assert.deepEqual([res.status, await res.json()], [200, { engine: true, redis: true, version: VERSION }]);
 });
 
 test('survival tools are exposed over MCP and chunks carry resource nodes', async () => {

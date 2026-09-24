@@ -1,6 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { B } from '../shared/balance.ts';
+import { VERSION } from '../shared/version.ts';
 import { FOOD_ITEMS } from '../shared/items.ts';
 import { GATHER_TARGETS, ROLES, type GameError } from '../shared/types.ts';
 
@@ -8,7 +9,7 @@ export type Reply = { ok: true; data: unknown } | { ok: false; error: GameError 
 export type Forward = (tool: string, args: Record<string, unknown>, kind: 'do' | 'look') => Promise<Reply>;
 
 export function buildMcpServer(forward: Forward): McpServer {
-  const s = new McpServer({ name: 'touchgrass', version: '0.0.1-2' });
+  const s = new McpServer({ name: 'touchgrass', version: VERSION });
   const reply = async (tool: string, args: Record<string, unknown>, kind: 'do' | 'look') => {
     const res = await forward(tool, args, kind);
     return { content: [{ type: 'text' as const, text: JSON.stringify(res.ok ? res.data : res.error, null, 1) }], isError: !res.ok };
