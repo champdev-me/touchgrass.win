@@ -1,0 +1,6 @@
+node_modules
+web/dist
+data
+examples/.bots.json
+.git
+.superpowers

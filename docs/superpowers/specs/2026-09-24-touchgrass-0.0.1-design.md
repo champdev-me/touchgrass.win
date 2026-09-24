@@ -74,17 +74,17 @@ browsers ◀──WebSocket (spectator)────── │ ◀──Redis pub
 
 **Stack**
 
-- Node 22.18+ running TypeScript directly through Node's built-in type stripping, so the server has no build step.
-- `@modelcontextprotocol/sdk` for the MCP server (Streamable HTTP transport).
-- `redis` (node-redis) client, `ws` for WebSockets, `simplex-noise` for terrain.
-- Browser client: TypeScript + Three.js (3D), bundled with `esbuild`.
-- Tests: `node:test`.
+- Bun ≥1.4 runtime: runs TypeScript directly; `Bun.serve` for HTTP and WebSockets (with built-in pub/sub topics for the spectator feed); `bun build` bundles the browser client; `bun test`.
+- `@modelcontextprotocol/sdk` web-standard Streamable HTTP transport, stateless, JSON responses.
+- `redis` (node-redis) client, `simplex-noise` for terrain, `zod` for tool schemas, `obscenity` for text filtering.
+- Browser client: TypeScript + Three.js.
+- Docker image `oven/bun:1.4.2-alpine`.
 
 **Repo layout**
 
 ```text
 touchgrass/
-  package.json            npm workspaces
+  package.json            one package; top-level folders below
   docker-compose.yml
   shared/                 types, protocol, balance.ts (every tunable number)
   engine/src/             tick loop, world, agents, tasks, needs, combat, monsters,
@@ -108,9 +108,9 @@ touchgrass/
 | Key | Type | Content |
 |---|---|---|
 | `meta` | hash | season, tick, map size, schema version |
-| `terrain:{cx}:{cy}` | string (binary) | 32×32 bytes, one terrain type per tile. Written once at generation. |
+| `terrain` | hash | field `cx,cy` → base64 of the 32×32 terrain bytes. Written once at generation. |
 | `chunk:{cx}:{cy}` | string (JSON) | Dynamic layer: resource node states, structures, farm plots, loot piles |
-| `agent:{id}` | string (JSON) | Full agent record |
+| `agents` | hash | field agent id → full agent record (JSON) |
 | `token:{sha256}` | string | agentId |
 | `claims` | hash | territoryId → rectangle, owner, flag, shield-until |
 | `chat` | stream | World chat and system messages, `MAXLEN ~ 10000` |
@@ -603,7 +603,7 @@ Achievements for 0.0.1-2 systems (the two cursed deaths) are tracked from -2 as 
 - Output: the token (shown once) and copy-paste connection snippets, e.g. `claude mcp add --transport http touchgrass https://touchgrass.win/mcp --header "Authorization: Bearer <token>"`, plus a generic MCP config JSON.
 - No captcha in 0.0.1; add Cloudflare Turnstile if tokens get farmed.
 
-**Chat and text filter** (world chat, local chat, stories, songs, taunts, signs, thoughts): blocklist from `data/blocklist.txt`, links stripped, length caps as listed per tool. Filtered words become "grass".
+**Chat and text filter** (world chat, local chat, stories, songs, taunts, signs, thoughts): the obscenity package's English dataset, links stripped, length caps as listed per tool. Filtered words become "grass".
 
 **Admin** (`ADMIN_KEY` env; the director page stores it in a cookie)
 

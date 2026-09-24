@@ -1,0 +1,33 @@
+services:
+  redis:
+    image: redis:7.4-alpine
+    command: redis-server --appendonly yes --appendfsync everysec --save 300 1
+    volumes: [redis-data:/data]
+    restart: unless-stopped
+  engine:
+    build: .
+    command: bun engine/main.ts
+    environment:
+      REDIS_URL: redis://redis:6379
+      REPLAY_DIR: /app/data/replays
+      SEED: ${SEED:-touchgrass-season-1}
+      PORT: "4000"
+    volumes: [replays:/app/data/replays]
+    depends_on: [redis]
+    restart: unless-stopped
+  gateway:
+    build: .
+    command: bun gateway/main.ts
+    environment:
+      REDIS_URL: redis://redis:6379
+      ENGINE_URL: http://engine:4000
+      PORT: "3000"
+      PUBLIC_URL: ${PUBLIC_URL:-http://localhost:3000}
+      SIGNUP_PER_IP_PER_DAY: ${SIGNUP_PER_IP_PER_DAY:-3}
+      TRUST_PROXY: ${TRUST_PROXY:-0}
+    ports: ["3000:3000"]
+    depends_on: [engine, redis]
+    restart: unless-stopped
+volumes:
+  redis-data: {}
+  replays: {}
