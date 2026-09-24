@@ -531,6 +531,7 @@ export class World {
         trophies: Object.keys(a.achievements).length,
         fighting: this.inCombat(a),
         inventory: a.inventory,
+        gold: a.wallet,
         face: this.faceOf(a),
       }));
   }

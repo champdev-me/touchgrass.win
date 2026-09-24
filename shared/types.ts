@@ -123,6 +123,7 @@ export interface AgentView {
   trophies: number; // achievements unlocked
   fighting: boolean;
   inventory: Record<string, number>;
+  gold: number;
   face: Vec | null; // tile it is working on or fighting, to turn toward
 }
 

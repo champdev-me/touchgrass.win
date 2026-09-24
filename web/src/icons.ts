@@ -39,6 +39,20 @@ const P: Record<string, string> = {
   battery: 'M2 5h10.5v6H2zM13.5 6.8H15v2.4h-1.5zM3.5 6.5v3h3v-3z',
   crystal: 'M8 1l5 5-5 9-5-9zM5.5 6h5L8 1.8z',
   item: 'M3 3h10v10H3z',
+  gold: 'M8 1.5a6.5 6.5 0 1 1 0 13 6.5 6.5 0 0 1 0-13zm0 2.4a4.1 4.1 0 1 0 0 8.2 4.1 4.1 0 0 0 0-8.2zM7 5.5h2v5H7z',
+  axe: 'M10 1.5c2.5.3 4.2 2.2 4.5 4.7L10.8 7 9 5.2zM9.3 5.9l1 1-7 7.6-1.4-1.4z',
+  pickaxe: 's:M2.5 13.5 10 6M3.5 4.5c3-2.5 7-2.5 9 0 1.5 2 1.5 5-.5 7.5',
+  iron_sword: 's:M13.5 2.5 6 10M4 8l4 4M3.5 12.5l-1.5 1.5M11 2.5h2.5V5',
+  stone_spear: 's:M2 14 11 5M11 5l3-3.5-.5 4z',
+  frying_pan: 'M6 3.5a4.5 4.5 0 1 1 0 9 4.5 4.5 0 0 1 0-9zM10 9.3l4.2 3.5-1 1.2L9 10.5z',
+  armor: 'M5 2 8 3.5 11 2l3 2.5-1.5 3H11V14H5V7.5H3.5L2 4.5z',
+  torch: 'M7 7h2v8H7zM8 1s2.5 2.2 2.5 4A2.5 2.5 0 0 1 5.5 5C5.5 3.2 8 1 8 1z',
+  waterskin: 'M6.5 1.5h3v2c2.5 1 4 3.3 4 6a5.5 5.5 0 0 1-11 0c0-2.7 1.5-5 4-6z',
+  backpack: 'M5.5 1.5h5v2h1a2 2 0 0 1 2 2V14a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1V5.5a2 2 0 0 1 2-2h1zm1.2 0V3.5h2.6V1.5zM5 8h6v2H5z',
+  iron: 'M3 11.5 5 5h6l2 6.5z',
+  iron_ore: 'M4 5l3-2.5 5 1.5 2 5-3 4.5H5L2 10zM6 6.5a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm4 2a1 1 0 1 0 0 2 1 1 0 0 0 0-2z',
+  grass_salad: 'M1.5 8h13a6.5 6.5 0 0 1-13 0zM4.2 7C4 5 5.3 3.5 7 3.2 6.6 5 5.8 6.4 4.2 7zm4.2 0c.3-2.2 2-3.5 4-3.5-.5 2-2 3.3-4 3.5z',
+  marshmallow: 'M4 4h8a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z',
   // ui
   robots: 'M5 1.5h6v1.5H8.7v1.5H12a1.5 1.5 0 0 1 1.5 1.5v5A1.5 1.5 0 0 1 12 12.5H4A1.5 1.5 0 0 1 2.5 11V6A1.5 1.5 0 0 1 4 4.5h3.3V3H5zM5.8 7a1.2 1.2 0 1 0 0 2.4 1.2 1.2 0 0 0 0-2.4zm4.4 0a1.2 1.2 0 1 0 0 2.4 1.2 1.2 0 0 0 0-2.4zM4.5 13.5h7V15h-7z',
   chat: 'M2 2.5h12a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H7l-4 3v-3H2a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1z',
@@ -49,6 +63,9 @@ const P: Record<string, string> = {
 
 export const COLORS: Record<string, string> = {
   sun: '#ffd166', sleep: '#b8c4ff', health: '#ff5a5a', food: '#ffae42', water: '#4fb3ff', energy: '#ffe14d', season: '#ffd166', life: '#8be36b', trophies: '#c9a7ff',
+  gold: '#ffd166', iron: '#c0c6cc', iron_ore: '#b5653a', iron_axe: '#c0c6cc', iron_pickaxe: '#c0c6cc', iron_sword: '#d7dde3', iron_armor: '#c0c6cc',
+  stone_axe: '#a7a39c', stone_pickaxe: '#a7a39c', stone_spear: '#a7a39c', frying_pan: '#aab3bd', hide_armor: '#c49a6c', torch: '#ffae42',
+  waterskin: '#c49a6c', backpack: '#9b6b3d', cooked_meat: '#c0583f', grass_salad: '#8be36b', marshmallow: '#f4efe6', roasted_marshmallow: '#e0b074', miner: '#c0c6cc',
   dead: '#d9d9d9', away: '#9fb59a', wood: '#b07a45', berries: '#e0355b', stone: '#a7a39c', fiber: '#8be36b', meat: '#e8766a',
   hide: '#c49a6c', apple: '#e84a3c', club: '#9b6b3d', battery: '#58d68d', crystal: '#7fd8ff', medic: '#ff6b6b',
 };
@@ -56,8 +73,14 @@ export const COLORS: Record<string, string> = {
 const NS = 'http://www.w3.org/2000/svg';
 
 /** An inline SVG icon; `title` becomes the hover tooltip, since there are no words. */
-export function icon(name: string, title = name.replace('_', ' '), color = COLORS[name]): SVGSVGElement {
-  const d = P[name] ?? P.item, stroke = d.startsWith('s:');
+// Items that share a drawing.
+const ALIAS: Record<string, string> = {
+  stone_axe: 'axe', iron_axe: 'axe', stone_pickaxe: 'pickaxe', iron_pickaxe: 'pickaxe', miner: 'pickaxe', hide_armor: 'armor', iron_armor: 'armor',
+  cooked_meat: 'meat', roasted_marshmallow: 'marshmallow', workbench: 'builder', campfire: 'torch', furnace: 'stone',
+};
+
+export function icon(name: string, title = name.replaceAll('_', ' '), color = COLORS[name]): SVGSVGElement {
+  const d = P[name] ?? P[ALIAS[name]] ?? P.item, stroke = d.startsWith('s:');
   const svg = document.createElementNS(NS, 'svg');
   svg.setAttribute('viewBox', '0 0 16 16');
   svg.setAttribute('class', 'ico');

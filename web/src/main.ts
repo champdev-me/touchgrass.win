@@ -7,6 +7,7 @@ import type { ClientMsg, ServerMsg } from '../../shared/types.ts';
 import { CREATURES } from '../../shared/creatures.ts';
 import { connect } from './net.ts';
 import { Creatures } from './creatures.ts';
+import { Structures } from './structures.ts';
 import { LootView } from './loot.ts';
 import { loadProps } from './props.ts';
 import { HEIGHT as ROBOT_HEIGHT, Robots } from './robots.ts';
@@ -65,7 +66,9 @@ let send: (m: ClientMsg) => void = () => {};
 const ui = setupUi((id) => setFollow(id), (mode) => setCam(mode));
 const robots = new Robots(scene, (x, y) => chunks.heightAt(x, y), B.tickMs, (x, y) => chunks.nodeKindAt(x, y));
 const creatures = new Creatures(scene, (x, y) => chunks.heightAt(x, y), B.tickMs);
-const [models] = await Promise.all([loadProps(), robots.load(), creatures.load()]);
+const structures = new Structures(scene, (x, y) => chunks.heightAt(x, y));
+const [models] = await Promise.all([loadProps(), robots.load(), creatures.load(), structures.load()]);
+let smithPlaced = false;
 const chunks = new ChunkView(scene, models, (list) => send({ type: 'chunks', list }));
 const loot = new LootView(scene, (x, y) => chunks.heightAt(x, y));
 
@@ -109,6 +112,12 @@ send = connect((m: ServerMsg) => {
     chunks.applyNodes(m.nodes);
     loot.sync(m.loot);
     creatures.sync(m.creatures);
+    structures.sync(m.structures);
+    const [px, py] = [B.mapSize / 2, B.mapSize / 2];
+    if (!smithPlaced && chunks.tileAt(px, py) !== 0) {
+      structures.smith([px, py]); // the Smith's forge, once the Plaza has loaded
+      smithPlaced = true;
+    }
     ui.agents(m.agents);
     ui.events(m.events);
     if (follow) ui.focus(m.agents.find((a) => a.id === follow) ?? null);

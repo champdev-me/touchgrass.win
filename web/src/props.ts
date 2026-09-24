@@ -18,8 +18,12 @@ const MODEL: Record<NodeKind, (x: number, y: number) => string> = {
   berry_bush: () => 'plant_bush',
   grass: () => 'grass_large',
   rock: () => 'stone_largeA',
+  iron_vein: () => 'iron_vein',
+  crystal: () => 'crystal',
 };
-const SCALE: Record<NodeKind, number> = { tree: 1.4, berry_bush: 1.6, grass: 1.2, rock: 1 };
+// Ore and crystal nodes reuse the stone model, recoloured.
+const ORES: [string, string, number][] = [['iron_vein', '#b5653a', 0], ['crystal', '#7fd8ff', 0.35]];
+const SCALE: Record<NodeKind, number> = { tree: 1.4, berry_bush: 1.6, grass: 1.2, rock: 1, iron_vein: 1, crystal: 0.7 };
 const berryGeo = new THREE.SphereGeometry(0.06, 6, 4);
 const berryMat = new THREE.MeshLambertMaterial({ color: '#d62246' });
 const BERRY_OFFSETS = [[0.12, 0.3, 0.05], [-0.1, 0.26, 0.1], [0.02, 0.34, -0.12]];
@@ -42,6 +46,15 @@ export async function loadProps(): Promise<Models> {
     });
     out.set(n, meshes);
   }));
+  for (const [name, color, glow] of ORES) {
+    out.set(name, out.get('stone_largeA')!.map((m) => {
+      const c = m.clone(), mat = (m.material as THREE.MeshStandardMaterial).clone();
+      mat.color.set(color);
+      mat.emissive.set(color).multiplyScalar(glow);
+      c.material = mat;
+      return c;
+    }));
+  }
   return out;
 }
 

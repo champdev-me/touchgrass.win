@@ -139,7 +139,7 @@ export function setupUi(onFollow: (id: string) => void, onCam: (mode: CamMode) =
       doing.replaceChildren(icon(act, DOING[act] ?? act), chip('pin', `${v.x},${v.y}`, 'position'), ...(v.online ? [] : [icon('away', 'owner is away')]));
       const items = Object.entries(v.inventory);
       bag.replaceChildren(...(items.length ? items.map(([item, n]) => chip(item, n, item)) : [icon('item', 'empty bag', '#555')]));
-      score.replaceChildren(chip('season', v.score, 'season score'), chip('life', v.life, 'score this life'), chip('trophies', v.trophies, 'achievements'), ...(v.badge ? [el('span', 'chip', v.badge)] : []));
+      score.replaceChildren(chip('gold', v.gold, 'gold'), chip('season', v.score, 'season score'), chip('life', v.life, 'score this life'), chip('trophies', v.trophies, 'achievements'), ...(v.badge ? [el('span', 'chip', v.badge)] : []));
       adminRow.hidden = !adminKey();
       if (adminRow.dataset.agent !== v.id) adminOut.textContent = '';
       adminRow.dataset.agent = v.id;
