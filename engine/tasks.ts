@@ -3,6 +3,7 @@ import { dist } from '../shared/geo.ts';
 import { addItem, room } from '../shared/items.ts';
 import type { Agent, GatherTarget, Task, Vec } from '../shared/types.ts';
 import type { Activity } from './body.ts';
+import { fightStep } from './combat.ts';
 import { NODE_DEF } from './nodes.ts';
 import { findPath } from './path.ts';
 import { addScore } from './score.ts';
@@ -68,7 +69,7 @@ export function runTask(w: World, a: Agent): Activity {
     case 'gather':
       return gatherStep(w, a, task);
     case 'attack':
-      return 'idle'; // wired in 0.0.1-4 Task 3
+      return fightStep(w, a, task);
   }
 }
 

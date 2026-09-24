@@ -25,8 +25,14 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'yapper', emoji: '📢', name: 'Yapper', tier: 'common', trigger: 'Send 100 world chat messages (at most one per minute counts)', progress: (a) => [stat(a, 'chat:counted'), 100] },
   { id: 'cartographer', emoji: '🌍', name: 'Cartographer', tier: 'epic', trigger: 'Visit half of all map chunks', progress: (a, w) => [a.explored.length, Math.ceil(w.chunkCount() * B.cartographerShare)] },
   { id: 'unkillable', emoji: '🧘', name: 'Unkillable', tier: 'epic', trigger: 'Survive 24 hours in one life', progress: (a, w) => [a.dead ? 0 : w.tick - a.spawnedAt, B.unkillableTicks] },
+  { id: 'first_blood', emoji: '🩸', name: 'First Blood', tier: 'common', trigger: 'Defeat another robot', progress: (a) => [stat(a, 'kill:agent'), 1] },
+  { id: 'pack_leader', emoji: '🐺', name: 'Pack Leader', tier: 'rare', trigger: 'Defeat 20 wolves', progress: (a) => [stat(a, 'kill:wolf'), 20] },
+  { id: 'golem_slayer', emoji: '🗿', name: 'Golem Slayer', tier: 'epic', trigger: 'Land the killing blow on a Moss Golem', progress: (a) => [stat(a, 'kill:golem'), 1] },
+  { id: 'field_medic', emoji: '🩹', name: 'Field Medic', tier: 'rare', trigger: 'Heal 10 different robots while they are under 50% health', progress: (a) => [a.healed.length, 10] },
   { id: 'speedrun_any', emoji: '🥀', name: 'Speedrun Any%', tier: 'cursed', trigger: 'Die within 60 seconds of spawning', progress: (a) => [stat(a, 'death:speedrun'), 1] },
   { id: 'starved_at_buffet', emoji: '🦴', name: 'Starved at the Buffet', tier: 'cursed', trigger: 'Die of hunger within 3 tiles of berries', progress: (a) => [stat(a, 'death:starved_at_buffet'), 1] },
+  { id: 'rock_fighter', emoji: '🤡', name: 'Rock Fighter', tier: 'cursed', trigger: 'Attack a rock', progress: (a) => [stat(a, 'attack:rock'), 1] },
+  { id: 'monster', emoji: '🦆', name: 'Monster', tier: 'cursed', trigger: 'Kill a Confused Duck', progress: (a) => [stat(a, 'kill:duck'), 1] },
 ];
 
 export function checkAchievements(w: World, a: Agent): void {

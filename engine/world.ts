@@ -211,9 +211,17 @@ export class World {
     return { auto_eat: a.autoEat };
   }
 
+  inCombat(a: Agent): boolean {
+    if (a.task?.type === 'attack' || this.tick - a.lastHurtAt <= B.combatTicks) return true;
+    for (const c of this.creatures.values()) if (CREATURES[c.kind].hostile && dist([c.x, c.y], [a.x, a.y]) <= B.threatRadius) return true;
+    return false;
+  }
+
   cooldownFor(id: string): number {
     const a = this.agents.get(id);
-    return a && (a.health < B.lowHealth || a.food < B.lowStat || a.water < B.lowStat) ? B.lowStatCooldownMs : B.doCooldownMs;
+    if (!a) return B.doCooldownMs;
+    if (this.inCombat(a)) return B.combatCooldownMs;
+    return a.health < B.lowHealth || a.food < B.lowStat || a.water < B.lowStat ? B.lowStatCooldownMs : B.doCooldownMs;
   }
 
   vision(a: Agent): number {
@@ -412,7 +420,7 @@ export class World {
         score: a.seasonScore,
         life: a.lifeScore,
         trophies: Object.keys(a.achievements).length,
-        fighting: false,
+        fighting: this.inCombat(a),
       }));
   }
 

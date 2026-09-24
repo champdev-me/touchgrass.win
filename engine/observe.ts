@@ -3,7 +3,9 @@ import { compass, dist } from '../shared/geo.ts';
 import { slotsUsed } from '../shared/items.ts';
 import { timeOf } from '../shared/time.ts';
 import { TERRAIN as T, type Agent, type NodeKind, type Task, type Vec } from '../shared/types.ts';
+import { CREATURES } from '../shared/creatures.ts';
 import { ACHIEVEMENTS } from './achievements.ts';
+import { weaponOf } from './combat.ts';
 import type { World } from './world.ts';
 
 const GRID: Record<number, string> = { [T.DEEP]: '~', [T.SHALLOW]: ',', [T.SAND]: ':', [T.MEADOW]: '.', [T.FOREST]: 'f', [T.HILLS]: '^', [T.RUINS]: 'r', [T.PLAZA]: '#' };
@@ -11,13 +13,14 @@ const NODE_CHAR: Record<NodeKind, string> = { tree: 'T', berry_bush: '*', grass:
 const LEGEND: Record<string, string> = {
   '@': 'you', '~': 'deep water (blocked)', ',': 'shallow water (slow)', ':': 'sand', '.': 'meadow', f: 'forest', '^': 'hills',
   r: 'ruins', '#': 'the Plaza', T: 'tree (wood)', '*': 'berry bush (berries)', '"': 'grass (fiber)', o: 'rock (stone)',
-  $: 'loot pile', 'A-Z': 'other agents',
+  $: 'loot pile', 'A-Z': 'other agents', '%': 'animal', '&': 'monster', '=': 'Lost Roomba (harmless, eats loot piles)',
 };
 const TERRAIN_NAME: Record<number, string> = { [T.DEEP]: 'deep water', [T.SHALLOW]: 'shallow water', [T.SAND]: 'sand', [T.MEADOW]: 'meadow', [T.FOREST]: 'forest', [T.HILLS]: 'hills', [T.RUINS]: 'ruins', [T.PLAZA]: 'the Plaza' };
 
 const describeTask = (t: Task | null) => {
   if (!t) return null;
   if (t.type === 'move_to') return { type: t.type, target: t.target, steps_left: t.path.length };
+  if (t.type === 'attack') return { type: t.type, target: t.target };
   if (t.type === 'gather') return { type: t.type, target: t.target, got: t.got, until: t.until === B.gatherUntilFull ? 'bag full' : t.until };
   return { type: t.type };
 };
@@ -36,6 +39,10 @@ export function buildObservation(w: World, a: Agent) {
     marks.set(`${o.x},${o.y}`, ch);
     legend[ch] = legend[ch] ? `${legend[ch]}, ${o.id} ${o.name}` : `${o.id} ${o.name}`;
   });
+  const mobs = [...w.creatures.values()]
+    .filter((c) => dist([c.x, c.y], here) <= r)
+    .sort((p, q) => dist([p.x, p.y], here) - dist([q.x, q.y], here));
+  for (const c of mobs) if (!marks.has(`${c.x},${c.y}`)) marks.set(`${c.x},${c.y}`, CREATURES[c.kind].char);
 
   const grid: string[] = [];
   const nearest = new Map<string, { d: number; line: string }[]>();
@@ -72,13 +79,22 @@ export function buildObservation(w: World, a: Agent) {
       score: { life: a.lifeScore, season: a.seasonScore, best_life: a.bestLife, wallet: a.wallet },
       achievements: `${Object.keys(a.achievements).length}/${ACHIEVEMENTS.length} unlocked`,
       badge: a.badge && a.badge.until >= w.tick ? a.badge.emoji : undefined,
+      weapon: `${weaponOf(a).name} (${weaponOf(a).damage} damage)`,
+      in_combat: w.inCombat(a),
     },
     task: describeTask(a.task),
     time: { day: time.day, phase: time.phase, [time.phase === 'day' ? 'seconds_to_night' : 'seconds_to_day']: time.secondsToSwitch },
     tick: w.tick,
     grid,
     legend,
-    nearby: others.map((o) => `${o.id} ${o.name} (${o.role}${o.model ? `, ${o.model}` : ''})${o.dead ? ' (dead)' : ''} ${dist([o.x, o.y], here)} tiles ${compass(o.x - a.x, o.y - a.y)}`),
+    nearby: [
+      ...others.map((o) => `${o.id} ${o.name} (${o.role}${o.model ? `, ${o.model}` : ''})${o.dead ? ' (dead)' : ''} ${dist([o.x, o.y], here)} tiles ${compass(o.x - a.x, o.y - a.y)}`),
+      ...mobs.map((c) => {
+        const def = CREATURES[c.kind];
+        const hunting = c.mode === 'chase' && c.target === a.id ? ', hunting you' : '';
+        return `${c.id} ${def.emoji} ${def.name} (hp ${Math.max(0, Math.round(c.hp))}/${def.hp}${hunting}) ${dist([c.x, c.y], here)} tiles ${compass(c.x - a.x, c.y - a.y)}`;
+      }),
+    ],
     resources,
     landmarks: [`the Plaza (${px}, ${py}) is ${dist([px, py], here)} tiles ${compass(px - a.x, py - a.y)}`],
     inbox,
