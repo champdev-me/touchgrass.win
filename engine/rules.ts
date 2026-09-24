@@ -40,6 +40,18 @@ export function rules(w: World) {
       'Gold enters only through miners: gold veins and treasure. Miners buy pickaxes, food, maps and stone from others, and the coins go round.',
       'Gatherers pick double wood, berries, fiber and herbs.',
     ],
+    land: [
+      `Every robot gets a ${B.baseSize}x${B.baseSize} base on land near other robots when it joins; its flag is your spawn until you build a bed.`,
+      `buy_land(direction): grow your base by a strip (n, e, s or w) while standing in it; costs strip length x (1 + area/100) gold; land only, a 1-tile gap to neighbours, max ${B.baseMaxSide} a side.`,
+      "Inside someone else's base you may walk, talk, fight and trade, but not gather, build, plant, harvest or open chests.",
+      'Everything but campfires is built inside your own base. Walls and doors are unbreakable; a door opens only for its owner. demolish(x, y) gives half back.',
+      `switch_role(role) at home, once every ${B.switchRoleTicks / 60} min, no starter kit. Robots idle for 7 days lose their base; their buildings become ruins.`,
+    ],
+    farming: [
+      `Seeds turn up while picking grass (wheat_seed) and berries (berry_seed), ${B.seedChance * 100}% per unit.`,
+      `Farmers till a meadow or sand tile in their base with a hoe (build farm_plot), then plant(seed): wheat is ready in ${B.wheatTicks / 60} min (3 wheat + 2 seeds), berries in ${B.berryCropTicks / 60} min (5 berries + 1 seed).`,
+      'Only the owner harvests. Farmers bake bread (3 wheat) at a campfire: +30 food.',
+    ],
     trading: [
       `offer(agent, give, want): propose a swap to a robot within ${B.tradeRange} tiles; "gold" means coins. They accept(offer) or decline(offer) within ${B.offerTicks}s.`,
       'On accept everything moves at once, and only if both sides still have the goods and room: nobody can be cheated.',

@@ -17,12 +17,12 @@ const LLM_MODEL = process.env.LLM_MODEL ?? 'gemma4:12b';
 const LLM_KEY = process.env.LLM_KEY ?? '';
 const LLM_REASONING = process.env.LLM_REASONING; // e.g. none: thinking models answer fast and do call a tool
 const ROLE = process.env.ROLE ?? 'gatherer';
-const ACTIONS = ['move_to', 'gather', 'eat', 'drink', 'rest', 'sleep', 'say_world', 'attack', 'craft', 'flee', 'build', 'offer', 'accept', 'decline', 'give', 'store', 'take', 'chart', 'search', 'drop', 'how'];
+const ACTIONS = ['move_to', 'gather', 'eat', 'drink', 'rest', 'sleep', 'say_world', 'attack', 'craft', 'flee', 'build', 'offer', 'accept', 'decline', 'give', 'store', 'take', 'chart', 'search', 'drop', 'how', 'buy_land', 'switch_role', 'demolish', 'plant', 'harvest'];
 const CHAT_EVERY_MS = Number(process.env.CHAT_EVERY_S ?? 60) * 1000;
 const MEMORY = Number(process.env.LLM_MEMORY ?? 6); // past actions shown to the model each turn
 
 type Obs = {
-  you: { id: string; name: string; role: string; pos: Vec; health: number; food: number; water: number; energy: number; dead: boolean; inventory: Record<string, number>; slots?: string; clues?: string[]; maps?: string[] };
+  you: { id: string; name: string; role: string; base?: { from: Vec; to: Vec; flag: Vec; next_strip_price: Record<string, number> } | null; standing_in?: string | null; farm?: string[]; pos: Vec; health: number; food: number; water: number; energy: number; dead: boolean; inventory: Record<string, number>; slots?: string; clues?: string[]; maps?: string[] };
   task: { type: string } | null;
   time: { phase: string };
   resources: string[];
@@ -47,6 +47,8 @@ const ROLE_GOALS: Record<string, string> = {
   smith: 'only you craft tools, weapons and armor (build a workbench; iron needs a mason\'s furnace). Buy iron ore, stone and hide; sell pickaxes and gear.',
   hunter: 'only you get meat and hide from animals. Cook meat at a campfire and sell it (everyone needs full food to heal); sell hide to smiths.',
   gatherer: 'you pick double plants and are the only one who gets herbs and apples. Craft bandages (2 fiber + 1 herb) and sell them, and sell wood and fiber.',
+  carpenter: 'only you build wood walls, doors, beds and workbenches. Build yourself a bed (your respawn point) in your base, then sell beds and workbench work to others.',
+  farmer: 'only you till farm plots (build farm_plot with your hoe), plant seeds and bake bread. Keep plots growing in your base, harvest, bake bread at a campfire and sell it: everyone needs food.',
   scout: 'only you see buried treasure: chart it into a map (2 fiber) and sell the map to a miner, or dig it yourself. You also read clues exactly: buy clues from others.',
 };
 const SYSTEM = `You control a robot in Touch Grass, a survival game. Each turn you get its state and must call exactly ONE tool.
@@ -86,6 +88,17 @@ async function call(name: string, args: Record<string, unknown> = {}): Promise<R
 }
 
 const { tools } = await mcp.listTools();
+/** Only the tools that make sense right now, so models are not tempted by ones they cannot use. */
+function toolsFor(o: Obs): ToolDef[] {
+  const me = o.you, has = (prefix: string) => Object.keys(me.inventory).some((k) => k.startsWith(prefix));
+  const skip = new Set<string>();
+  if (!has('clue:')) skip.add('search');
+  if (me.role !== 'scout') skip.add('chart');
+  if (me.role !== 'farmer') skip.add('plant');
+  if (!me.farm?.length) skip.add('harvest');
+  if (!(o.offers?.incoming.length)) ['accept', 'decline'].forEach((t) => skip.add(t));
+  return toolDefs.filter((t) => !skip.has(t.function.name));
+}
 const toolDefs: ToolDef[] = tools
   .filter((t) => ACTIONS.includes(t.name))
   .map((t) => ({ type: 'function', function: { name: t.name, description: t.description ?? '', parameters: t.inputSchema } }));
@@ -121,7 +134,7 @@ function fallback(o: Obs, skip = ''): Action {
   if (me.energy < 15) options.push({ name: o.time.phase === 'night' ? 'sleep' : 'rest', args: {}, why: 'out of energy' });
   if (me.food < 70 && (me.inventory.berries ?? 0) < 10 && find('berry_bush')) options.push({ name: 'gather', args: { target: 'berry_bush', until: 6 }, why: 'stocking up on berries' });
   if (o.time.phase === 'night' && me.energy < 80) options.push({ name: 'sleep', args: {}, why: 'night, sleeping' });
-  const own: Record<string, string[]> = { miner: ['gold_vein', 'gem_vein', 'iron_vein', 'crystal'], mason: ['rock', 'mud'], gatherer: ['herb'] };
+  const own: Record<string, string[]> = { miner: ['gold_vein', 'gem_vein', 'iron_vein', 'crystal'], mason: ['rock', 'mud'], gatherer: ['herb'], farmer: ['grass', 'berry_bush'] };
   for (const kind of [...(own[ROLE] ?? []), 'tree', 'grass']) if (find(kind)) options.push({ name: 'gather', args: { target: kind, until: 5 }, why: `${ROLE} work: ${kind}` });
   const [x, y] = me.pos, d = () => Math.round((Math.random() - 0.5) * 40);
   if ((me.inventory.wood ?? 0) >= 5 && !me.inventory.club) options.push({ name: 'craft', args: { item: 'club' }, why: 'making a club' });
@@ -138,9 +151,10 @@ async function decide(o: Obs, memory: string[], chatOk: boolean): Promise<Action
   const me = o.you;
   const state = [
     `You are ${me.name} (${me.id}), a ${me.role}. Lines in world chat starting with "${me.name}:" are your own; never reply to yourself or trade with yourself.`,
+    `Your base: ${me.base ? `from (${me.base.from.join(', ')}) to (${me.base.to.join(', ')}), flag (${me.base.flag.join(', ')}); next strip costs ${JSON.stringify(me.base.next_strip_price)} gold` : 'none'}. Standing in: ${me.standing_in ?? 'open land'}.${me.farm?.length ? ` Farm: ${me.farm.join('; ')}.` : ''}`,
     `Position ${me.pos.join(', ')}. health ${me.health}, food ${me.food}, water ${me.water}, energy ${me.energy}. It is ${o.time.phase}.`,
     `Bag (${me.slots ?? '?'} slots): ${JSON.stringify(me.inventory)}`,
-    `Clues and maps: ${[...(me.clues ?? []), ...(me.maps ?? [])].join('; ') || 'none'}. search only works within 1 tile of a clue's spot: move_to it first, in hops of at most 100 tiles (farther fails with no_path).`,
+    ...(me.clues?.length || me.maps?.length ? [`Clues and maps: ${[...(me.clues ?? []), ...(me.maps ?? [])].join('; ')}. search only works within 1 tile of a clue's spot: move_to it first, in hops of at most 100 tiles.`] : []),
     `Landmarks: ${(o.landmarks ?? []).join('; ')}`,
     `Nearest resources:\n${o.resources.slice(0, 8).join('\n') || 'none in sight'}`,
     `Nearby robots: ${o.nearby.slice(0, 4).join('; ') || 'none'}`,
@@ -152,7 +166,7 @@ async function decide(o: Obs, memory: string[], chatOk: boolean): Promise<Action
     chatOk ? 'You may chat now: say_world like a person in game chat (short, casual, react to what happened), or reply to someone by name.' : 'Chat is on cooldown; do not use say_world.',
     'Your robot is idle. Call exactly one tool now.',
   ].join('\n');
-  const body = { model: LLM_MODEL, messages: [{ role: 'system', content: SYSTEM }, { role: 'user', content: state }], tools: toolDefs, temperature: 0.4, max_tokens: 600, ...(LLM_REASONING ? { reasoning_effort: LLM_REASONING } : {}) };
+  const body = { model: LLM_MODEL, messages: [{ role: 'system', content: SYSTEM }, { role: 'user', content: state }], tools: toolsFor(o), temperature: 0.4, max_tokens: 600, ...(LLM_REASONING ? { reasoning_effort: LLM_REASONING } : {}) };
   try {
     const res = await fetch(`${LLM_URL}/chat/completions`, {
       method: 'POST',

@@ -84,3 +84,9 @@ test('rules explain roles, trading and treasure, and never mention the Smith NPC
   assert.ok(!/the Smith at the Plaza|smith\(/i.test(text));
   assert.ok(r.economy.some((l) => l.includes('Gold enters only through miners')));
 });
+
+test('rules explain land and farming, and the new roles', () => {
+  const r = rules(world());
+  assert.ok(r.land.some((l) => l.includes('buy_land')) && r.farming.some((l) => l.includes('plant')));
+  assert.ok(r.roles.some((l) => l.startsWith('carpenter:')) && r.roles.some((l) => l.startsWith('farmer:')));
+});
