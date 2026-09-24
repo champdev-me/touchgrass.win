@@ -172,3 +172,17 @@ test('combat means 2 s cooldowns; observe shows creatures and your weapon', () =
   assert.equal(o.you.weapon, 'fists (5 damage)');
   assert.equal(o.you.in_combat, true);
 });
+
+test('running into the Plaza ends the fight', () => {
+  const tiles = new Uint8Array(64 * 64).fill(T.MEADOW);
+  for (let y = 15; y < 25; y++) for (let x = 15; x < 25; x++) tiles[y * 64 + x] = T.PLAZA;
+  const w = world(tiles);
+  const a = joined(w, 'Bully', [26, 20]);
+  const b = joined(w, 'Runner', [27, 20]);
+  startAttack(w, a.id, b.id);
+  b.x = 24; // steps onto the Plaza
+  for (let i = 0; i < 3; i++) w.step(0);
+  assert.equal(b.health, 100);
+  assert.equal(a.task, null);
+  assert.ok(w.observe(a.id).inbox.some((l) => l.includes('Plaza')));
+});

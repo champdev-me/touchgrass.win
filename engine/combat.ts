@@ -16,6 +16,7 @@ export function weaponOf(a: Agent): { name: string; damage: number } {
   for (const [name, damage] of Object.entries(WEAPONS)) if ((a.inventory[name] ?? 0) > 0 && damage > best.damage) best = { name, damage };
   return best;
 }
+const plazaFight = (w: World, a: Agent, [x, y]: Vec): boolean => w.at(a.x, a.y) === T.PLAZA || w.at(x, y) === T.PLAZA;
 const damageOf = (a: Agent): number => weaponOf(a).damage * (a.role === 'hunter' ? B.hunterMultiplier : 1);
 
 /** Where the target is now, or null when it is gone, dead or out of sight. */
@@ -59,7 +60,7 @@ export function startAttack(w: World, id: string, raw: string) {
     throw new GameFail('no_target', `No "${raw}" in sight to attack.`, 'Use an id from observe (agent_12, mob_5) or a type: rabbit, deer, boar, duck, goblin, wolf, roomba, golem, rock.');
   }
   const at = locate(w, a, target)!;
-  if (target.startsWith('agent_') && (w.at(a.x, a.y) === T.PLAZA || w.at(at[0], at[1]) === T.PLAZA)) {
+  if (target.startsWith('agent_') && plazaFight(w, a, at)) {
     throw new GameFail('plaza_peace', 'The Plaza is a no-fighting zone.', 'Take it outside.');
   }
   a.task = { type: 'attack', target, progress: 0 };
@@ -71,6 +72,10 @@ export function fightStep(w: World, a: Agent, t: AttackTask): Activity {
   const at = locate(w, a, t.target);
   if (!at) {
     w.finish(a, 'Task done: your target is gone.');
+    return 'idle';
+  }
+  if (t.target.startsWith('agent_') && plazaFight(w, a, at)) {
+    w.finish(a, 'Your target is in the Plaza. No fighting there.');
     return 'idle';
   }
   if (a.energy <= 0) {
