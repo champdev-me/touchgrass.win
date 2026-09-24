@@ -6,11 +6,19 @@ export type Role = (typeof ROLES)[number];
 
 export type Vec = [number, number];
 
-export interface Task {
-  type: 'move_to';
-  target: Vec;
-  path: Vec[];
-}
+export const NODE_KINDS = ['tree', 'berry_bush', 'grass', 'rock'] as const;
+export type NodeKind = (typeof NODE_KINDS)[number];
+export const GATHER_TARGETS = [...NODE_KINDS, 'loot'] as const;
+export type GatherTarget = (typeof GATHER_TARGETS)[number];
+
+/** A resource node inside a chunk: [local tile index, NODE_KINDS index, units left, regrow tick]. */
+export type PackedNode = [number, number, number, number];
+
+export type Task =
+  | { type: 'move_to'; target: Vec; path: Vec[] }
+  | { type: 'gather'; target: GatherTarget; until: number; got: number; node: number; path: Vec[]; progress: number }
+  | { type: 'rest' }
+  | { type: 'sleep' };
 
 export interface Agent {
   id: string;
@@ -26,6 +34,16 @@ export interface Agent {
   lastActionAt: number;
   task: Task | null;
   inbox: string[];
+  health: number;
+  food: number;
+  water: number;
+  energy: number;
+  inventory: Record<string, number>;
+  dead: boolean;
+  respawnAt: number;
+  spawnedAt: number;
+  autoEat: boolean;
+  stats: Record<string, number>;
 }
 
 export interface GameError {
@@ -54,6 +72,12 @@ export interface AgentView {
   x: number;
   y: number;
   moving: boolean;
+  health: number;
+  food: number;
+  water: number;
+  energy: number;
+  dead: boolean;
+  action: string;
 }
 
 export interface GameEvent {
@@ -69,11 +93,13 @@ export interface TickDelta {
   tick: number;
   agents: AgentView[];
   events: GameEvent[];
+  nodes: [number, number][]; // [global tile index, units left] changed this tick
+  loot: Vec[]; // every loot pile currently on the map
 }
 
 export type ServerMsg =
   | { type: 'hello'; mapSize: number; chunkSize: number; plaza: Vec; tick: number }
-  | { type: 'chunk'; cx: number; cy: number; data: string }
+  | { type: 'chunk'; cx: number; cy: number; data: string; nodes: PackedNode[] }
   | ({ type: 'tick' } & TickDelta);
 
 export type ClientMsg = { type: 'chunks'; list: Vec[] };

@@ -8,13 +8,41 @@ export const B = {
   pathRadius: 128,
   vision: 8,
   scoutVision: 15,
+  nightVisionFactor: 0.5,
   plazaHalf: 20,
   spawnMinPlazaDist: 50,
   inboxMax: 20,
   doCooldownMs: 5000,
+  lowStatCooldownMs: 3000,
   lookCooldownMs: 1000,
   maxActiveAgents: 200,
   activeWindowMs: 24 * 60 * 60 * 1000,
   chunkRequestsPerWindow: 400, // per spectator socket, enough to load a view and pan fast
   chunkWindowMs: 10_000,
+  // body: every stat runs 0-100, higher is better
+  foodPerTick: -1 / 30,
+  waterPerTick: -1 / 20,
+  regenPerTick: 1 / 10, // health, while food and water are both above regenAbove
+  regenAbove: 50,
+  starvePerTick: -1 / 5, // health, per empty stat
+  busyEnergyPerTick: -1 / 10,
+  restEnergyPerTick: 1,
+  sleepEnergyPerTick: 2,
+  lowStat: 15, // food/water: interrupts, auto-eat, faster cooldown
+  lowHealth: 30,
+  drinkAmount: 30,
+  respawnStats: 70, // food and water after a respawn
+  // gathering and inventory
+  gatherTicksPerUnit: 2,
+  gathererMultiplier: 2,
+  inventorySlots: 20,
+  stackSize: 50,
+  gatherUntilFull: 9999,
+  // death
+  respawnTicks: 30,
+  lootTicks: 900,
+  speedrunTicks: 60,
+  // time: a day is 20 minutes, the last 6 are night
+  dayTicks: 1200,
+  nightTicks: 360,
 } as const;
