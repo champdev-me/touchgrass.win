@@ -11,8 +11,9 @@ const sleep = (ms: number) => new Promise((ok) => setTimeout(ok, ms));
 const LINES = ['Has anyone seen my berries?', 'This grass is excellent.', 'I am definitely not lost.', 'Night is scary. Just saying.', 'Who keeps eating all the berries?'];
 
 type Reply = {
-  you: { pos: Vec; food: number; water: number; energy: number; dead: boolean; inventory: Record<string, number> };
-  task: unknown;
+  you: { pos: Vec; health: number; food: number; water: number; energy: number; dead: boolean; inventory: Record<string, number> };
+  task: { type: string } | null;
+  nearby: string[];
   time: { phase: string };
   resources: string[];
 } & GameError;
@@ -50,6 +51,13 @@ async function runBot(token: string, i: number): Promise<never> {
           await call(c, 'say_world', { text: LINES[Math.floor(Math.random() * LINES.length)] });
           continue;
         }
+        const threat = o.error || o.data.you.dead ? undefined : o.data.nearby.find((l) => l.includes('hunting you'))?.split(' ')[0];
+        if (threat && o.data.task?.type !== 'attack') {
+          const [x, y] = o.data.you.pos;
+          if (o.data.you.health >= 40) await call(c, 'attack', { target: threat, thought: 'not today, monster' });
+          else await call(c, 'move_to', { x: Math.max(0, x - 15), y: Math.max(0, y - 15), thought: 'nope nope nope' });
+          continue;
+        }
         if (o.error || o.data.you.dead || o.data.task) continue;
         const me = o.data.you;
         const spot = (kind: string) => {
@@ -68,6 +76,8 @@ async function runBot(token: string, i: number): Promise<never> {
           did = (await call(c, 'gather', { target: 'berry_bush', until: 6, thought: 'stocking up on berries' })).error ? '' : 'gather berries';
         } else if (o.data.time.phase === 'night' && me.energy < 90) {
           did = (await call(c, 'sleep', { thought: 'too dark, going to bed' })).error ? '' : 'sleep';
+        } else if ((me.inventory.wood ?? 0) >= 5 && !me.inventory.club) {
+          did = (await call(c, 'craft', { item: 'club', thought: 'a stick, but angrier' })).error ? '' : 'craft club';
         } else if (Math.random() < 0.4) {
           const target = ['tree', 'grass', 'rock'][Math.floor(Math.random() * 3)];
           did = (await call(c, 'gather', { target, until: 5, thought: `I need ${target} for reasons` })).error ? '' : `gather ${target}`;

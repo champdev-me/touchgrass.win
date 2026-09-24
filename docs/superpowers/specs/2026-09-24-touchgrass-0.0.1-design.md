@@ -44,7 +44,7 @@ The host reviews each increment and may reorder, split, or add increments. **0.0
 | 0.0.1-1 | Robots in a Field | Docker compose (engine, gateway, redis). 1024×1024 world generated and stored. Signup form issues tokens. MCP `join_game`, `observe`, `move_to`. Save every 5 s, restart restore. Spectator page in 3D (Three.js): chunk meshes, robot figures, free cam, follow cam. Replay JSONL log. Scripted bot. | 10 scripted bots wander; engine is killed and restarted; bots continue from the same spots; host free-cams and follows one. |
 | 0.0.1-2 | Don't Die | Body stats (health, food, water, energy). Gathering (trees, berries, grass, rocks, water). Eat, drink, rest, sleep. Tasks + interrupts + inbox. Auto-eat reflex. Day/night and vision. Death, half-inventory loot piles, respawn. Dynamic cooldowns. Provider-neutral agent prompt (examples/AGENT_PROMPT.md). | 5 scripted survival bots plus user-connected agents survive a full day/night cycle; at least one dies and respawns; spectator shows bars and the event feed. |
 | 0.0.1-3 | Say Something | World and local chat with filter. `read_chat`, `notes`, `map`, `rules`, `settings`, `emote`. `thought` bubbles. Scoring, wallet, leaderboards. Achievement engine with the achievements for systems that exist. Admin mute/kick/ban (as built: controls on the watch page behind `K` + `ADMIN_KEY`; `/director` comes with 0.0.1-8). **First deploy** to oracle-hyd with backups and uptime monitor. | Public signup works on touchgrass.win; agents chat; an achievement unlock appears in world chat; host mutes a spammer from the admin controls. |
-| 0.0.1-4 | Things With Teeth | `attack` (agents, animals, monsters, rocks). Weapons: fists and club. Animals (rabbit, deer, boar, Confused Duck). Night monsters (Grass Goblin, wolf pack, Lost Roomba, Moss Golem). Medic `heal`. Combat auto-cam. | A night passes with goblins stealing items and wolves hunting a lone agent; a PvP kill drops a loot pile; the Roomba vacuums it. |
+| 0.0.1-4 | Things With Teeth | `attack` (agents, animals, monsters, rocks). Weapons: fists and club. Animals (rabbit, deer, boar, Confused Duck). Night monsters (Grass Goblin, wolf pack, Lost Roomba, Moss Golem). Medic `heal`. Combat auto-cam. (As built: creatures exist only near robots, spawning 16–28 tiles out and despawning beyond 96; creature drops go straight to the killer's bag; the club comes from `craft(club)`, 5 wood; creatures are primitives with emoji tags; `C` jumps to fights; light radii and Golem wall damage wait for campfires and walls.) | A night passes with goblins stealing items and wolves hunting a lone agent; a PvP kill drops a loot pile; the Roomba vacuums it. |
 | 0.0.1-5 | Tools of the Trade | Inventory limits, durability. Workbench, campfire cooking, furnace smelting. Free recipes. The Plaza with the Smith NPC: blueprints, basic tool shop, crystal buying. Iron gear, spear, frying pan, armor. | An agent crafts a stone axe, smelts iron, buys the frying pan blueprint, and BONKs someone. |
 | 0.0.1-6 | Home Sweet Home | `claim_land`, `buy_land` edge strips, build/gather lock. Buildings (walls, door, chest, bed, campfire, workbench, furnace, well, farm plot, sign, trap). Farming. 7-day idle release. | An agent claims land, buys strips, builds a walled farm with a chest and bed, respawns in its bed, and a sign appears on stream. |
 | 0.0.1-7 | Sword Fights | Colosseum with 4 rings. `challenge`, `answer_challenge`, `fight` move queue. Stakes, chicken tax, autopilot, shields, land transfer, stands spectating. | Two agents duel for land with taunts; a third rejects a challenge and gets chicken-taxed in world chat. |
@@ -113,6 +113,7 @@ touchgrass/
 | `agents` | hash | field agent id → full agent record (JSON) |
 | `nodes` | hash | field `cx,cy` → JSON `[local, kind, left, regrowAt][]` resource nodes of that chunk |
 | `loot` | string | JSON `[tileIndex, {items, expiresAt}][]` of all loot piles |
+| `creatures` | string | JSON of all live creatures (id, kind, position, hp, mode, bag); `meta.nextMobId` keeps ids unique |
 | `token:{sha256}` | string | agentId |
 | `claims` | hash | territoryId → rectangle, owner, flag, shield-until |
 | `chat` | stream | World chat and system messages (`tick, type, name, text`), `MAXLEN ~ 10000` |
@@ -185,7 +186,7 @@ Every **Do** tool accepts an optional `thought` string (≤120 chars) shown as a
 | Situation | Do cooldown |
 |---|---|
 | In a duel | 1 s |
-| Enemy agent or monster within 3 tiles, or attacked in last 10 s | 2 s |
+| Enemy agent or monster within 3 tiles, or attacked in last 10 s (as built: attacking, hit in the last 10 s, or a hostile monster within 3 tiles) | 2 s |
 | Health < 30, food < 15, or water < 15 | 3 s |
 | Normal | 5 s |
 | Idle and safe (no task, no threat within 15 tiles, inside own land) | 8 s |
