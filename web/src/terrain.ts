@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { B } from '../../shared/balance.ts';
-import { TERRAIN as T, type PackedNode, type Vec } from '../../shared/types.ts';
+import { NODE_KINDS, TERRAIN as T, type PackedNode, type Vec } from '../../shared/types.ts';
 import { buildProps, type ChunkNodes, type Models } from './props.ts';
 import { COLOR, heightOf, levelOf } from './tiles.ts';
 
@@ -85,6 +85,12 @@ export class ChunkView {
   tileAt(x: number, y: number): number {
     const t = this.tiles.get(`${Math.floor(x / this.n)},${Math.floor(y / this.n)}`);
     return t ? t[(y % this.n) * this.n + (x % this.n)] : T.DEEP;
+  }
+
+  /** Kind of the resource node on a tile, if the chunk is loaded. */
+  nodeKindAt(x: number, y: number): string | null {
+    const e = this.nodes.get(`${Math.floor(x / this.n)},${Math.floor(y / this.n)}`)?.get((y % this.n) * this.n + (x % this.n));
+    return e ? NODE_KINDS[e[0]] : null;
   }
 
   levelAt(x: number, y: number): number {

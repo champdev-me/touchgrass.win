@@ -5,7 +5,10 @@ const STATS: [StatKey, string, string][] = [['health', '❤ health', 'hp'], ['fo
 const DOING: Record<string, string> = { idle: '🧍 standing still', move_to: '🚶 walking', gather: '🪓 gathering', rest: '🪑 resting', sleep: '😴 sleeping' };
 const el = (tag: string, cls = '', text = '') => Object.assign(document.createElement(tag), { className: cls, textContent: text });
 
-export function setupUi(onFollow: (id: string) => void) {
+type CamMode = 'top' | 'behind' | 'face';
+const CAMS: [CamMode, string][] = [['top', '🎥 Top'], ['behind', '🎮 Behind (T)'], ['face', '👀 Face (V)']];
+
+export function setupUi(onFollow: (id: string) => void, onCam: (mode: CamMode) => void) {
   const $ = (id: string) => document.getElementById(id)!;
   const list = $('agent-list');
   const feed = $('event-list');
@@ -60,6 +63,14 @@ export function setupUi(onFollow: (id: string) => void) {
     }));
   };
 
+  const camBox = $('cam');
+  const camButtons = CAMS.map(([mode, label]) => {
+    const b = el('button', '', label);
+    b.onclick = () => onCam(mode);
+    camBox.append(b);
+    return [mode, b] as const;
+  });
+
   $('signup-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const name = String(new FormData(e.target as HTMLFormElement).get('name') ?? '').trim();
@@ -105,6 +116,10 @@ export function setupUi(onFollow: (id: string) => void) {
       adminRow.hidden = !adminKey();
       if (adminRow.dataset.agent !== v.id) adminOut.textContent = '';
       adminRow.dataset.agent = v.id;
+    },
+    camera: (mode: CamMode | null) => {
+      camBox.hidden = !mode;
+      for (const [m, b] of camButtons) b.classList.toggle('on', m === mode);
     },
     promptAdminKey: () => {
       const k = prompt('Admin key (kept in this browser; empty to forget):');

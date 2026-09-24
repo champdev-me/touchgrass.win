@@ -9,7 +9,7 @@ import { connect } from './net.ts';
 import { Creatures } from './creatures.ts';
 import { LootView } from './loot.ts';
 import { loadProps } from './props.ts';
-import { Robots } from './robots.ts';
+import { HEIGHT as ROBOT_HEIGHT, Robots } from './robots.ts';
 import { ChunkView } from './terrain.ts';
 import { WATER_LEVEL } from './tiles.ts';
 import { setupUi } from './ui.ts';
@@ -57,22 +57,30 @@ addEventListener('resize', resize);
 resize();
 
 let follow: string | null = null;
-let tpp = false; // third-person camera behind the followed robot
+type CamMode = 'top' | 'behind' | 'face';
+let cam: CamMode = 'top'; // follow views: 45° from above, third person, or looking at its face
 const eye = new THREE.Vector3(), look = new THREE.Vector3();
 const FOLLOW_OFFSET = new THREE.Vector3(-6, 7, 6);
 let send: (m: ClientMsg) => void = () => {};
-const ui = setupUi((id) => setFollow(id));
-const robots = new Robots(scene, (x, y) => chunks.heightAt(x, y), B.tickMs);
+const ui = setupUi((id) => setFollow(id), (mode) => setCam(mode));
+const robots = new Robots(scene, (x, y) => chunks.heightAt(x, y), B.tickMs, (x, y) => chunks.nodeKindAt(x, y));
 const creatures = new Creatures(scene, (x, y) => chunks.heightAt(x, y), B.tickMs);
 const [models] = await Promise.all([loadProps(), robots.load(), creatures.load()]);
 const chunks = new ChunkView(scene, models, (list) => send({ type: 'chunks', list }));
 const loot = new LootView(scene, (x, y) => chunks.heightAt(x, y));
 
+function setCam(mode: CamMode): void {
+  if (mode !== 'top' && !follow && robots.bots.size) setFollow([...robots.bots.keys()][0]);
+  cam = follow ? mode : 'top';
+  controls.enabled = cam === 'top';
+  ui.camera(follow ? cam : null);
+}
+
 function setFollow(id: string | null) {
   follow = id;
-  if (!id) tpp = false;
-  controls.enabled = !tpp;
+  if (!id) setCam('top');
   ui.following(id);
+  ui.camera(id ? cam : null);
   if (!id) ui.focus(null);
   const bot = id ? (robots.bots.get(id) ?? creatures.mobs.get(id)) : undefined;
   if (!bot) return;
@@ -106,6 +114,23 @@ send = connect((m: ServerMsg) => {
   }
 }, (s) => ui.status(s));
 
+// Double-click a robot or animal: follow it from behind. Picks whatever is drawn nearest the click.
+const probe = new THREE.Vector3();
+renderer.domElement.addEventListener('dblclick', (e) => {
+  const rect = renderer.domElement.getBoundingClientRect(), hit = { id: '', d: 48 };
+  const check = (id: string, root: THREE.Object3D, h: number) => {
+    probe.copy(root.position).setY(root.position.y + h * 0.5).project(camera);
+    if (probe.z > 1) return; // behind the camera
+    const d = Math.hypot(((probe.x + 1) / 2) * rect.width + rect.left - e.clientX, ((1 - probe.y) / 2) * rect.height + rect.top - e.clientY);
+    if (d < hit.d) [hit.id, hit.d] = [id, d];
+  };
+  for (const [id, b] of robots.bots) check(id, b.root, ROBOT_HEIGHT);
+  for (const [id, m] of creatures.mobs) check(id, m.root, m.height);
+  if (!hit.id) return;
+  setFollow(hit.id);
+  setCam('behind');
+});
+
 const keys = new Set<string>();
 addEventListener('keydown', (e) => {
   if (e.target instanceof HTMLInputElement) return;
@@ -114,11 +139,8 @@ addEventListener('keydown', (e) => {
   if (k === 'f') setFollow(null);
   if (k === 'h') document.body.classList.toggle('clean');
   if (k === 'k') ui.promptAdminKey();
-  if (k === 't') {
-    if (!follow && robots.bots.size) setFollow([...robots.bots.keys()][0]);
-    tpp = !tpp && follow !== null;
-    controls.enabled = !tpp;
-  }
+  if (k === 't') setCam(cam === 'behind' ? 'top' : 'behind');
+  if (k === 'v') setCam(cam === 'face' ? 'top' : 'face');
   if (k === 'm') {
     const near = [...creatures.mobs.entries()].sort((p, q) => p[1].root.position.distanceTo(controls.target) - q[1].root.position.distanceTo(controls.target)).slice(0, 12).map(([id]) => id);
     if (near.length) setFollow(near[(near.indexOf(follow ?? '') + 1) % near.length]);
@@ -144,11 +166,18 @@ renderer.setAnimationLoop(() => {
   creatures.update(dt);
   before.copy(controls.target);
   const bot = follow ? (robots.bots.get(follow) ?? creatures.mobs.get(follow)) : undefined;
-  if (bot && tpp) {
+  if (bot && cam !== 'top') {
     const yaw = bot.root.rotation.y, p = bot.root.position, k = 1 - Math.pow(0.02, dt);
+    const h = 'height' in bot ? bot.height : ROBOT_HEIGHT;
     fwd.set(Math.sin(yaw), 0, Math.cos(yaw));
-    eye.copy(p).addScaledVector(fwd, -3.2).setY(p.y + 1.9);
-    look.copy(p).addScaledVector(fwd, 2.5).setY(p.y + 0.9);
+    if (cam === 'behind') {
+      eye.copy(p).addScaledVector(fwd, -4.5).setY(p.y + 2.4);
+      look.copy(p).addScaledVector(fwd, 2.5).setY(p.y + 0.9);
+    } else {
+      eye.copy(p).addScaledVector(fwd, 1.2 + h * 1.6).setY(p.y + h * 0.75); // in front, eye level
+      look.copy(p).setY(p.y + h * 0.6);
+    }
+    eye.y = Math.max(eye.y, chunks.heightAt(Math.floor(eye.x), Math.floor(eye.z)) + 0.6); // never inside a hill
     camera.position.lerp(eye, k);
     controls.target.lerp(look, k);
     camera.lookAt(controls.target);
@@ -164,7 +193,7 @@ renderer.setAnimationLoop(() => {
     if (keys.has('a')) move.sub(right);
     controls.target.addScaledVector(move, dt * 35);
   }
-  if (!tpp) {
+  if (cam === 'top') {
     camera.position.add(move.subVectors(controls.target, before)); // camera keeps its offset from the target
     controls.update();
   }

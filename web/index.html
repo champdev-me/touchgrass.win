@@ -19,7 +19,7 @@
   #signup input { background: #08110a; color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 6px; font: inherit; }
   #signup button { background: var(--accent); color: #08110a; border: 0; border-radius: 6px; padding: 6px 10px; font: inherit; cursor: pointer; }
   #signup pre { white-space: pre-wrap; word-break: break-all; background: #08110a; padding: 8px; border-radius: 6px; font-size: 12px; max-height: 30vh; overflow: auto; }
-  #keys { bottom: 12px; right: 12px; color: var(--muted); font-size: 12px; }
+  #keys { bottom: 12px; right: 12px; max-width: min(560px, calc(100vw - 480px)); color: var(--muted); font-size: 12px; line-height: 1.5; }
   .tag { font: 12px ui-monospace, Menlo, monospace; color: #fff; background: rgba(0, 0, 0, 0.55); padding: 1px 6px; border-radius: 8px; white-space: nowrap; }
   body.clean .panel { display: none; }
   .tag .name { text-align: center; }
@@ -29,7 +29,7 @@
   .tag .bar.hp i { background: #ff5a5a; } .tag .bar.food i { background: #ffae42; }
   .tag .bar.water i { background: #4fb3ff; } .tag .bar.energy i { background: #ffe14d; }
   .tag.dead { opacity: 0.55; text-decoration: line-through; }
-  #events { bottom: 58px; right: 12px; width: min(380px, calc(100vw - 50px)); font-size: 12px; }
+  #events { bottom: 86px; right: 12px; width: min(380px, calc(100vw - 50px)); font-size: 12px; }
   #event-list { max-height: 34vh; overflow-y: auto; margin-top: 4px; }
   #event-list div { padding: 2px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.06); }
   #event-list .sys { color: var(--muted); font-style: italic; }
@@ -41,6 +41,10 @@
   .tag .bubble.world { background: #fff1a8; }
   #focus .admin { margin-top: 8px; display: flex; gap: 6px; }
   #focus .admin[hidden] { display: none; }
+  #cam { bottom: 58px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; padding: 6px 8px; }
+  #cam[hidden] { display: none; }
+  #cam button { background: none; border: 1px solid var(--line); color: var(--ink); border-radius: 6px; padding: 4px 10px; font: inherit; font-size: 12px; cursor: pointer; }
+  #cam button.on { background: var(--line); color: var(--accent); }
   #focus .admin button { background: #3a1f1f; color: #ffd6d6; border: 1px solid #6b2b2b; border-radius: 6px; padding: 3px 8px; font: inherit; font-size: 12px; cursor: pointer; }
   #focus { top: 12px; left: 50%; transform: translateX(-50%); min-width: 340px; }
   #focus .who { font-weight: bold; color: var(--accent); font-size: 15px; }
@@ -69,13 +73,14 @@
 <div id="title" class="panel"><h1>Touch Grass: Panic Edition <small class="ver">v%VERSION%</small></h1><div id="status">connecting…</div></div>
 <div id="agents" class="panel"><b>Robots · 🏆 score</b><div id="agent-list"></div></div>
 <div id="focus" class="panel" hidden></div>
+<div id="cam" class="panel" hidden></div>
 <div id="events" class="panel"><b>World chat</b><div id="event-list"></div></div>
 <div id="signup" class="panel">
   <b>Send your AI outside</b>
   <form id="signup-form"><input name="name" placeholder="agent name" minlength="3" maxlength="24" required> <button>Get token</button></form>
   <pre id="signup-out" hidden></pre>
 </div>
-<div id="keys" class="panel">WASD/drag pan · right-drag rotate · wheel zoom · Tab follow · M animals · T 3rd person · C fight cam · F free cam · H hide UI · K admin</div>
+<div id="keys" class="panel">drag pan · wheel zoom · double-click ride along · Tab robots · M animals · T behind · V face · C fights · F free · H hide · K admin</div>
 <script type="module" src="/dist/main.js?v=%BUILD%"></script>
 </body>
 </html>

@@ -28,6 +28,7 @@ interface Model {
 
 interface Mob {
   view: CreatureView;
+  height: number; // model height in tiles, for cameras
   kind: CreatureKind;
   face: [number, number] | null;
   root: THREE.Group;
@@ -135,7 +136,7 @@ export class Creatures {
     this.scene.add(root);
     const mixer = model.clips.length ? new THREE.AnimationMixer(body) : null;
     const actions = new Map(mixer ? model.clips.map((c) => [c.name, mixer.clipAction(c)] as const) : []);
-    const m: Mob = { view: v, kind: v.kind, face: v.face, root, tag, hp, from: root.position.clone(), to: root.position.clone(), t: 1, mixer, actions, clip: '' };
+    const m: Mob = { view: v, height: model.height, kind: v.kind, face: v.face, root, tag, hp, from: root.position.clone(), to: root.position.clone(), t: 1, mixer, actions, clip: '' };
     this.play(m, 'idle');
     this.mobs.set(v.id, m);
     return m;
