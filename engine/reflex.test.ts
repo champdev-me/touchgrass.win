@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 import { dist } from '../shared/geo.ts';
 import { TERRAIN as T, type Vec } from '../shared/types.ts';
 import { startAttack } from './combat.ts';
+import { handleAction } from './actions.ts';
 import { spawnCreature } from './creatures.ts';
+import { LINES } from './lines.ts';
 import { GameFail, World } from './world.ts';
 
 function world(): World {
@@ -101,4 +103,22 @@ test('flee(x, y) runs to a chosen spot, and the reflex does not override the cho
   assert.deepEqual([a.x, a.y], [10, 2]);
   assert.ok(w.observe(a.id).inbox.some((l) => l.includes('safety')));
   assert.equal(failCode(() => w.flee(a.id, 45, 45)), 'bad_target');
+});
+
+test('running from a monster shows a funny line in a speech bubble', () => {
+  const w = world();
+  const a = robot(w, 'Runner', [10, 10]);
+  const wolf = spawnCreature(w, 'wolf', [16, 10]);
+  Object.assign(wolf, { mode: 'chase', target: a.id, until: 1000 });
+  w.step(0);
+  const bubble = w.views().find((v) => v.id === a.id)?.bubble;
+  assert.equal(bubble?.kind, 'say');
+  assert.ok(LINES.flee.some((l) => l.replaceAll('{by}', 'wolf') === bubble?.text), bubble?.text);
+  const b = robot(w, 'Nervous', [30, 30]);
+  spawnCreature(w, 'goblin', [33, 30]);
+  handleAction(w, { agentId: b.id, tool: 'flee', args: {} });
+  assert.ok(LINES.flee.some((l) => l.replaceAll('{by}', 'Grass Goblin') === w.views().find((v) => v.id === b.id)?.bubble?.text));
+  w.tick += 10;
+  handleAction(w, { agentId: b.id, tool: 'flee', args: { thought: 'regrouping, obviously' } });
+  assert.equal(w.views().find((v) => v.id === b.id)?.bubble?.text, 'regrouping, obviously'); // the model's own thought wins
 });

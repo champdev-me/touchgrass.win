@@ -23,7 +23,9 @@ export function handleAction(world: World, req: ActionRequest): ActionResult {
     const a = world.agents.get(req.agentId);
     if (isDo && a) {
       world.bump(a, 'actions');
-      if (!SPEECH.has(req.tool)) think(world, req.agentId, typeof req.args.thought === 'string' && req.args.thought.trim() ? req.args.thought : label(req));
+      const thought = typeof req.args.thought === 'string' && req.args.thought.trim() ? req.args.thought : null;
+      // a flee without a thought keeps its funny line instead of a caption
+      if (!SPEECH.has(req.tool) && !(req.tool === 'flee' && !thought && req.args.x === undefined)) think(world, req.agentId, thought ?? label(req));
       checkAchievements(world, a);
     }
     return { ok: true, data, cooldownMs: isDo ? world.cooldownFor(req.agentId) : 0 };

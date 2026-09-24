@@ -295,6 +295,7 @@ export class World {
     }
     if (!threat) throw new GameFail('no_threat', 'Nothing scary in sight. You run anyway, in your heart.', 'flee works when a dangerous creature is in sight.');
     a.task = { type: 'flee', from: threat.id };
+    this.bubble(a, 'say', say('flee', a.name, this.rng, CREATURES[threat.kind].name));
     this.touch(a);
     return { fleeing_from: `${threat.id} ${CREATURES[threat.kind].name}` };
   }
@@ -402,6 +403,7 @@ export class World {
     const charging = a.autoFlee && a.task?.type !== 'attack' && a.task?.type !== 'flee' ? this.chargingAt(a) : null;
     if (charging) {
       a.task = { type: 'flee', from: charging.id }; // reflex; attack() or settings(auto_flee=false) to stand and fight
+      this.bubble(a, 'say', say('flee', a.name, this.rng, CREATURES[charging.kind].name));
       this.note(a, `Reflex: a ${CREATURES[charging.kind].name} is charging at you. You run!`);
     }
     const news = tickBody(a, runTask(this, a));

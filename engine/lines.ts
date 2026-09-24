@@ -132,6 +132,16 @@ export const LINES: Record<string, string[]> = {
     '🦆 {name} got pecked by a duck. Quack.',
     '🦆 A duck bit {name}\'s ankle. Robots do not have ankles.',
   ],
+  flee: [
+    'NOPE. Nope nope nope. That {by} has a look in its eyes.',
+    'Tactical retreat! Totally not panicking about this {by}.',
+    'I am not running from the {by}. I am jogging aggressively.',
+    'Legs, do your thing! {by} incoming!',
+    'This {by} did not read the peace treaty!',
+    'Brave robot mode: offline. Running mode: ONLINE.',
+    'I have a family! Well, a charger. Bye, {by}!',
+    'Every robot for itself! The {by} wants hugs I did not consent to.',
+  ],
   monsters: [
     'The monsters run home at dawn. Nobody knows where home is.',
     'Sunrise. The goblins pack up and leave, pockets full.',
