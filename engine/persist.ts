@@ -9,6 +9,7 @@ import { TERRAIN_RULES, chunkBytes, generateLand, levelsOf, walkable, writeChunk
 import { World, type LootPile } from './world.ts';
 
 export const BAG_RULES = 2; // 2: small bags
+export const ECON_RULES = 1; // 1: the Smith retired, robots trade with robots
 
 export const K = { meta: 'meta', terrain: 'terrain', agents: 'agents', nodes: 'nodes', loot: 'loot', firsts: 'firsts', chat: CHAT_STREAM, creatures: 'creatures', heights: 'heights', structures: 'structures', market: 'market' } as const;
 
@@ -41,7 +42,7 @@ export async function saveAllNodes(r: Redis, w: World): Promise<void> {
 }
 
 export async function flush(r: Redis, w: World): Promise<void> {
-  const m = r.multi().hSet(K.meta, { tick: String(w.tick), nextId: String(w.nextId), nextMobId: String(w.nextMobId), mapSize: String(w.size), season: '1', seed: w.seed, nodeRules: String(NODE_RULES), bagRules: String(BAG_RULES), terrainRules: String(TERRAIN_RULES) });
+  const m = r.multi().hSet(K.meta, { tick: String(w.tick), nextId: String(w.nextId), nextMobId: String(w.nextMobId), mapSize: String(w.size), season: '1', seed: w.seed, nodeRules: String(NODE_RULES), bagRules: String(BAG_RULES), terrainRules: String(TERRAIN_RULES), econRules: String(ECON_RULES) });
   const ids = [...w.dirty];
   const chunks = [...w.dirtyChunks];
   const lootWasDirty = w.lootDirty;
@@ -54,9 +55,6 @@ export async function flush(r: Redis, w: World): Promise<void> {
   const firstsWasDirty = w.firstsDirty;
   if (firstsWasDirty && Object.keys(w.firsts).length) m.hSet(K.firsts, w.firsts);
   w.firstsDirty = false;
-  const marketWasDirty = w.marketDirty;
-  if (marketWasDirty) m.set(K.market, JSON.stringify(w.market));
-  w.marketDirty = false;
   const structuresWereDirty = w.structuresDirty;
   if (structuresWereDirty) m.set(K.structures, JSON.stringify([...w.structures]));
   w.structuresDirty = false;
@@ -75,7 +73,6 @@ export async function flush(r: Redis, w: World): Promise<void> {
     w.firstsDirty ||= firstsWasDirty;
     w.creaturesDirty ||= creaturesWereDirty;
     w.structuresDirty ||= structuresWereDirty;
-    w.marketDirty ||= marketWasDirty;
     throw e;
   }
 }
@@ -172,8 +169,7 @@ export async function loadWorld(r: Redis, seed = 'touchgrass-season-1'): Promise
     }
   }
   w.firsts = await r.hGetAll(K.firsts);
-  const mk = await r.get(K.market);
-  if (mk) w.market = JSON.parse(mk) as Record<string, number>;
+  if (Number(meta.econRules ?? 0) < ECON_RULES) await r.del(K.market); // the Smith retired
   const st = await r.get(K.structures);
   if (st) w.structures = new Map(JSON.parse(st) as [number, Structure][]);
   w.nextMobId = Number(meta.nextMobId) || 1;

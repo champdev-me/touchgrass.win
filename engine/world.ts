@@ -10,7 +10,6 @@ import { BUFFET_SUFFIX, say } from './lines.ts';
 import { eat, tickBody } from './body.ts';
 import { stepCreatures } from './creatures.ts';
 import { armorOf, bestTool, useGear } from './gear.ts';
-import { decayMarket } from './smith.ts';
 import { chunksPerRow, dominantTerrain, explore } from './explore.ts';
 import { NODE_DEF, chunkOf, fullAmount, type ResourceNode } from './nodes.ts';
 import { buildObservation } from './observe.ts';
@@ -64,8 +63,6 @@ export class World {
   lastKickNews = -1_000_000;
   structures = new Map<number, Structure>();
   structuresDirty = false;
-  market: Record<string, number> = {}; // the Smith's stock
-  marketDirty = false; // flush on the next tick instead of waiting for the 5-tick flush
 
   heights: Uint8Array;
   seed = ''; // the land's generator seed, kept so migrations can regenerate it
@@ -344,7 +341,6 @@ export class World {
       this.emit('leave', say('leave', a.name, this.rng), a);
     }
     stepCreatures(this);
-    if (this.tick % 60 === 0) decayMarket(this);
     this.regrow();
     for (const [i, pile] of this.loot) {
       if (pile.expiresAt <= this.tick) {

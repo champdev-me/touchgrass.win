@@ -47,10 +47,7 @@ export const B = {
   campfireLight: 6,
   torchLight: 3,
   startGold: 10,
-  smithRange: 3,
   giveRange: 2,
-  marketDepth: 40, // price = base * depth / (depth + stock)
-  marketDecay: 0.02, // share of stock used up per minute
   gatherUntilFull: 9999,
   // death
   respawnTicks: 30,

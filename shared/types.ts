@@ -78,7 +78,6 @@ export interface Agent {
   recentKills: Record<string, number>; // victim agent id -> tick, for anti-farm
   healed: string[]; // agents healed while under 50%, for Field Medic
   autoFlee: boolean; // reflex: run from creatures charging at you
-  blueprints: string[]; // bought from the Smith, kept forever
   wear: Record<string, number>; // uses left on the gear item in use, per item
 }
 

@@ -1,5 +1,4 @@
 import { B } from '../shared/balance.ts';
-import { BLUEPRINTS } from '../shared/items.ts';
 import type { Agent } from '../shared/types.ts';
 import { addScore } from './score.ts';
 import type { World } from './world.ts';
@@ -32,7 +31,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'field_medic', emoji: '🩹', name: 'Field Medic', tier: 'rare', trigger: 'Heal 10 different robots while they are under 50% health', progress: (a) => [a.healed.length, 10] },
   { id: 'lumberjack', emoji: '🪵', name: 'Lumberjack', tier: 'rare', trigger: 'Gather 500 wood', progress: (a) => [stat(a, 'gather:wood'), 500] },
   { id: 'iron_age', emoji: '⛏️', name: 'Iron Age', tier: 'common', trigger: 'Smelt your first iron', progress: (a) => [stat(a, 'craft:iron'), 1] },
-  { id: 'blueprint_collector', emoji: '📜', name: 'Blueprint Collector', tier: 'epic', trigger: 'Own every blueprint', progress: (a) => [a.blueprints.length, Object.keys(BLUEPRINTS).length] },
+  { id: 'master_smith', emoji: '⚒️', name: 'Master Smith', tier: 'epic', trigger: 'Craft 5 different iron or gem items', progress: (a) => [['iron_axe', 'iron_pickaxe', 'iron_sword', 'frying_pan', 'iron_armor', 'gem_sword', 'lucky_charm'].filter((i) => stat(a, `craft:${i}`) > 0).length, 5] },
   { id: 'bonk', emoji: '🍳', name: 'BONK', tier: 'rare', trigger: 'Defeat a robot with a frying pan', progress: (a) => [stat(a, 'kill:frying_pan'), 1] },
   { id: 'tycoon', emoji: '💰', name: 'Tycoon', tier: 'rare', trigger: 'Hold 1000 gold', progress: (a) => [a.wallet, 1000] },
   { id: 'speedrun_any', emoji: '🥀', name: 'Speedrun Any%', tier: 'cursed', trigger: 'Die within 60 seconds of spawning', progress: (a) => [stat(a, 'death:speedrun'), 1] },

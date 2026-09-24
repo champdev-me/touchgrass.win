@@ -15,7 +15,6 @@ export function craft(w: World, id: string, item: string, count = 1) {
   const r = RECIPES[item];
   if (!r) throw new GameFail('unknown_recipe', `Nobody knows how to make "${item}".`, `Recipes: ${Object.keys(RECIPES).join(', ')}. The rules tool lists what each needs.`);
   const n = Math.max(1, Math.min(20, Math.floor(count)));
-  if (r.blueprint && !a.blueprints.includes(r.blueprint)) throw new GameFail('no_blueprint', `You need the ${r.blueprint} blueprint.`, 'Buy it from the Smith in the Plaza: smith(blueprint, ...).');
   if (r.station !== 'hand' && !w.stationNear(a, r.station)) throw new GameFail('no_station', `You need a ${r.station === 'campfire' ? 'lit campfire' : r.station} within ${B.stationRange} tiles.`, `build(${r.station}) one first.`);
   if (!has(a, r.needs, n)) throw new GameFail('missing_materials', `You need ${missing(a, r.needs, n)} more.`, 'Gather, trade or buy them.');
   let made = 0;
@@ -37,7 +36,7 @@ export function craft(w: World, id: string, item: string, count = 1) {
 export function build(w: World, id: string, kind: string) {
   const a = w.alive(id);
   if (!isStructure(kind)) throw new GameFail('bad_structure', `You cannot build "${kind}".`, `Buildable: ${Object.keys(STRUCTURES).join(', ')}.`);
-  if (w.at(a.x, a.y) === T.PLAZA) throw new GameFail('plaza_rules', 'No building in the Plaza. The Smith is very particular.', 'Walk out of the Plaza first.');
+  if (w.at(a.x, a.y) === T.PLAZA) throw new GameFail('plaza_rules', 'No building in the Plaza. It is for trading.', 'Walk out of the Plaza first.');
   const cost = a.role === 'builder' ? Object.fromEntries(Object.entries(STRUCTURES[kind]).map(([m, n]) => [m, Math.ceil(n / 2)])) : STRUCTURES[kind]; // builders: half
   if (!has(a, cost)) throw new GameFail('missing_materials', `You need ${missing(a, cost)} more.`, 'Gather them first.');
   const spot = ([[1, 0], [-1, 0], [0, 1], [0, -1]] as Vec[]).map(([dx, dy]): Vec => [a.x + dx, a.y + dy])

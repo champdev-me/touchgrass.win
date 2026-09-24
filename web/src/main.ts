@@ -68,7 +68,6 @@ const robots = new Robots(scene, (x, y) => chunks.heightAt(x, y), B.tickMs, (x, 
 const creatures = new Creatures(scene, (x, y) => chunks.heightAt(x, y), B.tickMs);
 const structures = new Structures(scene, (x, y) => chunks.heightAt(x, y));
 const [models] = await Promise.all([loadProps(), robots.load(), creatures.load(), structures.load()]);
-let smithPlaced = false;
 const chunks = new ChunkView(scene, models, (list) => send({ type: 'chunks', list }));
 const loot = new LootView(scene, (x, y) => chunks.heightAt(x, y));
 
@@ -113,11 +112,6 @@ send = connect((m: ServerMsg) => {
     loot.sync(m.loot);
     creatures.sync(m.creatures);
     structures.sync(m.structures);
-    const [px, py] = [B.mapSize / 2, B.mapSize / 2];
-    if (!smithPlaced && chunks.tileAt(px, py) !== 0) {
-      structures.smith([px, py]); // the Smith's forge, once the Plaza has loaded
-      smithPlaced = true;
-    }
     ui.agents(m.agents);
     ui.events(m.events);
     if (follow) ui.focus(m.agents.find((a) => a.id === follow) ?? null);
@@ -178,7 +172,6 @@ renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.1);
   robots.update(dt);
   creatures.update(dt);
-  structures.update(dt);
   before.copy(controls.target);
   const bot = follow ? (robots.bots.get(follow) ?? creatures.mobs.get(follow)) : undefined;
   if (bot && cam !== 'top') {

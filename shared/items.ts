@@ -48,7 +48,7 @@ export const FOOD: Record<string, { food: number; water: number; energy?: number
 };
 export const FOOD_ITEMS = Object.keys(FOOD);
 
-export const RECIPES: Record<string, { station: Station; needs: Inventory; blueprint?: string }> = {
+export const RECIPES: Record<string, { station: Station; needs: Inventory }> = {
   torch: { station: 'hand', needs: { wood: 1, fiber: 1 } },
   club: { station: 'hand', needs: { wood: 5 } },
   grass_salad: { station: 'hand', needs: { fiber: 5 } },
@@ -60,28 +60,21 @@ export const RECIPES: Record<string, { station: Station; needs: Inventory; bluep
   cooked_meat: { station: 'campfire', needs: { meat: 1 } },
   roasted_marshmallow: { station: 'campfire', needs: { marshmallow: 1 } },
   iron: { station: 'furnace', needs: { iron_ore: 1, wood: 1 } },
-  iron_axe: { station: 'workbench', needs: { iron: 3, wood: 2 }, blueprint: 'iron_tools' },
-  iron_pickaxe: { station: 'workbench', needs: { iron: 3, wood: 2 }, blueprint: 'iron_tools' },
-  iron_sword: { station: 'workbench', needs: { iron: 5, wood: 2 }, blueprint: 'iron_sword' },
-  frying_pan: { station: 'workbench', needs: { iron: 3 }, blueprint: 'frying_pan' },
-  iron_armor: { station: 'workbench', needs: { iron: 8 }, blueprint: 'iron_armor' },
-  backpack: { station: 'workbench', needs: { hide: 5, fiber: 5 }, blueprint: 'backpack' },
+  iron_axe: { station: 'workbench', needs: { iron: 3, wood: 2 } },
+  iron_pickaxe: { station: 'workbench', needs: { iron: 3, wood: 2 } },
+  iron_sword: { station: 'workbench', needs: { iron: 5, wood: 2 } },
+  frying_pan: { station: 'workbench', needs: { iron: 3 } },
+  iron_armor: { station: 'workbench', needs: { iron: 8 } },
+  backpack: { station: 'workbench', needs: { hide: 5, fiber: 5 } },
 };
 
 /** Weapon damage by item; bare fists are B.fistDamage. */
 export const WEAPONS: Record<string, number> = Object.fromEntries(Object.entries(ITEMS).flatMap(([k, d]) => (d.damage ? [[k, d.damage]] : [])));
 
-export const BLUEPRINTS: Record<string, number> = { iron_tools: 100, iron_sword: 150, frying_pan: 120, iron_armor: 150, backpack: 80 }; // gold
 
 export type StructureKind = 'workbench' | 'campfire' | 'furnace';
 export const STRUCTURES: Record<StructureKind, Inventory> = { workbench: { wood: 6, stone: 2 }, campfire: { wood: 5, stone: 3 }, furnace: { stone: 10 } };
 export const isStructure = (s: string): s is StructureKind => s in STRUCTURES;
-
-// The Smith pays these (before his stock pushes prices down) and sells these at fixed prices.
-export const SMITH_BUYS: Inventory = { wood: 1, stone: 1, fiber: 1, meat: 2, hide: 3, cooked_meat: 4, iron_ore: 4, iron: 10, crystal: 20 };
-export const SMITH_SELLS: Record<string, { price: number; count: number }> = {
-  torch: { price: 5, count: 1 }, club: { price: 8, count: 1 }, stone_axe: { price: 15, count: 1 }, stone_pickaxe: { price: 15, count: 1 }, marshmallow: { price: 2, count: 5 },
-};
 
 const GEAR: ItemKind[] = ['tool', 'weapon', 'armor', 'gear'];
 export const stackOf = (item: string): number => (GEAR.includes(ITEMS[item]?.kind ?? 'material') ? 1 : B.stackSize);

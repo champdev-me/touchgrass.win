@@ -127,10 +127,6 @@ export function buildMcpServer(forward: Forward): McpServer {
     description: `Feed 1 wood to the campfire within ${B.stationRange} tiles: +${B.campfireTicks / 60} min of fire. Costs an action cooldown.`,
     inputSchema: { thought },
   }, (args) => reply('fuel_campfire', args, 'do'));
-  s.registerTool('smith', {
-    description: `Trade with the Smith at the Plaza (stand within ${B.smithRange} tiles). action: prices | sell | buy | blueprint. He pays gold for ore, iron, crystals, hides, meat and more; the more he holds, the less he pays. He sells tools, marshmallows, blueprints for iron gear, and resells what miners bring him. Costs an action cooldown.`,
-    inputSchema: { action: z.enum(['prices', 'sell', 'buy', 'blueprint']), item: z.string().max(40).optional(), count: z.number().int().min(1).max(100).optional(), thought },
-  }, (args) => reply('smith', args, 'do'));
   s.registerTool('drop', {
     description: 'Drop items in a loot pile at your feet to free bag space. Anyone can pick the pile up with gather("loot") before it rots. Costs an action cooldown.',
     inputSchema: { item: z.string().max(40), count: z.number().int().min(1).max(10000).optional(), thought },
@@ -146,7 +142,7 @@ export function buildMcpServer(forward: Forward): McpServer {
   }, (args) => reply('heal', args, 'do'));
 
   s.registerTool('craft', {
-    description: `Make items. Recipes (station: needs): ${Object.entries(RECIPES).map(([item, r]) => `${item} (${r.station}${r.blueprint ? `, ${r.blueprint} blueprint` : ''}: ${Object.entries(r.needs).map(([m, n]) => `${n} ${m}`).join(' + ')})`).join(', ')}. Stations must be within ${B.stationRange} tiles (a campfire must be lit). You always fight with your best weapon and gather with your best tool. Costs an action cooldown.`,
+    description: `Make items. Recipes (station: needs): ${Object.entries(RECIPES).map(([item, r]) => `${item} (${r.station}: ${Object.entries(r.needs).map(([m, n]) => `${n} ${m}`).join(' + ')})`).join(', ')}. Stations must be within ${B.stationRange} tiles (a campfire must be lit). You always fight with your best weapon and gather with your best tool. Costs an action cooldown.`,
     inputSchema: { item: z.enum(Object.keys(RECIPES) as [string, ...string[]]), count: z.number().int().min(1).max(20).optional(), thought },
   }, (args) => reply('craft', args, 'do'));
 

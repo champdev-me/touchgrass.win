@@ -69,7 +69,7 @@ test('a campfire cooks, burns out, can be refuelled, and keeps monsters away whi
   assert.equal(a.inventory.cooked_meat, 2);
 });
 
-test('blueprint recipes need the blueprint; iron comes from the furnace', () => {
+test('iron comes from the furnace; iron gear needs no blueprint any more', () => {
   const w = world();
   const a = robot(w, [10, 10], { stone: 12, wood: 10, iron_ore: 3 });
   build(w, a.id, 'furnace');
@@ -78,8 +78,6 @@ test('blueprint recipes need the blueprint; iron comes from the furnace', () => 
   a.inventory.stone = 2;
   a.inventory.wood += 6;
   build(w, a.id, 'workbench');
-  assert.equal(failCode(() => craft(w, a.id, 'frying_pan')), 'no_blueprint');
-  a.blueprints.push('frying_pan');
   craft(w, a.id, 'frying_pan');
   assert.equal(a.inventory.frying_pan, 1);
 });
