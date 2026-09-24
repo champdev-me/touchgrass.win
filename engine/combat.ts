@@ -1,19 +1,23 @@
 import { B } from '../shared/balance.ts';
 import { CREATURES, isCreatureKind } from '../shared/creatures.ts';
 import { dist } from '../shared/geo.ts';
-import { WEAPONS, addItem, type Inventory } from '../shared/items.ts';
+import { ITEMS, addItem, type Inventory } from '../shared/items.ts';
 import { TERRAIN as T, type Agent, type Creature, type Task, type Vec } from '../shared/types.ts';
 import type { Activity } from './body.ts';
+import { useGear } from './gear.ts';
 import { findPath } from './path.ts';
 import { addScore } from './score.ts';
 import { findTarget, walk } from './tasks.ts';
+import { walkable } from './terrain.ts';
 import { GameFail, type World } from './world.ts';
 
 type AttackTask = Extract<Task, { type: 'attack' }>;
 
-export function weaponOf(a: Agent): { name: string; damage: number } {
-  let best: { name: string; damage: number } = { name: 'fists', damage: B.fistDamage };
-  for (const [name, damage] of Object.entries(WEAPONS)) if ((a.inventory[name] ?? 0) > 0 && damage > best.damage) best = { name, damage };
+export function weaponOf(a: Agent): { name: string; damage: number; reach: number } {
+  let best = { name: 'fists', damage: B.fistDamage as number, reach: B.attackReach as number };
+  for (const [name, def] of Object.entries(ITEMS)) {
+    if (def.damage && (a.inventory[name] ?? 0) > 0 && def.damage > best.damage) best = { name, damage: def.damage, reach: def.reach ?? B.attackReach };
+  }
   return best;
 }
 const plazaFight = (w: World, a: Agent, [x, y]: Vec): boolean => w.at(a.x, a.y) === T.PLAZA || w.at(x, y) === T.PLAZA;
@@ -82,14 +86,15 @@ export function fightStep(w: World, a: Agent, t: AttackTask): Activity {
     w.interrupt(a, 'Too tired to keep fighting.');
     return 'idle';
   }
-  if (dist(at, [a.x, a.y]) > B.attackReach) {
+  const reach = weaponOf(a).reach;
+  if (dist(at, [a.x, a.y]) > reach) {
     const path = findPath(w.at, [a.x, a.y], at, w.vision(a) + 2, w.canStep);
     if (!path) {
       w.interrupt(a, 'You cannot reach your target.');
       return 'idle';
     }
     walk(w, a, path.slice(0, -1));
-    if (dist(at, [a.x, a.y]) > B.attackReach) return 'busy';
+    if (dist(at, [a.x, a.y]) > reach) return 'busy';
   }
   if (++t.progress < B.attackTicks) return 'busy';
   t.progress = 0;
@@ -103,11 +108,21 @@ function strike(w: World, a: Agent, target: string): void {
     w.finish(a, 'You punched a rock. The rock is unimpressed.');
     return;
   }
+  const weapon = weaponOf(a);
+  if (weapon.name !== 'fists') useGear(w, a, weapon.name);
   const c = w.creatures.get(target);
   if (c) return hitCreature(w, a, c);
   const victim = w.agents.get(target)!;
-  if (!w.hurt(victim, damageOf(a), 'agent', a.name)) return;
+  if (!w.hurt(victim, damageOf(a), 'agent', a.name)) {
+    if (ITEMS[weapon.name]?.knockback) {
+      const [dx, dy] = [Math.sign(victim.x - a.x), Math.sign(victim.y - a.y)];
+      if (walkable(w.at(victim.x + dx, victim.y + dy)) && w.canStep(victim.x, victim.y, victim.x + dx, victim.y + dy)) [victim.x, victim.y] = [victim.x + dx, victim.y + dy];
+      w.emit('bonk', `🍳 BONK! ${a.name} hit ${victim.name} with a frying pan.`, a);
+    }
+    return;
+  }
   w.bump(a, 'kill:agent');
+  w.bump(a, `kill:${weapon.name}`);
   const last = a.recentKills[victim.id];
   a.recentKills[victim.id] = w.tick;
   if (last !== undefined && w.tick - last < B.antiFarmTicks) w.note(a, `No score: you already beat ${victim.name} recently.`);

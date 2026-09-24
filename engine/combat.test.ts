@@ -156,7 +156,7 @@ test('craft a club from 5 wood and fight with it', () => {
   a.inventory = { wood: 7 };
   craft(w, a.id, 'club');
   assert.deepEqual(a.inventory, { wood: 2, club: 1 });
-  assert.deepEqual(weaponOf(a), { name: 'club', damage: 10 });
+  assert.deepEqual(weaponOf(a), { name: 'club', damage: 10, reach: 1 });
   assert.equal(failCode(() => craft(w, a.id, 'laser')), 'unknown_recipe');
 });
 
@@ -185,4 +185,36 @@ test('running into the Plaza ends the fight', () => {
   assert.equal(b.health, 100);
   assert.equal(a.task, null);
   assert.ok(w.observe(a.id).inbox.some((l) => l.includes('Plaza')));
+});
+
+test('a spear hits from 2 tiles; a frying pan knocks back and BONKs; weapons wear out', () => {
+  const w = world();
+  const a = joined(w, 'Chef', [10, 10]);
+  const b = joined(w, 'Target', [12, 10]);
+  Object.assign(b, { food: 50, water: 50, autoFlee: false });
+  a.inventory = { stone_spear: 1 };
+  startAttack(w, a.id, b.id);
+  w.step(0);
+  w.step(0);
+  assert.deepEqual([a.x, b.health], [10, 86]); // no step closer needed
+  a.inventory = { frying_pan: 1 };
+  b.x = 11;
+  startAttack(w, a.id, b.id);
+  w.step(0);
+  w.step(0);
+  assert.equal(b.x, 12); // bonked a tile back
+  b.health = 5;
+  for (let i = 0; i < 4; i++) w.step(0);
+  assert.ok(b.dead);
+  assert.equal(a.stats['kill:frying_pan'], 1);
+  assert.ok(a.achievements.bonk !== undefined);
+});
+
+test('iron armor slows you down', () => {
+  const w = world();
+  const a = joined(w, 'Tank', [10, 10]);
+  a.inventory = { iron_armor: 1 };
+  w.moveTo(a.id, 30, 10);
+  for (let i = 0; i < 5; i++) w.step(0);
+  assert.ok(a.x < 20 && a.x >= 17, String(a.x)); // 10 steps unarmored, 8 with armor
 });

@@ -17,6 +17,7 @@ type FleeTask = Extract<Task, { type: 'flee' }>;
 /** Walks along `path` within this tick's budget (halved at zero energy). */
 export function walk(w: World, a: Agent, path: Vec[]): boolean {
   let budget: number = a.energy <= 0 ? 1 : B.moveBudgetPerTick;
+  if ((a.inventory.iron_armor ?? 0) > 0 && w.tick % 5 === 0) budget -= 1; // heavy armor: a step lost every 5 ticks
   let moved = false;
   while (budget > 0 && path.length) {
     const [nx, ny] = path[0];
