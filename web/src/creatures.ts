@@ -10,7 +10,9 @@ const LOOK: Record<Exclude<CreatureKind, 'roomba'>, { file: string; height: numb
   rabbit: { file: 'pets/animal-bunny.glb', height: 0.4 },
   deer: { file: 'pets/animal-deer.glb', height: 0.75 },
   boar: { file: 'pets/animal-hog.glb', height: 0.5 },
-  duck: { file: 'pets/animal-chick.glb', height: 0.4 },
+  cow: { file: 'pets/animal-cow.glb', height: 0.75 },
+  chicken: { file: 'pets/animal-chick.glb', height: 0.35 },
+  duck: { file: 'pets/animal-penguin.glb', height: 0.45 }, // the Confused Duck is confused because it is a penguin
   wolf: { file: 'pets/animal-dog.glb', height: 0.6, tint: '#9aa3b5' },
   goblin: { file: 'graveyard/character-zombie.glb', height: 0.8 },
   golem: { file: 'pets/animal-polar.glb', height: 2.2, tint: '#7fa36a' },
@@ -25,6 +27,7 @@ interface Model {
 }
 
 interface Mob {
+  view: CreatureView;
   kind: CreatureKind;
   face: [number, number] | null;
   root: THREE.Group;
@@ -85,6 +88,7 @@ export class Creatures {
       m.hp.style.width = `${(100 * v.hp) / v.maxHp}%`;
       m.tag.classList.toggle('angry', v.mode === 'chase');
       m.face = v.face;
+      m.view = v;
       const moving = m.from.distanceToSquared(m.to) > 1e-4;
       const still = v.kind === 'duck' ? 'dance' : 'idle'; // the duck is confused
       this.play(m, !moving ? still : v.mode === 'chase' || v.mode === 'flee' ? 'run' : 'walk');
@@ -131,7 +135,7 @@ export class Creatures {
     this.scene.add(root);
     const mixer = model.clips.length ? new THREE.AnimationMixer(body) : null;
     const actions = new Map(mixer ? model.clips.map((c) => [c.name, mixer.clipAction(c)] as const) : []);
-    const m: Mob = { kind: v.kind, face: v.face, root, tag, hp, from: root.position.clone(), to: root.position.clone(), t: 1, mixer, actions, clip: '' };
+    const m: Mob = { view: v, kind: v.kind, face: v.face, root, tag, hp, from: root.position.clone(), to: root.position.clone(), t: 1, mixer, actions, clip: '' };
     this.play(m, 'idle');
     this.mobs.set(v.id, m);
     return m;

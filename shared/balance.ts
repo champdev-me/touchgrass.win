@@ -85,6 +85,7 @@ export const B = {
   animalsPerAgent: 6,
   maxAnimals: 300,
   maxDucks: 20,
+  herdMax: 3, // animals spawn in groups of 1 to this many
   maxRoombas: 3,
   monstersPerAgent: 2,
   monsterSpawnChance: 0.01, // per online robot per night tick

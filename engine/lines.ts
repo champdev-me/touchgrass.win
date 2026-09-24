@@ -92,6 +92,26 @@ export const LINES: Record<string, string[]> = {
     'A duck finished {name}. Press F and never speak of this.',
     '{name} lost to a duck. A DUCK. F.',
   ],
+  'death:cow': [
+    '{name} was kicked into orbit by a cow. Moo. F.',
+    'A cow ended {name}. The cow has no regrets. F.',
+    '{name} lost a fight with a cow. Press F, udderly.',
+  ],
+  'death:chicken': [
+    '{name} was pecked to death by a chicken. F.',
+    'A chicken won. {name} did not. F.',
+    '{name} underestimated a chicken. Press F.',
+  ],
+  'kick:cow': [
+    '🐄 A cow kicked {name}. Moo means no.',
+    '🐄 {name} got a hoof from a cow and some attitude.',
+    '🐄 A cow shoved {name} and went back to grazing.',
+  ],
+  'kick:chicken': [
+    '🐔 A chicken pecked {name}. Bawk.',
+    '🐔 {name} was attacked by a chicken. It is winning.',
+    '🐔 A chicken jumped {name}. Feathers everywhere.',
+  ],
   'kick:rabbit': [
     '🐇 A rabbit dropkicked {name}. It had it coming.',
     '🐇 {name} got bonked by a rabbit. Nature is healing.',

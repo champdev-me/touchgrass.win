@@ -4,6 +4,7 @@ import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
 import { B } from '../../shared/balance.ts';
 import { daylight, timeOf } from '../../shared/time.ts';
 import type { ClientMsg, ServerMsg } from '../../shared/types.ts';
+import { CREATURES } from '../../shared/creatures.ts';
 import { connect } from './net.ts';
 import { Creatures } from './creatures.ts';
 import { LootView } from './loot.ts';
@@ -73,7 +74,7 @@ function setFollow(id: string | null) {
   controls.enabled = !tpp;
   ui.following(id);
   if (!id) ui.focus(null);
-  const bot = id ? robots.bots.get(id) : undefined;
+  const bot = id ? (robots.bots.get(id) ?? creatures.mobs.get(id)) : undefined;
   if (!bot) return;
   controls.target.copy(bot.root.position); // snap to a close 45° view so the robot fills the stream
   camera.position.copy(bot.root.position).add(FOLLOW_OFFSET);
@@ -97,8 +98,11 @@ send = connect((m: ServerMsg) => {
     ui.agents(m.agents);
     ui.events(m.events);
     if (follow) ui.focus(m.agents.find((a) => a.id === follow) ?? null);
+    const mob = follow ? creatures.mobs.get(follow)?.view : undefined;
+    if (follow?.startsWith('mob_') && !mob) setFollow(null); // it died or wandered off
     const t = timeOf(m.tick);
-    ui.status(`day ${t.day} · ${t.phase} · ${m.agents.length} robots · ${m.creatures.length} creatures`);
+    const watching = mob ? ` · following ${CREATURES[mob.kind].emoji} ${CREATURES[mob.kind].name} (${mob.hp}/${mob.maxHp} hp)` : '';
+    ui.status(`day ${t.day} · ${t.phase} · ${m.agents.length} robots · ${m.creatures.length} creatures${watching}`);
   }
 }, (s) => ui.status(s));
 
@@ -114,6 +118,10 @@ addEventListener('keydown', (e) => {
     if (!follow && robots.bots.size) setFollow([...robots.bots.keys()][0]);
     tpp = !tpp && follow !== null;
     controls.enabled = !tpp;
+  }
+  if (k === 'm') {
+    const near = [...creatures.mobs.entries()].sort((p, q) => p[1].root.position.distanceTo(controls.target) - q[1].root.position.distanceTo(controls.target)).slice(0, 12).map(([id]) => id);
+    if (near.length) setFollow(near[(near.indexOf(follow ?? '') + 1) % near.length]);
   }
   if (k === 'c') {
     const fighters = [...robots.bots.values()].filter((b) => b.view.fighting).map((b) => b.view.id);
@@ -135,7 +143,7 @@ renderer.setAnimationLoop(() => {
   robots.update(dt);
   creatures.update(dt);
   before.copy(controls.target);
-  const bot = follow ? robots.bots.get(follow) : undefined;
+  const bot = follow ? (robots.bots.get(follow) ?? creatures.mobs.get(follow)) : undefined;
   if (bot && tpp) {
     const yaw = bot.root.rotation.y, p = bot.root.position, k = 1 - Math.pow(0.02, dt);
     fwd.set(Math.sin(yaw), 0, Math.cos(yaw));

@@ -37,8 +37,8 @@ Fighting:
 - `attack(target)` takes an id from observe (`agent_12`, `mob_5`) or a type meaning the nearest one (rabbit, deer, boar,
   duck, goblin, wolf, roomba, golem, rock). It keeps swinging every 2 s until the target dies or leaves your sight.
   Fists deal 5, a club 10 (`craft(club)` from 5 wood); hunters hit 1.5x harder. Medics can `heal` a robot within 2 tiles.
-- Animals (rabbit, deer, boar, duck) drop meat and hide; raw meat is +10 food but may give a tummy ache. Boars fight back, and every
-  untamed animal occasionally kicks a robot that gets within 4 tiles (rabbit 3, deer 5, boar 6, duck 1).
+- Animals (rabbit, deer, boar, cow, chicken, duck; in small herds) drop meat and hide; raw meat is +10 food but may give a tummy ache. Boars fight back, and every
+  untamed animal occasionally kicks a robot that gets within 4 tiles (rabbit 3, deer 5, boar 6, cow 4, chicken 1, duck 1).
 - At night monsters come out: Grass Goblins steal an item and run, wolf packs hunt robots that are alone, and a Moss
   Golem sometimes wakes in the ruins. `observe` marks anything "hunting you". Fight back when healthy, walk away when not.
   Lost Roombas are harmless and vacuum old loot piles; unplug one to get the loot back.

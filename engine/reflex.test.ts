@@ -24,13 +24,17 @@ const failCode = (fn: () => unknown) => {
   }
 };
 
-test('berries take one tick each; a tree takes three punches per wood', () => {
+test('a bush or a grass patch is picked in one go; a tree takes three punches per wood', () => {
   const w = world();
   const a = robot(w, 'Picker', [5, 5]);
   w.nodes.set(w.index(6, 5), { kind: 'berry_bush', left: 5, regrowAt: 0 });
-  w.gather(a.id, 'berry_bush', 3);
-  for (let i = 0; i < 3; i++) w.step(0);
-  assert.equal(a.inventory.berries, 3);
+  w.nodes.set(w.index(5, 6), { kind: 'grass', left: 3, regrowAt: 0 });
+  w.gather(a.id, 'berry_bush', 5);
+  w.step(0);
+  assert.deepEqual([a.inventory.berries, w.nodes.get(w.index(6, 5))!.left, a.task], [5, 0, null]);
+  w.gather(a.id, 'grass');
+  w.step(0);
+  assert.equal(a.inventory.fiber, 3);
   const b = robot(w, 'Puncher', [20, 20]);
   w.nodes.set(w.index(21, 20), { kind: 'tree', left: 4, regrowAt: 0 });
   w.gather(b.id, 'tree', 1);
@@ -44,9 +48,9 @@ test('berries take one tick each; a tree takes three punches per wood', () => {
 test('robots face what they gather or fight; creatures keep their eyes on their prey', () => {
   const w = world();
   const a = robot(w, 'Looker', [5, 5]);
-  w.nodes.set(w.index(6, 5), { kind: 'berry_bush', left: 5, regrowAt: 0 });
+  w.nodes.set(w.index(6, 5), { kind: 'tree', left: 5, regrowAt: 0 });
   assert.equal(w.views()[0].face, null);
-  w.gather(a.id, 'berry_bush', 5);
+  w.gather(a.id, 'tree', 5);
   w.step(0);
   assert.deepEqual(w.views()[0].face, [6, 5]);
   const wolf = spawnCreature(w, 'wolf', [5, 7]);

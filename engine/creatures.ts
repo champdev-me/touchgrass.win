@@ -10,6 +10,9 @@ import type { LootPile, World } from './world.ts';
 
 const STEPS: Vec[] = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
 const hasBag = (c: Creature) => Object.keys(c.bag).length > 0;
+// Which animals roam, and how often each is picked; they come in small herds.
+const HERDS: [CreatureKind, number][] = [['rabbit', 0.25], ['deer', 0.2], ['boar', 0.15], ['cow', 0.2], ['chicken', 0.2]];
+const HERD_KINDS = new Set<CreatureKind>(HERDS.map(([k]) => k));
 
 export function spawnCreature(w: World, kind: CreatureKind, [x, y]: Vec, pack = 0): Creature {
   const c: Creature = { id: `mob_${w.nextMobId++}`, kind, x, y, hp: CREATURES[kind].hp, mode: 'wander', target: null, until: 0, bag: {}, pack, hitAt: -B.monsterBiteTicks };
@@ -191,9 +194,18 @@ function populate(w: World, robots: Agent[], night: boolean): void {
     const at = spawnSpot(w, kind, near());
     if (at) spawnCreature(w, kind, at);
   };
-  if (count((c) => c.kind === 'rabbit' || c.kind === 'deer' || c.kind === 'boar') < Math.min(B.maxAnimals, B.animalsPerAgent * robots.length)) {
+  if (count((c) => HERD_KINDS.has(c.kind)) < Math.min(B.maxAnimals, B.animalsPerAgent * robots.length)) {
     const r = w.rng();
-    add(r < 0.5 ? 'rabbit' : r < 0.8 ? 'deer' : 'boar');
+    let sum = 0;
+    const kind = HERDS.find(([, share]) => (sum += share) > r)?.[0] ?? 'rabbit';
+    const size = 1 + Math.floor(w.rng() * B.herdMax), at = spawnSpot(w, kind, near());
+    if (at) {
+      spawnCreature(w, kind, at);
+      for (let i = 1; i < size; i++) {
+        const [x, y] = [at[0] + Math.floor(w.rng() * 5) - 2, at[1] + Math.floor(w.rng() * 5) - 2];
+        if (canStand(w, kind, x, y)) spawnCreature(w, kind, [x, y]);
+      }
+    }
   }
   if (count((c) => c.kind === 'duck') < Math.min(B.maxDucks, robots.length * 2)) add('duck');
   if (count((c) => c.kind === 'roomba') < B.maxRoombas) add('roomba');

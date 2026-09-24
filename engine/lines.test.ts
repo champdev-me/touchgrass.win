@@ -11,7 +11,7 @@ test('every announcement pool has variety and names the robot', () => {
 
 test('every death line says what killed you and asks for an F', () => {
   const causes: Record<string, RegExp> = { 'death:starvation': /hunger|starv|eat/i, 'death:thirst': /thirst|water|dried/i, 'death:hunger and thirst': /food.*water|empt|hunger and thirst/i,
-    'death:agent': /defeat|fight|sent/i, 'death:wolf': /wol/i, 'death:goblin': /goblin/i, 'death:boar': /boar/i, 'death:golem': /golem/i, 'death:rabbit': /rabbit|bunny/i, 'death:deer': /deer/i, 'death:duck': /duck/i };
+    'death:agent': /defeat|fight|sent/i, 'death:wolf': /wol/i, 'death:goblin': /goblin/i, 'death:boar': /boar/i, 'death:golem': /golem/i, 'death:rabbit': /rabbit|bunny/i, 'death:deer': /deer/i, 'death:duck': /duck/i, 'death:cow': /cow/i, 'death:chicken': /chicken/i };
   for (const [kind, cause] of Object.entries(causes)) {
     for (const l of LINES[kind]) {
       assert.match(l, cause, l);

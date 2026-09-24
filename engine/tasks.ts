@@ -148,17 +148,22 @@ function fleeStep(w: World, a: Agent, t: FleeTask): Activity {
 function harvest(w: World, a: Agent, t: GatherTask): Activity {
   const node = w.nodes.get(t.node)!;
   const def = NODE_DEF[node.kind];
-  const got = addItem(a.inventory, def.item, a.role === 'gatherer' ? B.gathererMultiplier : 1);
-  if (!got) {
-    w.interrupt(a, 'Your bag is full.');
-    return 'idle';
+  const per = a.role === 'gatherer' ? B.gathererMultiplier : 1;
+  // Bushes and grass (one tick) are picked in one go; trees and rocks give one unit per round of punches.
+  const units = def.ticks === 1 ? Math.min(node.left, Math.ceil((t.until - t.got) / per)) : 1;
+  for (let u = 0; u < units; u++) {
+    const got = addItem(a.inventory, def.item, per);
+    if (!got) {
+      w.interrupt(a, 'Your bag is full.');
+      return 'idle';
+    }
+    w.takeFromNode(t.node, node);
+    t.got += got;
+    w.bump(a, `gather:${def.item}`);
+    const before = a.stats.gathered ?? 0;
+    a.stats.gathered = before + got;
+    if (Math.floor(a.stats.gathered / B.gatherScoreEvery) > Math.floor(before / B.gatherScoreEvery)) addScore(w, a, 1);
   }
-  w.takeFromNode(t.node, node);
-  t.got += got;
-  w.bump(a, `gather:${def.item}`);
-  const before = a.stats.gathered ?? 0;
-  a.stats.gathered = before + got;
-  if (Math.floor(a.stats.gathered / B.gatherScoreEvery) > Math.floor(before / B.gatherScoreEvery)) addScore(w, a, 1);
   if (t.got >= t.until) w.finish(a, `Task done: gathered ${t.got} ${def.item}.`);
   else if (room(a.inventory, def.item) === 0) w.interrupt(a, 'Your bag is full.');
   return 'busy';

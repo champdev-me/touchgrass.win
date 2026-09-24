@@ -2,6 +2,7 @@ import { test } from 'bun:test';
 import assert from 'node:assert/strict';
 import { dist } from '../shared/geo.ts';
 import { TERRAIN as T, type Vec } from '../shared/types.ts';
+import { startAttack } from './combat.ts';
 import { spawnCreature } from './creatures.ts';
 import { World } from './world.ts';
 
@@ -200,4 +201,27 @@ test('kicks are news at most every 30 s, never interrupt work, and a duck spares
   Object.assign(duck, { mode: 'follow', target: mom.id, until: 1000 });
   for (let i = 0; i < 5; i++) w2.step(0);
   assert.equal(mom.health, 100);
+});
+
+test('peaceful animals (cows, chickens too) spawn in groups of up to 3', () => {
+  const w = world(() => 0.99); // group size 1 + floor(0.99 * 3) = 3; the last kind in the list
+  joined(w, 'Farmer', [20, 20]);
+  w.step(0);
+  const herd = [...w.creatures.values()].filter((c) => c.kind === 'chicken');
+  assert.equal(herd.length, 3);
+  for (const c of herd) assert.ok(dist([c.x, c.y], [herd[0].x, herd[0].y]) <= 2);
+});
+
+test('cows and chickens run when hit', () => {
+  const w = world();
+  const a = joined(w, 'Butcher', [20, 20]);
+  a.autoFlee = false;
+  for (const kind of ['cow', 'chicken'] as const) {
+    const c = spawnCreature(w, kind, [21, 20]);
+    startAttack(w, a.id, c.id);
+    w.step(0);
+    w.step(0);
+    assert.equal(c.mode, 'flee', kind);
+    w.creatures.delete(c.id);
+  }
 });
