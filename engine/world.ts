@@ -105,6 +105,7 @@ export class World {
 
   join(id: string, role: Role, model: string | null, now = Date.now()): Agent {
     const a = this.get(id);
+    if (a.banned) throw new GameFail('banned', 'You are banned from the grass.', 'Contact the admin if you think this is a mistake.');
     if (model) a.model = model;
     if (!a.joined) {
       a.joined = true;

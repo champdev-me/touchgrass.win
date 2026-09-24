@@ -2,7 +2,8 @@ import { B } from '../shared/balance.ts';
 import type { Redis } from '../shared/redis.ts';
 import type { ActionRequest } from '../shared/types.ts';
 import { handleAction } from './actions.ts';
-import { flush, loadWorld, saveAgentNow, saveAllNodes, saveTerrain } from './persist.ts';
+import { adminAction } from './admin.ts';
+import { K, flush, loadWorld, saveAgentNow, saveAllNodes, saveTerrain } from './persist.ts';
 import { generateNodes } from './nodes.ts';
 import { appendReplay } from './replay.ts';
 import { generateTerrain } from './terrain.ts';
@@ -52,6 +53,15 @@ export async function startEngine(o: EngineOpts) {
           }
         }
         if (req.method === 'POST' && pathname === '/action') return Response.json(handleAction(world, (await req.json()) as ActionRequest));
+        if (req.method === 'POST' && pathname === '/admin') {
+          const { action, agentId, minutes } = (await req.json()) as { action?: unknown; agentId?: unknown; minutes?: unknown };
+          try {
+            return Response.json({ ok: true, ...adminAction(world, String(action), String(agentId), Number(minutes ?? 0)) });
+          } catch (e) {
+            if (e instanceof GameFail) return Response.json({ ok: false, error: { error: e.code, message: e.message, hint: e.hint } });
+            throw e;
+          }
+        }
         return Response.json({ error: 'not_found' }, { status: 404 });
       } catch (e) {
         console.error('[engine]', e);
@@ -60,15 +70,31 @@ export async function startEngine(o: EngineOpts) {
     },
   });
 
-  const timer = setInterval(async () => {
+  let inFlight: Promise<void> | null = null;
+  const tick = async (): Promise<void> => {
     try {
       const delta = world.step();
       await r.publish('tick', JSON.stringify(delta));
       await appendReplay(o.replayDir, 1, delta.events);
-      if (world.tick % B.flushEveryTicks === 0) await flush(r, world);
+      const said = delta.events.filter((e) => e.type !== 'move');
+      if (said.length) {
+        const m = r.multi();
+        for (const e of said) m.addCommand(['XADD', K.chat, 'MAXLEN', '~', String(B.chatStreamMax), '*', 'tick', String(e.tick), 'type', e.type, 'name', e.name ?? '', 'text', e.text]);
+        await m.exec();
+      }
+      if (world.tick % B.flushEveryTicks === 0 || world.urgent) {
+        world.urgent = false;
+        await flush(r, world);
+      }
     } catch (e) {
       console.error('[engine] tick failed', e);
     }
+  };
+  const timer = setInterval(() => {
+    if (inFlight) return; // a slow tick skips the next one instead of overlapping; close() waits for it
+    inFlight = tick().finally(() => {
+      inFlight = null;
+    });
   }, o.tickMs ?? B.tickMs);
 
   return {
@@ -76,6 +102,7 @@ export async function startEngine(o: EngineOpts) {
     port: server.port as number,
     async close(): Promise<void> {
       clearInterval(timer);
+      await inFlight;
       await flush(r, world);
       await server.stop(true);
     },

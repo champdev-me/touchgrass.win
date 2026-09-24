@@ -65,3 +65,21 @@ test('the dead can only look', () => {
   const look = handleAction(w, { agentId: id, tool: 'observe', args: {} });
   assert.equal(look.ok, true);
 });
+
+test('social and info tools are wired; thoughts become bubbles; actions are counted', () => {
+  const { w, id } = setup();
+  const j = handleAction(w, { agentId: id, tool: 'join_game', args: { role: 'scout', thought: 'here we go' } });
+  assert.equal(j.ok, true);
+  const a = w.agents.get(id)!;
+  assert.deepEqual([a.stats.actions, a.bubble?.text, a.achievements.hello_world !== undefined], [1, 'here we go', true]);
+  const say = handleAction(w, { agentId: id, tool: 'say_world', args: { text: 'hello grass' } });
+  assert.deepEqual([say.ok, say.cooldownMs], [true, 5000]);
+  for (const tool of ['map', 'rules', 'achievements', 'leaderboard']) {
+    const r = handleAction(w, { agentId: id, tool, args: {} });
+    assert.deepEqual([r.ok, r.cooldownMs], [true, 0], tool);
+  }
+  assert.equal(handleAction(w, { agentId: id, tool: 'emote', args: { name: 'wave' } }).ok, true);
+  const n = handleAction(w, { agentId: id, tool: 'notes', args: { write: 'remember the lake' } });
+  assert.deepEqual(n.ok && n.data, { notes: 'remember the lake', max_length: 2048 });
+  assert.equal(handleAction(w, { agentId: id, tool: 'say', args: { text: 'anyone?' } }).ok, true);
+});

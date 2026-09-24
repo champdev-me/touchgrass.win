@@ -1,5 +1,6 @@
 import { test } from 'bun:test';
 import assert from 'node:assert/strict';
+import { checkAchievements } from '../engine/achievements.ts';
 import { K, flush, loadWorld, saveAllNodes, saveTerrain } from '../engine/persist.ts';
 import { World } from '../engine/world.ts';
 import { connectRedis } from '../shared/redis.ts';
@@ -53,5 +54,30 @@ test('a world saved by 0.0.1-1 loads with default stats and backfilled nodes', a
   assert.ok(w.observe('agent_1').grid.length > 0);
   await flush(r, w);
   assert.equal(Object.keys(await r.hGetAll(K.nodes)).length, 4);
+  await r.close();
+});
+
+test('scores, achievements, server firsts and recent chat survive a restart', async () => {
+  const r = await connectRedis(redisUrl(14));
+  await r.flushDb();
+  const tiles = new Uint8Array(64 * 64).fill(T.MEADOW);
+  const w = new World(tiles, 64, () => 0.5);
+  await saveTerrain(r, tiles, 64);
+  await saveAllNodes(r, w);
+  const a = w.register('Keeper', 0);
+  w.join(a.id, 'scout', null, 0);
+  a.stats.actions = 1;
+  w.step(0);
+  w.chat(a, 'remember me');
+  await r.sendCommand(['XADD', K.chat, '*', 'tick', '1', 'type', 'chat', 'name', 'Keeper', 'text', 'remember me']);
+  await flush(r, w);
+
+  const back = (await loadWorld(r))!;
+  const b = back.agents.get(a.id)!;
+  assert.ok(b.achievements.hello_world !== undefined);
+  assert.deepEqual([b.seasonScore, back.firsts.hello_world], [20, a.id]);
+  assert.equal(back.chatLog.at(-1), 'Keeper: remember me');
+  checkAchievements(back, b);
+  assert.equal(b.seasonScore, 20);
   await r.close();
 });

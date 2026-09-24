@@ -1,12 +1,12 @@
 import { B } from '../shared/balance.ts';
-import type { Redis } from '../shared/redis.ts';
+import { CHAT_STREAM, recentChat, type Redis } from '../shared/redis.ts';
 import type { Agent, PackedNode } from '../shared/types.ts';
 import { normalizeAgent } from './agent.ts';
 import { generateNodes, packChunk, unpackChunk } from './nodes.ts';
 import { chunkBytes, writeChunk } from './terrain.ts';
 import { World, type LootPile } from './world.ts';
 
-export const K = { meta: 'meta', terrain: 'terrain', agents: 'agents', nodes: 'nodes', loot: 'loot' } as const;
+export const K = { meta: 'meta', terrain: 'terrain', agents: 'agents', nodes: 'nodes', loot: 'loot', firsts: 'firsts', chat: CHAT_STREAM } as const;
 
 const chunkKeys = (size: number): string[] => {
   const n = size / B.chunkSize, keys: string[] = [];
@@ -45,6 +45,9 @@ export async function flush(r: Redis, w: World): Promise<void> {
   }
   for (const key of chunks) m.hSet(K.nodes, key, packed(w, key));
   if (lootWasDirty) m.set(K.loot, JSON.stringify([...w.loot]));
+  const firstsWasDirty = w.firstsDirty;
+  if (firstsWasDirty && Object.keys(w.firsts).length) m.hSet(K.firsts, w.firsts);
+  w.firstsDirty = false;
   w.dirty.clear();
   w.dirtyChunks.clear();
   w.lootDirty = false;
@@ -54,6 +57,7 @@ export async function flush(r: Redis, w: World): Promise<void> {
     for (const id of ids) w.dirty.add(id);
     for (const key of chunks) w.dirtyChunks.add(key);
     w.lootDirty ||= lootWasDirty;
+    w.firstsDirty ||= firstsWasDirty;
     throw e;
   }
 }
@@ -97,5 +101,7 @@ export async function loadWorld(r: Redis): Promise<World | null> {
   for (const [i, node] of w.nodes) if (node.left === 0 && node.regrowAt > 0) w.depleted.add(i);
   const loot = await r.get(K.loot);
   if (loot) w.loot = new Map(JSON.parse(loot) as [number, LootPile][]);
+  w.firsts = await r.hGetAll(K.firsts);
+  w.chatLog = (await recentChat(r, B.chatLogKeep)).reverse().map((m) => (m.type === 'chat' ? `${m.name}: ${m.text}` : m.text));
   return w;
 }
