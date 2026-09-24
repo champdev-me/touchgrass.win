@@ -1,6 +1,6 @@
 import { B } from '../shared/balance.ts';
 import { compass, dist } from '../shared/geo.ts';
-import { slotsUsed } from '../shared/items.ts';
+import { slotsOf, slotsUsed } from '../shared/items.ts';
 import { timeOf } from '../shared/time.ts';
 import { TERRAIN as T, type Agent, type NodeKind, type Task, type Vec } from '../shared/types.ts';
 import { CREATURES } from '../shared/creatures.ts';
@@ -74,9 +74,10 @@ export function buildObservation(w: World, a: Agent) {
     you: {
       id: a.id, name: a.name, role: a.role, model: a.model, pos: here, standing_on: TERRAIN_NAME[w.at(a.x, a.y)],
       health: Math.round(a.health), food: Math.round(a.food), water: Math.round(a.water), energy: Math.round(a.energy),
-      inventory: a.inventory, slots: `${slotsUsed(a.inventory)}/${B.inventorySlots}`, auto_eat: a.autoEat,
+      inventory: a.inventory, slots: `${slotsUsed(a.inventory)}/${slotsOf(a.inventory)}`, auto_eat: a.autoEat,
       dead: a.dead, respawn_in_seconds: a.dead ? Math.max(0, a.respawnAt - w.tick) : undefined,
-      score: { life: a.lifeScore, season: a.seasonScore, best_life: a.bestLife, wallet: a.wallet },
+      score: { life: a.lifeScore, season: a.seasonScore, best_life: a.bestLife },
+      gold: a.wallet,
       achievements: `${Object.keys(a.achievements).length}/${ACHIEVEMENTS.length} unlocked`,
       badge: a.badge && a.badge.until >= w.tick ? a.badge.emoji : undefined,
       altitude: w.height(a.x, a.y),

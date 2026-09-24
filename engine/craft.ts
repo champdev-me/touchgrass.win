@@ -4,7 +4,7 @@ import { GameFail, type World } from './world.ts';
 
 export function craft(w: World, id: string, item: string) {
   const a = w.alive(id);
-  const recipe = RECIPES[item];
+  const recipe = RECIPES[item]?.station === 'hand' ? RECIPES[item].needs : undefined; // stations: 0.0.1-5 Task 2
   if (!recipe) throw new GameFail('unknown_recipe', `Nobody knows how to make "${item}".`, `Craftable now: ${Object.keys(RECIPES).join(', ')}.`);
   const missing = Object.entries(recipe).filter(([m, n]) => (a.inventory[m] ?? 0) < n).map(([m, n]) => `${n - (a.inventory[m] ?? 0)} ${m}`);
   if (missing.length) throw new GameFail('missing_materials', `You need ${missing.join(', ')} more.`, 'Gather them first.');

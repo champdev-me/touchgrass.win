@@ -82,12 +82,12 @@ test('gather fails fast when the only target is across deep water', () => {
 test('a full bag interrupts gathering', () => {
   const w = worldOf(open(10));
   const a = joined(w, 'Hoarder', [2, 0]);
-  for (let i = 0; i < 19; i++) a.inventory[`junk${i}`] = 50;
-  a.inventory.berries = 49;
+  for (let i = 0; i < 11; i++) a.inventory[`junk${i}`] = 20;
+  a.inventory.berries = 19;
   bush(w, 2, 0);
   w.gather(a.id, 'berry_bush', 5);
   steps(w, 2);
-  assert.equal(a.inventory.berries, 50);
+  assert.equal(a.inventory.berries, 20);
   assert.equal(a.task, null);
   assert.ok(w.observe(a.id).inbox.includes('Task interrupted: Your bag is full.'));
   assert.equal(failCode(() => w.gather(a.id, 'berry_bush')), 'bag_full');

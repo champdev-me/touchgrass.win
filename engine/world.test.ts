@@ -64,7 +64,7 @@ test('observe shows a 17x17 grid with you in the middle and neighbours lettered'
   assert.equal(rows[7][10], 'A');
   assert.equal(o.legend.A, `${b.id} Bob`);
   assert.deepEqual(o.nearby, [`${b.id} Bob (gatherer, test-model) 2 tiles NE`]);
-  assert.deepEqual(o.roles, { gatherer: 2, hunter: 0, builder: 0, medic: 0, scout: 0 });
+  assert.deepEqual(o.roles, { gatherer: 2, hunter: 0, builder: 0, medic: 0, scout: 0, miner: 0 });
 });
 
 test('move_to rejects outside, deep water and unreachable targets', () => {
@@ -116,7 +116,7 @@ test('observe shows stats, time, resources and drink spots', () => {
   assert.equal(o.grid.map((r) => r.split(' '))[8][10], '*');
   assert.match(o.resources[0], /^berry_bush \(5 left\) at \(12, 10\), 2 tiles E$/);
   assert.ok(o.resources.some((r) => /^drink spot at \(\d+, 14\)/.test(r)), o.resources.join(' | '));
-  assert.deepEqual([o.you.health, o.you.food, o.you.slots, o.time.phase], [100, 100, '0/20', 'day']);
+  assert.deepEqual([o.you.health, o.you.food, o.you.slots, o.time.phase], [100, 100, '0/12', 'day']);
 });
 
 test('vision halves at night', () => {

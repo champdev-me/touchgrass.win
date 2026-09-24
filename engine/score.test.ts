@@ -20,7 +20,7 @@ test('a point per minute alive; death resets life score but keeps the best', () 
   const w = world();
   const a = joined(w, 'Lifer', [5, 5]);
   for (let i = 0; i < B.aliveScoreEveryTicks * 3; i++) w.step(0);
-  assert.deepEqual([a.lifeScore, a.seasonScore, a.wallet, a.bestLife], [3, 3, 3, 3]);
+  assert.deepEqual([a.lifeScore, a.seasonScore, a.wallet, a.bestLife], [3, 3, 10, 3]); // gold comes from trading, not score
   Object.assign(a, { health: 0.1, food: 0, autoEat: false });
   w.step(0);
   assert.deepEqual([a.dead, a.lifeScore, a.seasonScore, a.bestLife], [true, 0, 3, 3]);

@@ -39,8 +39,10 @@ export const B = {
   fleeNotice: 8, // a creature charging within this many tiles triggers the flee reflex
   fleeSafe: 15, // flee until this far from the threat
   gathererMultiplier: 2,
-  inventorySlots: 20,
-  stackSize: 50,
+  inventorySlots: 12,
+  stackSize: 20, // gear (tools, weapons, armor) never stacks
+  backpackSlots: 6,
+  startGold: 10,
   gatherUntilFull: 9999,
   // death
   respawnTicks: 30,

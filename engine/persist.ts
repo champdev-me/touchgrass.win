@@ -1,4 +1,5 @@
 import { B } from '../shared/balance.ts';
+import { trimBag } from '../shared/items.ts';
 import { CHAT_STREAM, recentChat, type Redis } from '../shared/redis.ts';
 import { TERRAIN as T } from '../shared/types.ts';
 import type { Agent, Creature, PackedNode } from '../shared/types.ts';
@@ -6,6 +7,8 @@ import { normalizeAgent } from './agent.ts';
 import { NODE_RULES, chunkOf, generateNodes, nodeKindAt, packChunk, unpackChunk } from './nodes.ts';
 import { TERRAIN_RULES, chunkBytes, generateLand, levelsOf, walkable, writeChunk } from './terrain.ts';
 import { World, type LootPile } from './world.ts';
+
+export const BAG_RULES = 2; // 2: small bags
 
 export const K = { meta: 'meta', terrain: 'terrain', agents: 'agents', nodes: 'nodes', loot: 'loot', firsts: 'firsts', chat: CHAT_STREAM, creatures: 'creatures', heights: 'heights' } as const;
 
@@ -38,7 +41,7 @@ export async function saveAllNodes(r: Redis, w: World): Promise<void> {
 }
 
 export async function flush(r: Redis, w: World): Promise<void> {
-  const m = r.multi().hSet(K.meta, { tick: String(w.tick), nextId: String(w.nextId), nextMobId: String(w.nextMobId), mapSize: String(w.size), season: '1', seed: w.seed, nodeRules: String(NODE_RULES), terrainRules: String(TERRAIN_RULES) });
+  const m = r.multi().hSet(K.meta, { tick: String(w.tick), nextId: String(w.nextId), nextMobId: String(w.nextMobId), mapSize: String(w.size), season: '1', seed: w.seed, nodeRules: String(NODE_RULES), bagRules: String(BAG_RULES), terrainRules: String(TERRAIN_RULES) });
   const ids = [...w.dirty];
   const chunks = [...w.dirtyChunks];
   const lootWasDirty = w.lootDirty;
@@ -142,6 +145,14 @@ export async function loadWorld(r: Redis, seed = 'touchgrass-season-1'): Promise
   }
   const loot = await r.get(K.loot);
   if (loot) w.loot = new Map(JSON.parse(loot) as [number, LootPile][]);
+  if (Number(meta.bagRules ?? 1) < BAG_RULES) {
+    // Small bags: the overflow falls at the robot's feet as a loot pile.
+    for (const a of w.agents.values()) {
+      const extra = trimBag(a.inventory);
+      if (Object.keys(extra).length) w.dropLoot(w.index(a.x, a.y), extra);
+      w.dirty.add(a.id);
+    }
+  }
   w.firsts = await r.hGetAll(K.firsts);
   w.nextMobId = Number(meta.nextMobId) || 1;
   const mobs = await r.get(K.creatures);

@@ -125,7 +125,7 @@ export function buildMcpServer(forward: Forward): McpServer {
   }, (args) => reply('heal', args, 'do'));
 
   s.registerTool('craft', {
-    description: `Make something by hand: ${Object.entries(RECIPES).map(([item, r]) => `${item} (${Object.entries(r).map(([m, n]) => `${n} ${m}`).join(' + ')})`).join(', ')}. A club deals ${WEAPONS.club}; you always fight with your best weapon. Costs an action cooldown.`,
+    description: `Make something by hand: ${Object.entries(RECIPES).map(([item, r]) => `${item} (${Object.entries(r.needs).map(([m, n]) => `${n} ${m}`).join(' + ')})`).join(', ')}. A club deals ${WEAPONS.club}; you always fight with your best weapon. Costs an action cooldown.`,
     inputSchema: { item: z.enum(Object.keys(RECIPES) as [string, ...string[]]), thought },
   }, (args) => reply('craft', args, 'do'));
 

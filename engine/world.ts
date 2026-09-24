@@ -1,6 +1,6 @@
 import { B } from '../shared/balance.ts';
 import { dist } from '../shared/geo.ts';
-import { FOOD, room, type Inventory } from '../shared/items.ts';
+import { FOOD, room, slotsOf, type Inventory } from '../shared/items.ts';
 import { CREATURES } from '../shared/creatures.ts';
 import { timeOf } from '../shared/time.ts';
 import { GATHER_TARGETS, ROLES, TERRAIN as T, type Agent, type AgentView, type Bubble, type Creature, type CreatureView, type GameEvent, type GatherTarget, type Role, type TickDelta, type Vec } from '../shared/types.ts';
@@ -117,7 +117,7 @@ export class World {
     const id = `agent_${this.nextId}`;
     const spawn = this.pickSpawn();
     const a = normalizeAgent({
-      id, name, color: AGENT_COLORS[(this.nextId - 1) % AGENT_COLORS.length], x: spawn[0], y: spawn[1], spawn, createdAt: now, lastActionAt: now,
+      id, name, color: AGENT_COLORS[(this.nextId - 1) % AGENT_COLORS.length], x: spawn[0], y: spawn[1], spawn, createdAt: now, lastActionAt: now, wallet: B.startGold,
     });
     this.nextId++;
     this.agents.set(id, a);
@@ -181,7 +181,7 @@ export class World {
   gather(id: string, target: string, until?: number) {
     const a = this.alive(id);
     if (!isTarget(target)) throw new GameFail('bad_target', `You cannot gather "${target}".`, `Gather one of: ${GATHER_TARGETS.join(', ')}.`);
-    if (target !== 'loot' && room(a.inventory, NODE_DEF[target].item) === 0) throw new GameFail('bag_full', 'Your bag is full.', `It holds ${B.inventorySlots} stacks of ${B.stackSize}. Eat something or stop hoarding.`);
+    if (target !== 'loot' && room(a.inventory, NODE_DEF[target].item) === 0) throw new GameFail('bag_full', 'Your bag is full.', `It holds ${slotsOf(a.inventory)} slots. Eat something, sell to the Smith, or stop hoarding.`);
     const found = findTarget(this, a, target);
     if (!found) throw new GameFail('none_nearby', `No reachable ${target.replace('_', ' ')} in sight.`, 'Walk somewhere new, then observe again.');
     const want = until !== undefined && Number.isInteger(until) && until > 0 ? until : B.gatherUntilFull;

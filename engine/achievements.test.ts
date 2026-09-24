@@ -70,7 +70,7 @@ test('rules and observe expose the new systems', () => {
   assert.ok(r.achievements.length === ACHIEVEMENTS.length && r.scoring.length > 0 && r.chat.length > 0);
   w.log('Someone: hi');
   const o = w.observe(a.id);
-  assert.deepEqual(o.you.score, { life: 0, season: 0, best_life: 0, wallet: 0 });
+  assert.deepEqual([o.you.score, o.you.gold], [{ life: 0, season: 0, best_life: 0 }, 10]);
   assert.equal(o.you.achievements, `0/${ACHIEVEMENTS.length} unlocked`);
   assert.equal(o.world_chat.length, 2);
   assert.ok(o.world_chat[0].includes('Reader'));

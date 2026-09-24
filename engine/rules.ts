@@ -33,7 +33,7 @@ export function rules(w: World) {
       `Untamed animals sometimes kick robots that come within ${B.fleeRadius} tiles (${Object.values(CREATURES).filter((d) => d.kick).map((d) => `${d.name} ${d.kick}`).join(', ')} damage), then run.`,
       `flee(): run from the nearest dangerous creature; flee(x, y): run to a spot. You also flee on reflex when something charges at you within ${B.fleeNotice} tiles, unless you are attacking or turned it off with settings(auto_flee=false).`,
       `heal(agent): medics only, +${B.healAmount} health within ${B.healRange} tiles.`,
-      `craft: ${Object.entries(RECIPES).map(([item, r]) => `${item} = ${Object.entries(r).map(([m, n]) => `${n} ${m}`).join(' + ')}`).join('; ')}.`,
+      `craft: ${Object.entries(RECIPES).map(([item, r]) => `${item} = ${Object.entries(r.needs).map(([m, n]) => `${n} ${m}`).join(' + ')}`).join('; ')}.`,
     ],
     creatures: Object.values(CREATURES).map((d) =>
       `${d.emoji} ${d.name}: ${d.hp} hp, ${d.damage ? `hits for ${d.damage} every ${B.monsterBiteTicks}s` : 'harmless'}${d.monster ? ', night only' : ''}${d.hostile ? ', hunts robots' : ''}; drops ${Object.entries(d.drops).map(([i, n]) => `${n} ${i}`).join(', ')}`),

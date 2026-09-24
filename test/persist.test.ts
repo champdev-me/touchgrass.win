@@ -162,3 +162,25 @@ test('worlds saved with older terrain are regenerated once: robots keep their st
   assert.deepEqual(again.tiles, back.tiles); // regenerated once, then just loaded
   await r.close();
 });
+
+test('bags saved before the small-bag rule spill their overflow on load, once', async () => {
+  const r = await connectRedis(redisUrl(14));
+  await r.flushDb();
+  const tiles = new Uint8Array(64 * 64).fill(T.MEADOW);
+  const w = new World(tiles, 64, () => 0.5);
+  await saveTerrain(r, tiles, 64);
+  await saveAllNodes(r, w);
+  const a = w.register('Hoarder', 0);
+  w.join(a.id, 'scout', null, 0);
+  [a.x, a.y] = [5, 5];
+  a.inventory = { berries: 1000 };
+  a.wallet = 42;
+  await flush(r, w);
+  await r.hDel(K.meta, 'bagRules');
+  const back = (await loadWorld(r))!;
+  const b = back.agents.get(a.id)!;
+  assert.deepEqual([b.inventory.berries, back.loot.get(back.index(5, 5))?.items.berries, b.wallet], [240, 760, 42]);
+  await flush(r, back);
+  assert.equal((await loadWorld(r))!.agents.get(a.id)!.inventory.berries, 240);
+  await r.close();
+});

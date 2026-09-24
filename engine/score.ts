@@ -1,11 +1,10 @@
 import type { Agent } from '../shared/types.ts';
 import type { World } from './world.ts';
 
-/** Every point counts for the current life, the season and the wallet. */
+/** Points count for the current life and the season; gold comes from trading. */
 export function addScore(w: World, a: Agent, n: number): void {
   a.lifeScore += n;
   a.seasonScore += n;
-  a.wallet += n;
   a.bestLife = Math.max(a.bestLife, a.lifeScore);
   w.dirty.add(a.id);
 }
