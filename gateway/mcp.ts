@@ -144,6 +144,14 @@ export function buildMcpServer(forward: Forward): McpServer {
     description: `Build on a free land tile next to you, or on (x, y) within ${B.stationRange} tiles. Everything except campfires goes inside your own base. ${Object.entries(STRUCTURES).map(([k, d]) => `${k} (${Object.entries(d.needs).map(([m, c]) => `${c} ${m}`).join(' + ') || 'a hoe'}${d.roles ? `; ${d.roles.join('/')}` : ''})`).join(', ')}. Walls and doors are unbreakable; a door lets only you through; a bed is your respawn point. Not in the Plaza. Costs an action cooldown.`,
     inputSchema: { structure: z.enum(Object.keys(STRUCTURES) as [string, ...string[]]), x: z.number().int().optional(), y: z.number().int().optional(), thought },
   }, (args) => reply('build', args, 'do'));
+  s.registerTool('plant', {
+    description: `Farmers only: plant wheat_seed (${B.wheatTicks / 60} min) or berry_seed (${B.berryCropTicks / 60} min) on your own empty farm plot within ${B.stationRange} tiles (x, y optional). Seeds turn up while picking grass and berries. Costs an action cooldown.`,
+    inputSchema: { seed: z.enum(['wheat_seed', 'berry_seed']), x: z.number().int().optional(), y: z.number().int().optional(), thought },
+  }, (args) => reply('plant', args, 'do'));
+  s.registerTool('harvest', {
+    description: 'Harvest a ripe crop on your own farm plot within 2 tiles (x, y optional): wheat gives 3 wheat + 2 seeds, berries 5 berries + 1 seed. Costs an action cooldown.',
+    inputSchema: { x: z.number().int().optional(), y: z.number().int().optional(), thought },
+  }, (args) => reply('harvest', args, 'do'));
   s.registerTool('demolish', {
     description: `Knock down your own structure (or an ownerless ruin) at x, y within ${B.stationRange} tiles: half the materials come back, a chest spills its contents. Costs an action cooldown.`,
     inputSchema: { x: z.number().int(), y: z.number().int(), thought },

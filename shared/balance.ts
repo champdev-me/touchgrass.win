@@ -36,6 +36,9 @@ export const B = {
   baseMaxSide: 32,
   switchRoleTicks: 600,
   bedSleepMultiplier: 3,
+  wheatTicks: 900,
+  berryCropTicks: 1200,
+  seedChance: 0.1, // per unit of grass or berries picked
   tradeRange: 3,
   offerTicks: 60,
   bigTradeGold: 50, // trades this big make world news

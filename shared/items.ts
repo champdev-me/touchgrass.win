@@ -21,7 +21,7 @@ export const ITEMS: Record<string, ItemDef> = {
   wood: { kind: 'material' }, stone: { kind: 'material' }, fiber: { kind: 'material' }, hide: { kind: 'material' },
   iron_ore: { kind: 'material' }, iron: { kind: 'material' }, crystal: { kind: 'material' },
   mud: { kind: 'material' }, gem: { kind: 'material' }, herb: { kind: 'material' }, brick: { kind: 'material' },
-  wheat: { kind: 'material' }, wheat_seed: { kind: 'material' }, berry_seed: { kind: 'material' },
+  wheat: { kind: 'material' }, wheat_seed: { kind: 'material' }, berry_seed: { kind: 'material' }, bread: { kind: 'food' },
   bandage: { kind: 'food' },
   berries: { kind: 'food' }, apple: { kind: 'food' }, meat: { kind: 'food' }, battery: { kind: 'food' }, cooked_meat: { kind: 'food' },
   grass_salad: { kind: 'food' }, marshmallow: { kind: 'food' }, roasted_marshmallow: { kind: 'food' },
@@ -53,6 +53,7 @@ export const FOOD: Record<string, { food: number; water: number; energy?: number
   roasted_marshmallow: { food: 5, water: 0, energy: 5 },
   battery: { food: 0, water: 0, energy: 50 }, // from Roombas; do not ask
   bandage: { food: 0, water: 0, health: 15 }, // applied, not eaten; robots do not judge
+  bread: { food: 30, water: 0 },
 };
 export const FOOD_ITEMS = Object.keys(FOOD);
 
@@ -67,6 +68,8 @@ export const RECIPES: Record<string, { station: Station; needs: Inventory; roles
   hide_armor: { station: 'workbench', needs: { hide: 6, fiber: 4 }, roles: ['smith'] },
   cooked_meat: { station: 'campfire', needs: { meat: 1 } },
   brick: { station: 'kiln', needs: { mud: 2, wood: 1 }, roles: ['mason'] },
+  bread: { station: 'campfire', needs: { wheat: 3 }, roles: ['farmer'] },
+  hoe: { station: 'workbench', needs: { wood: 3, stone: 2 }, roles: ['smith'] },
   bandage: { station: 'hand', needs: { fiber: 2, herb: 1 }, roles: ['gatherer'] },
   gem_sword: { station: 'workbench', needs: { iron: 4, gem: 2, wood: 2 }, roles: ['smith'] },
   lucky_charm: { station: 'workbench', needs: { gem: 1, fiber: 2 }, roles: ['smith'] },

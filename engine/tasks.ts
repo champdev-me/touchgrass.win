@@ -200,6 +200,8 @@ function harvest(w: World, a: Agent, t: GatherTask): Activity {
     }
     w.takeFromNode(t.node, node);
     if ((node.kind === 'tree' || node.kind === 'grass' || node.kind === 'rock') && w.rng() < B.clueChance) findClue(w, a);
+    const seed = node.kind === 'grass' ? 'wheat_seed' : node.kind === 'berry_bush' ? 'berry_seed' : null;
+    if (seed && w.rng() < B.seedChance && addItem(a.inventory, seed, 1)) w.note(a, `You found a ${seed}. Farmers can plant it.`);
     t.got += got;
     w.bump(a, `gather:${def.item}`);
     const before = a.stats.gathered ?? 0;

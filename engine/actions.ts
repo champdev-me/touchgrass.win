@@ -3,6 +3,7 @@ import { checkAchievements, listAchievements } from './achievements.ts';
 import { startAttack } from './combat.ts';
 import { build, craft, demolish, fuel } from './craft.ts';
 import { buyLand, switchRole } from './bases.ts';
+import { harvest, plant } from './farm.ts';
 import { howTo } from './how.ts';
 import { store, take } from './chest.ts';
 import { accept, decline, drop, give, offer } from './trade.ts';
@@ -13,7 +14,7 @@ import { leaderboard } from './score.ts';
 import { emote, notes, sayLocal, sayWorld, think } from './social.ts';
 import { GameFail, type World } from './world.ts';
 
-const DO_TOOLS = new Set(['join_game', 'move_to', 'gather', 'eat', 'drink', 'rest', 'sleep', 'say', 'say_world', 'attack', 'craft', 'flee', 'build', 'fuel_campfire', 'give', 'store', 'take', 'offer', 'accept', 'decline', 'chart', 'search', 'buy_land', 'demolish', 'switch_role', 'drop']);
+const DO_TOOLS = new Set(['join_game', 'move_to', 'gather', 'eat', 'drink', 'rest', 'sleep', 'say', 'say_world', 'attack', 'craft', 'flee', 'build', 'fuel_campfire', 'give', 'store', 'take', 'offer', 'accept', 'decline', 'chart', 'search', 'buy_land', 'demolish', 'switch_role', 'plant', 'harvest', 'drop']);
 const SPEECH = new Set(['say', 'say_world']); // their speech bubble wins over an attached thought
 const BANNED = () => new GameFail('banned', 'You are banned from the grass.', 'Contact the admin if you think this is a mistake.');
 
@@ -87,6 +88,10 @@ function run(world: World, { agentId, tool, args }: ActionRequest): unknown {
       return withView({ ...world.flee(agentId, typeof args.x === 'number' ? args.x : undefined, typeof args.y === 'number' ? args.y : undefined), message: 'Legs, do your thing.' });
     case 'build':
       return withView({ ...build(world, agentId, String(args.structure ?? ''), typeof args.x === 'number' ? args.x : undefined, typeof args.y === 'number' ? args.y : undefined), message: 'You built a thing. It is mostly straight.' });
+    case 'plant':
+      return withView(plant(world, agentId, String(args.seed ?? ''), typeof args.x === 'number' ? args.x : undefined, typeof args.y === 'number' ? args.y : undefined));
+    case 'harvest':
+      return withView(harvest(world, agentId, typeof args.x === 'number' ? args.x : undefined, typeof args.y === 'number' ? args.y : undefined));
     case 'demolish':
       return withView(demolish(world, agentId, Number(args.x), Number(args.y)));
     case 'switch_role':

@@ -2,6 +2,7 @@ import { B } from '../shared/balance.ts';
 import { dist } from '../shared/geo.ts';
 import { ITEMS, RECIPES, STRUCTURES, addItem, isStructure, takeItem, type Inventory } from '../shared/items.ts';
 import { TERRAIN as T, type Agent, type Vec } from '../shared/types.ts';
+import { useGear } from './gear.ts';
 import { addScore } from './score.ts';
 import { isLand, lockCheck } from './bases.ts';
 import { walkable } from './terrain.ts';
@@ -57,9 +58,14 @@ export function build(w: World, id: string, kind: string, x?: number, y?: number
   }
   if (!spot) throw new GameFail('no_space', 'There is no free spot next to you.', 'Stand somewhere with open ground around you.');
   lockCheck(w, a, spot[0], spot[1]);
+  if (kind === 'farm_plot') {
+    if (!(a.inventory.hoe ?? 0)) throw new GameFail('no_hoe', 'You need a hoe to till the ground.', 'Smiths craft hoes.');
+    if (w.at(spot[0], spot[1]) !== T.MEADOW && w.at(spot[0], spot[1]) !== T.SAND) throw new GameFail('bad_ground', 'Crops only grow on meadow or sand.', 'Pick another tile.');
+  }
   if (kind !== 'campfire' && w.baseAt(spot[0], spot[1])?.owner !== a.id) throw new GameFail('not_home', `A ${kind} goes inside your own base.`, 'Walk home first (observe shows your base); only campfires go anywhere.');
   for (const [m, k] of Object.entries(cost)) takeItem(a.inventory, m, k);
   w.structures.set(w.index(spot[0], spot[1]), { kind, owner: a.id, litUntil: kind === 'campfire' ? w.tick + B.campfireTicks : 0, ...(kind === 'chest' ? { items: {} } : {}) });
+  if (kind === 'farm_plot') useGear(w, a, 'hoe');
   w.structuresDirty = true;
   w.bump(a, `build:${kind}`);
   addScore(w, a, 1);

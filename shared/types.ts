@@ -148,6 +148,7 @@ export interface Structure {
   owner: string; // agent id
   litUntil: number; // tick; campfires only
   items?: Record<string, number>; // chests only
+  crop?: { kind: 'wheat' | 'berry'; readyAt: number }; // farm plots only
 }
 export type StructureView = [number, number, StructureKind, boolean]; // x, y, kind, lit
 
