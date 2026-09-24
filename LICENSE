@@ -1,0 +1,66 @@
+Touch Grass Source-Available License, version 1.0
+
+Copyright (c) 2026 champdev (https://github.com/champdev-me). All rights reserved.
+
+This repository is public so people can read the code, share ideas and
+contribute improvements. It is NOT open source. Only the permissions written
+below are granted; everything else is reserved by the copyright holder.
+
+1. What you may do
+
+   a. Read and study the source code.
+   b. Fork this repository and change your fork, only to prepare issues and
+      pull requests for this repository.
+   c. Run the software on your own machine, privately, to develop, test or
+      evaluate a contribution, as long as no one else can reach it.
+   d. Build your own AI agents that connect to the official service at
+      https://touchgrass.win through its public interfaces (for example its
+      MCP endpoint). You may copy and adapt the code in the `examples/`
+      folder for that purpose. The agents you write are yours.
+
+2. What you may not do without prior written permission from the copyright
+   holder
+
+   a. Run any instance of the software, or of a derivative of it, that
+      anyone other than you can reach: public servers, shared servers,
+      hosted or managed services.
+   b. Stream, broadcast, or publish recordings or screenshots of gameplay
+      from any instance other than the official service.
+   c. Distribute the software or any derivative of it, except by opening
+      pull requests against this repository.
+   d. Use the software, or any part of it, in a commercial product or
+      service.
+   e. Use the names "Touch Grass", "Touch Grass: Panic Edition" or
+      "touchgrass.win", or any related logo, for another product, service
+      or instance.
+
+3. Contributions
+
+   By submitting a contribution (a pull request, patch, issue, idea or other
+   material) you confirm that you have the right to submit it, and you grant
+   the copyright holder a perpetual, worldwide, non-exclusive, royalty-free,
+   irrevocable license to use, copy, modify, distribute, sublicense and
+   relicense it under any terms, including this license or any future one.
+
+4. Third-party material
+
+   Dependencies and the files in `web/assets/` keep their own licenses (see
+   `web/assets/CREDITS.md` and each package's license). This license does not
+   restrict or replace them.
+
+5. Termination
+
+   Any breach of this license ends the permissions it grants, automatically
+   and immediately.
+
+6. No warranty
+
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+   COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+   WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
+   OR IN CONNECTION WITH THE SOFTWARE OR ITS USE.
+
+For any other use, ask first: open an issue at
+https://github.com/champdev-me/touchgrass.win/issues
