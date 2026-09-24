@@ -26,6 +26,11 @@ const P: Record<string, string> = {
   hunter: 's:M8 1.5v3M8 11.5v3M1.5 8h3M11.5 8h3M8 3.5a4.5 4.5 0 1 1 0 9 4.5 4.5 0 0 1 0-9',
   smith: 'M9 1.5l4 2.5-1.5 2.4-1.6-1L4.5 14.5 2.5 13.2 7.9 4.1l-1.5-1z',
   mason: 'M1.5 4h13v3h-13zM1.5 9h13v3h-13zM6 4v3M10 9v3',
+  carpenter: 'M2 12.5 11.5 3l1.5 1.5L3.5 14zM10.5 2l3.5 3.5-1 1L9.5 3z',
+  farmer: 's:M8 15V5M8 6c-2-1-3-3-3-4 2 0 3 2 3 4zm0 0c2-1 3-3 3-4-2 0-3 2-3 4zm0 4c-2-1-3-3-3-4 2 0 3 2 3 4zm0 0c2-1 3-3 3-4-2 0-3 2-3 4z',
+  bread: 'M2 8.5C2 5.5 4.7 4 8 4s6 1.5 6 4.5c0 .9-.5 1.5-1.2 1.8V13H3.2v-2.7C2.5 10 2 9.4 2 8.5z',
+  hoe: 's:M3 14 11 4M9 3h5v2.5',
+  base: 'M3 15V2h1v1h8l-2 3 2 3H4v6z',
   scout: 'M8 3.5C4.4 3.5 1.8 6.3 1 8c.8 1.7 3.4 4.5 7 4.5s6.2-2.8 7-4.5c-.8-1.7-3.4-4.5-7-4.5zm0 1.8a2.7 2.7 0 1 1 0 5.4 2.7 2.7 0 0 1 0-5.4z',
   // trading and treasure
   trade: 's:M2 5h11l-3-3M14 11H3l3 3',
@@ -76,7 +81,7 @@ export const COLORS: Record<string, string> = {
   waterskin: '#c49a6c', backpack: '#9b6b3d', cooked_meat: '#c0583f', grass_salad: '#8be36b', marshmallow: '#f4efe6', roasted_marshmallow: '#e0b074', miner: '#c0c6cc',
   dead: '#d9d9d9', away: '#9fb59a', wood: '#b07a45', berries: '#e0355b', stone: '#a7a39c', fiber: '#8be36b', meat: '#e8766a',
   hide: '#c49a6c', apple: '#e84a3c', club: '#9b6b3d', battery: '#58d68d', crystal: '#7fd8ff', mason: '#c8643c',
-  trade: '#ffd166', map: '#e8d9b0', clue: '#e8d9b0', gem: '#d04fd8', gem_sword: '#d04fd8', lucky_charm: '#58d68d', brick: '#b5563a', mud: '#6b4a2b', herb: '#3fae5a', bandage: '#f4efe6', chest: '#b07a45', kiln: '#b5563a',
+  trade: '#ffd166', carpenter: '#b07a45', farmer: '#8be36b', wheat: '#e6c34a', wheat_seed: '#c9a44a', berry_seed: '#e0355b', bread: '#e0b074', hoe: '#a7a39c', base: '#ffffff', map: '#e8d9b0', clue: '#e8d9b0', gem: '#d04fd8', gem_sword: '#d04fd8', lucky_charm: '#58d68d', brick: '#b5563a', mud: '#6b4a2b', herb: '#3fae5a', bandage: '#f4efe6', chest: '#b07a45', kiln: '#b5563a',
 };
 
 const NS = 'http://www.w3.org/2000/svg';
@@ -85,7 +90,7 @@ const NS = 'http://www.w3.org/2000/svg';
 // Items that share a drawing.
 const ALIAS: Record<string, string> = {
   stone_axe: 'axe', iron_axe: 'axe', stone_pickaxe: 'pickaxe', iron_pickaxe: 'pickaxe', miner: 'pickaxe', hide_armor: 'armor', iron_armor: 'armor',
-  cooked_meat: 'meat', roasted_marshmallow: 'marshmallow', workbench: 'smith', campfire: 'torch', furnace: 'stone', kiln: 'brick', mud: 'stone', gem_sword: 'attack', lucky_charm: 'gem', bandage: 'health',
+  cooked_meat: 'meat', roasted_marshmallow: 'marshmallow', workbench: 'smith', campfire: 'torch', furnace: 'stone', kiln: 'brick', wheat: 'farmer', wheat_seed: 'farmer', berry_seed: 'berries', wood_wall: 'brick', stone_wall: 'brick', brick_wall: 'brick', door: 'chest', bed: 'rest', farm_plot: 'farmer', mud: 'stone', gem_sword: 'attack', lucky_charm: 'gem', bandage: 'health',
 };
 
 export function icon(name: string, title = name.replaceAll('_', ' '), color = COLORS[name]): SVGSVGElement {

@@ -491,7 +491,10 @@ export class World {
   }
 
   structureViews(): StructureView[] {
-    return [...this.structures].map(([i, s]) => [...this.xy(i), s.kind, s.kind === 'campfire' && s.litUntil > this.tick]);
+    return [...this.structures].map(([i, s]) => {
+      const crop: [string, number] | null = s.crop ? [s.crop.kind, Math.min(1, 1 - (s.crop.readyAt - this.tick) / (s.crop.kind === 'wheat' ? B.wheatTicks : B.berryCropTicks))] : null;
+      return [...this.xy(i), s.kind, s.kind === 'campfire' && s.litUntil > this.tick, crop];
+    });
   }
 
   creatureViews(): CreatureView[] {

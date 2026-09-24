@@ -150,7 +150,7 @@ export interface Structure {
   items?: Record<string, number>; // chests only
   crop?: { kind: 'wheat' | 'berry'; readyAt: number }; // farm plots only
 }
-export type StructureView = [number, number, StructureKind, boolean]; // x, y, kind, lit
+export type StructureView = [number, number, StructureKind, boolean, [string, number] | null]; // x, y, kind, lit, crop [kind, growth 0-1]
 
 export interface CreatureView {
   id: string;

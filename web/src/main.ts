@@ -7,6 +7,7 @@ import type { ClientMsg, ServerMsg } from '../../shared/types.ts';
 import { CREATURES } from '../../shared/creatures.ts';
 import { connect } from './net.ts';
 import { Creatures } from './creatures.ts';
+import { Bases } from './bases.ts';
 import { Structures } from './structures.ts';
 import { LootView } from './loot.ts';
 import { loadProps } from './props.ts';
@@ -67,6 +68,7 @@ const ui = setupUi((id) => setFollow(id), (mode) => setCam(mode));
 const robots = new Robots(scene, (x, y) => chunks.heightAt(x, y), B.tickMs, (x, y) => chunks.nodeKindAt(x, y));
 const creatures = new Creatures(scene, (x, y) => chunks.heightAt(x, y), B.tickMs);
 const structures = new Structures(scene, (x, y) => chunks.heightAt(x, y));
+const bases = new Bases(scene, (x, y) => chunks.heightAt(x, y));
 const [models] = await Promise.all([loadProps(), robots.load(), creatures.load(), structures.load()]);
 const chunks = new ChunkView(scene, models, (list) => send({ type: 'chunks', list }));
 const loot = new LootView(scene, (x, y) => chunks.heightAt(x, y));
@@ -112,6 +114,7 @@ send = connect((m: ServerMsg) => {
     loot.sync(m.loot);
     creatures.sync(m.creatures);
     structures.sync(m.structures);
+    bases.sync(m.bases ?? []);
     ui.agents(m.agents);
     ui.events(m.events);
     for (const e of m.events) {
