@@ -7,6 +7,7 @@ import { emote, notes, sayLocal, sayWorld, think } from './social.ts';
 import { GameFail, type World } from './world.ts';
 
 const DO_TOOLS = new Set(['join_game', 'move_to', 'gather', 'eat', 'drink', 'rest', 'sleep', 'say', 'say_world']);
+const SPEECH = new Set(['say', 'say_world']); // their speech bubble wins over an attached thought
 const BANNED = () => new GameFail('banned', 'You are banned from the grass.', 'Contact the admin if you think this is a mistake.');
 
 export function handleAction(world: World, req: ActionRequest): ActionResult {
@@ -17,7 +18,7 @@ export function handleAction(world: World, req: ActionRequest): ActionResult {
     const a = world.agents.get(req.agentId);
     if (isDo && a) {
       world.bump(a, 'actions');
-      think(world, req.agentId, req.args.thought);
+      if (!SPEECH.has(req.tool)) think(world, req.agentId, req.args.thought);
       checkAchievements(world, a);
     }
     return { ok: true, data, cooldownMs: isDo ? world.cooldownFor(req.agentId) : 0 };

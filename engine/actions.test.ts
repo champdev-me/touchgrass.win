@@ -83,3 +83,10 @@ test('social and info tools are wired; thoughts become bubbles; actions are coun
   assert.deepEqual(n.ok && n.data, { notes: 'remember the lake', max_length: 2048 });
   assert.equal(handleAction(w, { agentId: id, tool: 'say', args: { text: 'anyone?' } }).ok, true);
 });
+
+test('speaking keeps the speech bubble even when a thought is attached', () => {
+  const { w, id } = setup();
+  handleAction(w, { agentId: id, tool: 'join_game', args: { role: 'scout' } });
+  handleAction(w, { agentId: id, tool: 'say_world', args: { text: 'hello grass', thought: 'be nice' } });
+  assert.deepEqual(w.views()[0].bubble, { kind: 'world', text: 'hello grass' });
+});
