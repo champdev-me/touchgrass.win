@@ -51,7 +51,9 @@ const ROLE_GOALS: Record<string, string> = {
 const SYSTEM = `You control a robot in Touch Grass, a survival game. Each turn you get its state and must call exactly ONE tool.
 Stats run 0-100, higher is better. Food drops 1 every 30s, water 1 every 20s; at 0 you lose health.
 Priorities: water below 50 -> drink if a drink spot is 0-1 tiles away, else move_to that drink spot.
-Food below 60 -> eat berries if you carry them, else gather berry_bush. Night and energy below 80 -> sleep.
+Health only heals while food is full: if health is below 80 and you carry food, eat until food is about 100; food below 60 with no food -> gather berry_bush.
+Energy below 15 -> sleep (or rest by day): at 0 you cannot punch or fight. Night and energy below 80 -> sleep.
+Build stations with build(structure), not craft. Cook only meat you carry.
 Otherwise gather tree, grass or rock, or move_to a new land tile 10-30 tiles away to explore.
 Use exact coordinates from the state. Never move onto deep water. Be decisive.
 At most once every ${CHAT_EVERY_MS / 1000} seconds, instead of working you may post something short and funny with say_world. Reply to other robots in world chat by name, ask them for deals, tease them.
@@ -109,7 +111,9 @@ function fallback(o: Obs, skip = ''): Action {
     const c = coordsOf(spot);
     if (c) options.push({ name: 'move_to', args: c, why: 'thirsty, walking to water' });
   }
-  if (me.food < 60 && (me.inventory.berries ?? 0) > 0) options.push({ name: 'eat', args: { item: 'berries' }, why: 'hungry, eating berries' });
+  const snack = ['cooked_meat', 'berries', 'apple', 'meat'].find((f) => (me.inventory[f] ?? 0) > 0);
+  if (snack && (me.food < 60 || (me.health < 80 && me.food < 97))) options.push({ name: 'eat', args: { item: snack }, why: me.food < 60 ? 'hungry' : 'eating to full to heal' });
+  if (me.energy < 15) options.push({ name: o.time.phase === 'night' ? 'sleep' : 'rest', args: {}, why: 'out of energy' });
   if (me.food < 70 && (me.inventory.berries ?? 0) < 10 && find('berry_bush')) options.push({ name: 'gather', args: { target: 'berry_bush', until: 6 }, why: 'stocking up on berries' });
   if (o.time.phase === 'night' && me.energy < 80) options.push({ name: 'sleep', args: {}, why: 'night, sleeping' });
   for (const kind of ['tree', 'grass', 'rock']) if (find(kind)) options.push({ name: 'gather', args: { target: kind, until: 5 }, why: `gathering ${kind}` });
