@@ -15,7 +15,7 @@ import { NODE_DEF, chunkOf, fullAmount, wrongRole, type ResourceNode } from './n
 import { buildObservation } from './observe.ts';
 import { expireOffers, type Offer } from './trade.ts';
 import { spawnTreasures, type Clue } from './treasure.ts';
-import { placeBase } from './bases.ts';
+import { lockCheck, placeBase } from './bases.ts';
 import { findPath } from './path.ts';
 import { addScore } from './score.ts';
 import { findTarget, runTask } from './tasks.ts';
@@ -215,6 +215,7 @@ export class World {
       throw new GameFail('needs_pickaxe', 'You need a pickaxe for that.', 'Buy one from a smith, or craft one if you are a smith.');
     }
     const found = findTarget(this, a, target);
+    if (!found && target !== 'loot' && this.lockedNear(a, target)) lockCheck(this, a, ...this.lockedNear(a, target)!);
     if (!found) throw new GameFail('none_nearby', `No reachable ${target.replace('_', ' ')} in sight.`, 'Walk somewhere new, then observe again.');
     const want = until !== undefined && Number.isInteger(until) && until > 0 ? until : B.gatherUntilFull;
     a.task = { type: 'gather', target, until: want, got: 0, node: found.index, path: found.path, progress: 0 };
@@ -543,6 +544,16 @@ export class World {
     this.emit('respawn', say('respawn', a.name, this.rng), a);
     this.note(a, 'You respawned at your spawn point.');
     this.giveKit(a);
+  }
+
+  /** A node of this kind in sight that sits in someone else's base, if any. */
+  lockedNear(a: Agent, kind: string): Vec | null {
+    const r = this.vision(a);
+    for (const [i, n] of this.nodes) {
+      const [x, y] = this.xy(i);
+      if (n.kind === kind && n.left > 0 && dist([x, y], [a.x, a.y]) <= r && this.baseAt(x, y) && this.baseAt(x, y)!.owner !== a.id) return [x, y];
+    }
+    return null;
   }
 
   baseAt(x: number, y: number): Base | null {

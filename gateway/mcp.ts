@@ -173,6 +173,10 @@ export function buildMcpServer(forward: Forward): McpServer {
     description: 'Dig around your tile for the next find on a clue you carry (observe.you.clues). Clues turn up while gathering trees, grass and rocks; each leads to the next, the last to a treasure map. Scouts read clues exactly. Costs an action cooldown.',
     inputSchema: { thought },
   }, (args) => reply('search', args, 'do'));
+  s.registerTool('buy_land', {
+    description: `Grow your base by a 1-tile strip on one side (n, e, s or w), paid in gold: strip length x (1 + area/100). Stand inside your own base. Land only (no water, no Plaza), a 1-tile gap to neighbours, at most ${B.baseMaxSide} tiles a side. Costs an action cooldown.`,
+    inputSchema: { direction: z.enum(['n', 'e', 's', 'w']), thought },
+  }, (args) => reply('buy_land', args, 'do'));
   s.registerTool('drop', {
     description: 'Drop items in a loot pile at your feet to free bag space. Anyone can pick the pile up with gather("loot") before it rots. Costs an action cooldown.',
     inputSchema: { item: z.string().max(40), count: z.number().int().min(1).max(10000).optional(), thought },

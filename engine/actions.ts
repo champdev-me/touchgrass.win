@@ -2,6 +2,7 @@ import { ROLES, type ActionRequest, type ActionResult, type Role } from '../shar
 import { checkAchievements, listAchievements } from './achievements.ts';
 import { startAttack } from './combat.ts';
 import { build, craft, fuel } from './craft.ts';
+import { buyLand } from './bases.ts';
 import { store, take } from './chest.ts';
 import { accept, decline, drop, give, offer } from './trade.ts';
 import { chart, search } from './treasure.ts';
@@ -11,7 +12,7 @@ import { leaderboard } from './score.ts';
 import { emote, notes, sayLocal, sayWorld, think } from './social.ts';
 import { GameFail, type World } from './world.ts';
 
-const DO_TOOLS = new Set(['join_game', 'move_to', 'gather', 'eat', 'drink', 'rest', 'sleep', 'say', 'say_world', 'attack', 'craft', 'flee', 'build', 'fuel_campfire', 'give', 'store', 'take', 'offer', 'accept', 'decline', 'chart', 'search', 'drop']);
+const DO_TOOLS = new Set(['join_game', 'move_to', 'gather', 'eat', 'drink', 'rest', 'sleep', 'say', 'say_world', 'attack', 'craft', 'flee', 'build', 'fuel_campfire', 'give', 'store', 'take', 'offer', 'accept', 'decline', 'chart', 'search', 'buy_land', 'drop']);
 const SPEECH = new Set(['say', 'say_world']); // their speech bubble wins over an attached thought
 const BANNED = () => new GameFail('banned', 'You are banned from the grass.', 'Contact the admin if you think this is a mistake.');
 
@@ -98,6 +99,11 @@ function run(world: World, { agentId, tool, args }: ActionRequest): unknown {
       return withView(decline(world, agentId, String(args.offer ?? '')));
     case 'chart':
       return withView(chart(world, agentId, Number(args.x), Number(args.y)));
+    case 'buy_land': {
+      const side = String(args.direction ?? '');
+      if (side !== 'n' && side !== 'e' && side !== 's' && side !== 'w') throw new GameFail('bad_direction', 'Direction must be n, e, s or w.', 'buy_land(direction="e")');
+      return withView(buyLand(world, agentId, side));
+    }
     case 'search':
       return withView(search(world, agentId));
     case 'drop':

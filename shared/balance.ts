@@ -33,6 +33,7 @@ export const B = {
   firstBaseFromPlaza: [20, 40],
   baseNear: [8, 100], // tiles from another robot's flag or spawn
   baseTries: 300,
+  baseMaxSide: 32,
   tradeRange: 3,
   offerTicks: 60,
   bigTradeGold: 50, // trades this big make world news
