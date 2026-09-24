@@ -8,6 +8,7 @@ const COUNT = Number(process.env.BOTS ?? 10);
 const FILE = 'examples/.bots.json';
 const ROLES = ['gatherer', 'hunter', 'builder', 'medic', 'scout'];
 const sleep = (ms: number) => new Promise((ok) => setTimeout(ok, ms));
+const LINES = ['Has anyone seen my berries?', 'This grass is excellent.', 'I am definitely not lost.', 'Night is scary. Just saying.', 'Who keeps eating all the berries?'];
 
 type Reply = {
   you: { pos: Vec; food: number; water: number; energy: number; dead: boolean; inventory: Record<string, number> };
@@ -45,6 +46,10 @@ async function runBot(token: string, i: number): Promise<never> {
       for (;;) {
         await sleep(5500 + Math.random() * 2000);
         const o = await call(c, 'observe');
+        if (!o.error && !o.data.you.dead && Math.random() < 0.05) {
+          await call(c, 'say_world', { text: LINES[Math.floor(Math.random() * LINES.length)] });
+          continue;
+        }
         if (o.error || o.data.you.dead || o.data.task) continue;
         const me = o.data.you;
         const spot = (kind: string) => {
@@ -53,24 +58,24 @@ async function runBot(token: string, i: number): Promise<never> {
         };
         let did = '';
         if (me.water < 50) {
-          const d = await call(c, 'drink');
+          const d = await call(c, 'drink', { thought: 'so thirsty' });
           did = d.error ? '' : 'drink';
           const place = spot('drink spot');
-          if (!did && place) did = (await call(c, 'move_to', place)).error ? '' : 'walk to water';
+          if (!did && place) did = (await call(c, 'move_to', { ...place, thought: 'walking to water' })).error ? '' : 'walk to water';
         } else if (me.food < 60 && (me.inventory.berries ?? 0) > 0) {
-          did = (await call(c, 'eat', { item: 'berries' })).error ? '' : 'eat';
+          did = (await call(c, 'eat', { item: 'berries', thought: 'snack time' })).error ? '' : 'eat';
         } else if (me.food < 70) {
-          did = (await call(c, 'gather', { target: 'berry_bush', until: 6 })).error ? '' : 'gather berries';
+          did = (await call(c, 'gather', { target: 'berry_bush', until: 6, thought: 'stocking up on berries' })).error ? '' : 'gather berries';
         } else if (o.data.time.phase === 'night' && me.energy < 90) {
-          did = (await call(c, 'sleep')).error ? '' : 'sleep';
+          did = (await call(c, 'sleep', { thought: 'too dark, going to bed' })).error ? '' : 'sleep';
         } else if (Math.random() < 0.4) {
           const target = ['tree', 'grass', 'rock'][Math.floor(Math.random() * 3)];
-          did = (await call(c, 'gather', { target, until: 5 })).error ? '' : `gather ${target}`;
+          did = (await call(c, 'gather', { target, until: 5, thought: `I need ${target} for reasons` })).error ? '' : `gather ${target}`;
         }
         if (!did) {
           const [x, y] = me.pos;
           const clamp = (v: number) => Math.max(0, Math.min(1023, v));
-          const m = await call(c, 'move_to', { x: clamp(x + Math.round((Math.random() - 0.5) * 60)), y: clamp(y + Math.round((Math.random() - 0.5) * 60)) });
+          const m = await call(c, 'move_to', { x: clamp(x + Math.round((Math.random() - 0.5) * 60)), y: clamp(y + Math.round((Math.random() - 0.5) * 60)), thought: 'exploring' });
           did = m.error ? `wander failed (${m.data.error})` : 'wander';
         }
         console.log(`bot ${i}: ${did} | food ${Math.round(me.food)} water ${Math.round(me.water)} energy ${Math.round(me.energy)}`);

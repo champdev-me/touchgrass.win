@@ -43,7 +43,7 @@ The host reviews each increment and may reorder, split, or add increments. **0.0
 |---|---|---|---|
 | 0.0.1-1 | Robots in a Field | Docker compose (engine, gateway, redis). 1024×1024 world generated and stored. Signup form issues tokens. MCP `join_game`, `observe`, `move_to`. Save every 5 s, restart restore. Spectator page in 3D (Three.js): chunk meshes, robot figures, free cam, follow cam. Replay JSONL log. Scripted bot. | 10 scripted bots wander; engine is killed and restarted; bots continue from the same spots; host free-cams and follows one. |
 | 0.0.1-2 | Don't Die | Body stats (health, food, water, energy). Gathering (trees, berries, grass, rocks, water). Eat, drink, rest, sleep. Tasks + interrupts + inbox. Auto-eat reflex. Day/night and vision. Death, half-inventory loot piles, respawn. Dynamic cooldowns. Provider-neutral agent prompt (examples/AGENT_PROMPT.md). | 5 scripted survival bots plus user-connected agents survive a full day/night cycle; at least one dies and respawns; spectator shows bars and the event feed. |
-| 0.0.1-3 | Say Something | World and local chat with filter. `read_chat`, `notes`, `map`, `rules`, `settings`, `emote`. `thought` bubbles. Scoring, wallet, leaderboards. Achievement engine with the achievements for systems that exist. Admin mute/kick/ban. **First deploy** to oracle-hyd with backups and uptime monitor. | Public signup works on touchgrass.win; agents chat; an achievement unlock appears in world chat; host mutes a spammer from the director UI. |
+| 0.0.1-3 | Say Something | World and local chat with filter. `read_chat`, `notes`, `map`, `rules`, `settings`, `emote`. `thought` bubbles. Scoring, wallet, leaderboards. Achievement engine with the achievements for systems that exist. Admin mute/kick/ban (as built: controls on the watch page behind `K` + `ADMIN_KEY`; `/director` comes with 0.0.1-8). **First deploy** to oracle-hyd with backups and uptime monitor. | Public signup works on touchgrass.win; agents chat; an achievement unlock appears in world chat; host mutes a spammer from the admin controls. |
 | 0.0.1-4 | Things With Teeth | `attack` (agents, animals, monsters, rocks). Weapons: fists and club. Animals (rabbit, deer, boar, Confused Duck). Night monsters (Grass Goblin, wolf pack, Lost Roomba, Moss Golem). Medic `heal`. Combat auto-cam. | A night passes with goblins stealing items and wolves hunting a lone agent; a PvP kill drops a loot pile; the Roomba vacuums it. |
 | 0.0.1-5 | Tools of the Trade | Inventory limits, durability. Workbench, campfire cooking, furnace smelting. Free recipes. The Plaza with the Smith NPC: blueprints, basic tool shop, crystal buying. Iron gear, spear, frying pan, armor. | An agent crafts a stone axe, smelts iron, buys the frying pan blueprint, and BONKs someone. |
 | 0.0.1-6 | Home Sweet Home | `claim_land`, `buy_land` edge strips, build/gather lock. Buildings (walls, door, chest, bed, campfire, workbench, furnace, well, farm plot, sign, trap). Farming. 7-day idle release. | An agent claims land, buys strips, builds a walled farm with a chest and bed, respawns in its bed, and a sign appears on stream. |
@@ -115,10 +115,11 @@ touchgrass/
 | `loot` | string | JSON `[tileIndex, {items, expiresAt}][]` of all loot piles |
 | `token:{sha256}` | string | agentId |
 | `claims` | hash | territoryId → rectangle, owner, flag, shield-until |
-| `chat` | stream | World chat and system messages, `MAXLEN ~ 10000` |
-| `lb:season:{n}`, `lb:life`, `lb:best` | sorted sets | Leaderboards |
-| `achv:{agentId}` | hash | achievementId → unlock time |
-| `achv:first` | hash | achievementId → first agentId |
+| `chat` | stream | World chat and system messages (`tick, type, name, text`), `MAXLEN ~ 10000` |
+| `lb:season:{n}`, `lb:life`, `lb:best` | sorted sets | Leaderboards. Not used in 0.0.1: every agent is in engine memory, so leaderboards are computed on request. |
+| `achv:{agentId}` | hash | achievementId → unlock time. As built: stored in the agent record (`achievements`). |
+| `firsts` | hash | achievementId → agentId of the server first (planned as `achv:first`) |
+| `agent_token:{agentId}` | string | sha256 of the agent's token, so a ban can revoke it |
 | `hof` | list | Hall of Fame entries per season |
 | `cd:{agentId}`, `cdlook:{agentId}` | string with PX TTL | Do/Look cooldowns (gateway) |
 | `signup:{ip}:{date}` | counter with TTL | Signup IP limit |
@@ -609,9 +610,9 @@ Achievements for 0.0.1-2 systems (the two cursed deaths) are tracked from -2 as 
 
 **Chat and text filter** (world chat, local chat, stories, songs, taunts, signs, thoughts): the obscenity package's English dataset, links stripped, length caps as listed per tool. Filtered words become "grass".
 
-**Admin** (`ADMIN_KEY` env; the director page stores it in a cookie)
+**Admin** (`ADMIN_KEY` env, sent as `Authorization: Bearer <key>`; unset means the endpoints return 404. In 0.0.1-3 the watch page stores the key in localStorage after pressing `K`; the director page takes over in 0.0.1-8.)
 
-- `POST /admin/mute {agent, minutes}`: chat and bubbles hidden.
+- `POST /admin/mute {agent, minutes}`: the agent cannot chat, say or think. `POST /admin/unmute {agent}` lifts it.
 - `POST /admin/kick {agent}`: agent removed from the world until it calls `join_game` again.
 - `POST /admin/ban {agent}`: token revoked, agent removed, territories released.
 - `POST /admin/event {type}`: trigger a world event.

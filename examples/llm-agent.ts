@@ -16,7 +16,8 @@ const LLM_URL = (process.env.LLM_URL ?? 'http://localhost:11434/v1').replace(/\/
 const LLM_MODEL = process.env.LLM_MODEL ?? 'gemma4:12b';
 const LLM_KEY = process.env.LLM_KEY ?? '';
 const ROLE = process.env.ROLE ?? 'gatherer';
-const ACTIONS = ['move_to', 'gather', 'eat', 'drink', 'rest', 'sleep'];
+const ACTIONS = ['move_to', 'gather', 'eat', 'drink', 'rest', 'sleep', 'say_world'];
+const CHAT_EVERY_MS = 60_000;
 
 type Obs = {
   you: { pos: Vec; health: number; food: number; water: number; energy: number; dead: boolean; inventory: Record<string, number> };
@@ -25,6 +26,7 @@ type Obs = {
   resources: string[];
   nearby: string[];
   inbox: string[];
+  world_chat: string[];
 };
 type Reply = { ok: boolean; data: Record<string, unknown> };
 type Action = { name: string; args: Record<string, unknown>; why: string };
@@ -39,7 +41,9 @@ Stats run 0-100, higher is better. Food drops 1 every 30s, water 1 every 20s; at
 Priorities: water below 50 -> drink if a drink spot is 0-1 tiles away, else move_to that drink spot.
 Food below 60 -> eat berries if you carry them, else gather berry_bush. Night and energy below 80 -> sleep.
 Otherwise gather tree, grass or rock, or move_to a new land tile 10-30 tiles away to explore.
-Use exact coordinates from the state. Never move onto deep water. Be decisive.`;
+Use exact coordinates from the state. Never move onto deep water. Be decisive.
+At most once a minute, instead of working you may post something short and funny with say_world (react to world chat if you like).
+Every tool accepts "thought": one short sentence about why, shown to viewers as a thought bubble. Always fill it in.`;
 
 const mcp = new Client({ name: 'touchgrass-llm-agent', version: '1.0.0' });
 await mcp.connect(new StreamableHTTPClientTransport(new URL(`${TG_URL}/mcp`), { requestInit: { headers: { Authorization: `Bearer ${TG_TOKEN}` } } }));
@@ -89,6 +93,7 @@ async function decide(o: Obs, memory: string[]): Promise<Action | null> {
     `Nearest resources:\n${o.resources.slice(0, 8).join('\n') || 'none in sight'}`,
     `Nearby robots: ${o.nearby.slice(0, 4).join('; ') || 'none'}`,
     `Recent events: ${o.inbox.slice(-4).join(' | ') || 'none'}`,
+    `World chat: ${o.world_chat.slice(-5).join(' | ') || 'quiet'}`,
     `Your last actions: ${memory.join(' | ') || 'none'}`,
     'Your robot is idle. Call exactly one tool now.',
   ].join('\n');
@@ -114,6 +119,7 @@ async function decide(o: Obs, memory: string[]): Promise<Action | null> {
 const joined = await call('join_game', { role: ROLE, model: LLM_MODEL });
 log(joined.ok ? `joined as ${String((joined.data.you as { name: string }).name)}` : `join_game: ${String(joined.data.error)}`);
 const memory: string[] = [];
+let lastChat = 0;
 
 for (;;) {
   const look = await call('observe').catch(() => null);
@@ -131,13 +137,16 @@ for (;;) {
     continue;
   }
   let act = (await decide(o, memory)) ?? fallback(o);
-  let res = await call(act.name, act.args);
+  if (act.name === 'say_world' && Date.now() - lastChat < CHAT_EVERY_MS) act = fallback(o);
+  const withThought = (a: Action) => ({ ...a.args, thought: String(a.args.thought ?? a.why).slice(0, 120) });
+  let res = await call(act.name, withThought(act));
   if (!res.ok && res.data.error !== 'rate_limited') {
     const why = String(res.data.error);
     act = fallback(o, act.name);
     act.why = `${act.why} (model's pick failed: ${why})`;
-    res = await call(act.name, act.args);
+    res = await call(act.name, withThought(act));
   }
+  if (res.ok && act.name === 'say_world') lastChat = Date.now();
   const outcome = res.ok ? 'ok' : String(res.data.error);
   memory.push(`${act.name}${Object.keys(act.args).length ? JSON.stringify(act.args) : ''} -> ${outcome}`);
   memory.splice(0, Math.max(0, memory.length - 6));
