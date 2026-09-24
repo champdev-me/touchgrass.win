@@ -8,7 +8,7 @@ import type { ActionResult, ClientMsg, GameError, GameEvent, PackedNode, TickDel
 import { agentForToken, hashToken, newToken } from './auth.ts';
 import { clean, isRude } from './filter.ts';
 import { clientIp } from './ip.ts';
-import { buildMcpServer, type Forward } from './mcp.ts';
+import { USAGE, buildMcpServer, type Forward } from './mcp.ts';
 import { claimSlot, startCooldown } from './ratelimit.ts';
 
 export interface GatewayOpts {
@@ -85,6 +85,18 @@ export async function startGateway(o: GatewayOpts) {
     return res;
   };
 
+  /** The SDK answers bad arguments with plain text: turn it into a game error that shows the correct call. */
+  async function withUsage(res: Response): Promise<Response> {
+    if (!res.headers.get('content-type')?.includes('application/json')) return res;
+    const msg = (await res.clone().json()) as { result?: { isError?: boolean; content?: { type: string; text: string }[] } };
+    const text = msg.result?.isError ? msg.result.content?.[0]?.text ?? '' : '';
+    const m = text.match(/Input validation error: Invalid arguments for tool (\w+): ([\s\S]*)/);
+    if (!m || !msg.result?.content) return res;
+    const problem = m[2].replace(/\s+/g, ' ').slice(0, 300);
+    msg.result.content[0].text = JSON.stringify({ error: 'bad_args', message: `Wrong arguments for ${m[1]}: ${problem}`, hint: `Call it like: ${USAGE.get(m[1]) ?? m[1]}` }, null, 1);
+    return new Response(JSON.stringify(msg), { status: res.status, headers: res.headers });
+  }
+
   async function handleMcp(req: Request): Promise<Response> {
     if (req.method !== 'POST') return json(405, { jsonrpc: '2.0', error: { code: -32000, message: 'This MCP server is stateless: POST only.' }, id: null });
     const agentId = await agentForToken(r, req.headers.get('authorization') ?? undefined);
@@ -94,7 +106,7 @@ export async function startGateway(o: GatewayOpts) {
     const transport = new WebStandardStreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
     await server.connect(transport);
     try {
-      return await transport.handleRequest(req);
+      return withUsage(await transport.handleRequest(req));
     } finally {
       await server.close();
     }

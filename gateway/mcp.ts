@@ -12,8 +12,25 @@ export type Forward = (tool: string, args: Record<string, unknown>, kind: 'do' |
 // Optional on every action; it becomes a 💭 bubble on stream. The engine clips it.
 const thought = z.string().optional().describe('Optional one-line thought about why, shown as a 💭 bubble on stream.');
 
+/** tool -> a one-line correct call, shown when a call's arguments are wrong. */
+export const USAGE = new Map<string, string>();
+
+type JsonSchema = { type?: string; enum?: unknown[]; properties?: Record<string, JsonSchema>; required?: string[] };
+const typeOf = (j: JsonSchema): string => (j.enum ? j.enum.map((v) => JSON.stringify(v)).join('|') : (j.type ?? 'value'));
+
+function usage(name: string, shape: z.ZodRawShape | undefined): string {
+  const j = z.toJSONSchema(z.object(shape ?? {})) as JsonSchema;
+  const fields = Object.entries(j.properties ?? {}).map(([k, v]) => `"${k}"${j.required?.includes(k) ? '' : '?'}: ${typeOf(v)}`);
+  return `${name} {${fields.join(', ')}}`;
+}
+
 export function buildMcpServer(forward: Forward): McpServer {
   const s = new McpServer({ name: 'touchgrass', version: VERSION });
+  const register = s.registerTool.bind(s);
+  s.registerTool = ((name: string, config: { inputSchema?: z.ZodRawShape }, cb: never) => {
+    if (!USAGE.has(name)) USAGE.set(name, usage(name, config.inputSchema));
+    return register(name, config, cb);
+  }) as unknown as typeof s.registerTool;
   const reply = async (tool: string, args: Record<string, unknown>, kind: 'do' | 'look') => {
     const res = await forward(tool, args, kind);
     return { content: [{ type: 'text' as const, text: JSON.stringify(res.ok ? res.data : res.error, null, 1) }], isError: !res.ok };

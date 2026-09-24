@@ -157,6 +157,18 @@ test('two robots meet and trade over MCP with offer and accept', async () => {
   await Promise.all([a.close(), b.close()]);
 });
 
+test('a call with wrong arguments gets a game error that shows the correct call', async () => {
+  const { body } = await signup('Sloppy', '4.4.4.9');
+  const c = await mcp(body.token);
+  const r = await call(c, 'move_to', { tile: '(4, 5)' });
+  assert.equal(r.isError, true);
+  assert.equal(r.data.error, 'bad_args');
+  assert.match(String(r.data.hint), /^Call it like: move_to \{"x": integer, "y": integer, "thought"\?: string\}$/);
+  const g = await call(c, 'gather', { item: 'grass' });
+  assert.match(String(g.data.hint), /"target": "tree"\|"berry_bush"/);
+  await c.close();
+});
+
 test('spectators get hello, ticks and chunks; junk is ignored', async () => {
   const ws = new WebSocket(`ws://127.0.0.1:${gw.port}/ws`);
   const msgs: ServerMsg[] = [];
