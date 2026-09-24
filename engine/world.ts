@@ -11,7 +11,7 @@ import { eat, tickBody } from './body.ts';
 import { stepCreatures } from './creatures.ts';
 import { armorOf, bestTool, useGear } from './gear.ts';
 import { chunksPerRow, dominantTerrain, explore } from './explore.ts';
-import { NODE_DEF, chunkOf, fullAmount, type ResourceNode } from './nodes.ts';
+import { NODE_DEF, chunkOf, fullAmount, wrongRole, type ResourceNode } from './nodes.ts';
 import { buildObservation } from './observe.ts';
 import { findPath } from './path.ts';
 import { addScore } from './score.ts';
@@ -186,9 +186,10 @@ export class World {
     const a = this.alive(id);
     if (a.energy <= 0) throw new GameFail('too_tired', 'Your robot is too tired to punch anything.', 'rest or sleep first.');
     if (!isTarget(target)) throw new GameFail('bad_target', `You cannot gather "${target}".`, `Gather one of: ${GATHER_TARGETS.join(', ')}.`);
-    if (target !== 'loot' && room(a.inventory, NODE_DEF[target].item) === 0) throw new GameFail('bag_full', 'Your bag is full.', `It holds ${slotsOf(a.inventory)} slots. Eat something, sell to the Smith, or stop hoarding.`);
+    if (target !== 'loot' && NODE_DEF[target].roles && !NODE_DEF[target].roles!.includes(a.role!)) throw wrongRole(target);
+    if (target !== 'loot' && target !== 'gold_vein' && room(a.inventory, NODE_DEF[target].item) === 0) throw new GameFail('bag_full', 'Your bag is full.', `It holds ${slotsOf(a.inventory)} slots. Eat, drop, trade or store something, or stop hoarding.`);
     if (target !== 'loot' && NODE_DEF[target].needsPickaxe && !bestTool(a, target)) {
-      throw new GameFail('needs_pickaxe', 'You need a pickaxe for that.', 'Craft a stone pickaxe at a workbench, or buy one from the Smith.');
+      throw new GameFail('needs_pickaxe', 'You need a pickaxe for that.', 'Buy one from a smith, or craft one if you are a smith.');
     }
     const found = findTarget(this, a, target);
     if (!found) throw new GameFail('none_nearby', `No reachable ${target.replace('_', ' ')} in sight.`, 'Walk somewhere new, then observe again.');

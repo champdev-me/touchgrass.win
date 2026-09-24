@@ -109,7 +109,7 @@ test('boars fight back; rabbits flee but can be caught; kills fill the bag and s
   assert.deepEqual([boar.hp, boar.mode, a.health], [20, 'chase', 92]);
 
   const w2 = world();
-  const h = joined(w2, 'Chef', [10, 10]);
+  const h = joined(w2, 'Chef', [10, 10], 'hunter'); // only hunters get meat
   const rabbit = spawnCreature(w2, 'rabbit', [11, 10]);
   startAttack(w2, h.id, 'rabbit');
   for (let i = 0; i < 3; i++) w2.step(0);

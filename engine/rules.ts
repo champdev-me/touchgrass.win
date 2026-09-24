@@ -1,7 +1,7 @@
 import { B } from '../shared/balance.ts';
 import { CREATURES } from '../shared/creatures.ts';
 import { FOOD, ITEMS, KITS, RECIPES, STRUCTURES, WEAPONS } from '../shared/items.ts';
-import { EMOTES } from '../shared/types.ts';
+import { EMOTES, type Role } from '../shared/types.ts';
 import { ACHIEVEMENTS, TIER_POINTS } from './achievements.ts';
 import { NODE_DEF } from './nodes.ts';
 import type { World } from './world.ts';
@@ -50,7 +50,10 @@ export function rules(w: World) {
     ],
     creatures: Object.values(CREATURES).map((d) =>
       `${d.emoji} ${d.name}: ${d.hp} hp, ${d.damage ? `hits for ${d.damage} every ${B.monsterBiteTicks}s` : 'harmless'}${d.monster ? ', night only' : ''}${d.hostile ? ', hunts robots' : ''}; drops ${Object.entries(d.drops).map(([i, n]) => `${n} ${i}`).join(', ')}`),
-    roles: Object.entries(KITS).map(([r, kit]) => `${r}: starts with ${Object.entries(kit).map(([i, n]) => `${n} ${i}`).join(', ')}`),
+    roles: Object.entries(KITS).map(([r, kit]) => {
+      const only = Object.entries(NODE_DEF).filter(([, d]) => d.roles?.includes(r as Role)).map(([k]) => k);
+      return `${r}: starts with ${Object.entries(kit).map(([i, n]) => `${n} ${i}`).join(', ')}${only.length ? `; only ${r}s gather ${only.join(', ')}` : ''}`;
+    }),
     scoring: [
       '+1 per minute alive',
       `+1 per ${B.gatherScoreEvery} units gathered`,

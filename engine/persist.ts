@@ -2,7 +2,7 @@ import { B } from '../shared/balance.ts';
 import { trimBag } from '../shared/items.ts';
 import { CHAT_STREAM, recentChat, type Redis } from '../shared/redis.ts';
 import { TERRAIN as T } from '../shared/types.ts';
-import type { Agent, Creature, PackedNode, Structure } from '../shared/types.ts';
+import type { Agent, Creature, NodeKind, PackedNode, Structure } from '../shared/types.ts';
 import { normalizeAgent } from './agent.ts';
 import { NODE_RULES, chunkOf, fullAmount, generateNodes, nodeKindAt, packChunk, unpackChunk } from './nodes.ts';
 import { TERRAIN_RULES, chunkBytes, generateLand, levelsOf, walkable, writeChunk } from './terrain.ts';
@@ -139,12 +139,13 @@ export async function loadWorld(r: Redis, seed = 'touchgrass-season-1'): Promise
       w.dirtyChunks.add(chunkOf(i, size));
     }
   }
-  if (Number(meta.nodeRules ?? 1) < 6) {
-    // 6: iron veins and crystal clusters appear on hills, mountains, peaks and ruins.
+  // Node kinds added by later rules grow into saved worlds once: 6 iron and crystal, 7 mud, gems, gold, herbs.
+  const added: NodeKind[] = [...(Number(meta.nodeRules ?? 1) < 6 ? ['iron_vein', 'crystal'] as const : []), ...(Number(meta.nodeRules ?? 1) < 7 ? ['mud', 'gem_vein', 'gold_vein', 'herb'] as const : [])];
+  if (added.length) {
     for (let i = 0; i < tiles.length; i++) {
       if (w.nodes.has(i)) continue;
       const [x, y] = w.xy(i), kind = nodeKindAt(tiles[i], x, y);
-      if (kind !== 'iron_vein' && kind !== 'crystal') continue;
+      if (!kind || !added.includes(kind)) continue;
       w.nodes.set(i, { kind, left: fullAmount(kind, x, y), regrowAt: 0 });
       w.dirtyChunks.add(chunkOf(i, size));
     }

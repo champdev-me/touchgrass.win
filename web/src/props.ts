@@ -20,10 +20,17 @@ const MODEL: Record<NodeKind, (x: number, y: number) => string> = {
   rock: () => 'stone_largeA',
   iron_vein: () => 'iron_vein',
   crystal: () => 'crystal',
+  mud: () => 'mud',
+  gem_vein: () => 'gem_vein',
+  gold_vein: () => 'gold_vein',
+  herb: () => 'herb',
 };
-// Ore and crystal nodes reuse the stone model, recoloured.
-const ORES: [string, string, number][] = [['iron_vein', '#b5653a', 0], ['crystal', '#7fd8ff', 0.35]];
-const SCALE: Record<NodeKind, number> = { tree: 1.4, berry_bush: 1.6, grass: 1.2, rock: 1, iron_vein: 1, crystal: 0.7 };
+// Ores, mud and herbs reuse a base model, recoloured (and mud squashed flat): [name, base, colour, glow, height].
+const ORES: [string, string, string, number, number][] = [
+  ['iron_vein', 'stone_largeA', '#b5653a', 0, 1], ['crystal', 'stone_largeA', '#7fd8ff', 0.35, 1], ['gem_vein', 'stone_largeA', '#d04fd8', 0.3, 1],
+  ['gold_vein', 'stone_largeA', '#f2c230', 0.25, 1], ['mud', 'stone_largeA', '#6b4a2b', 0, 0.15], ['herb', 'grass_large', '#3fae5a', 0.1, 1],
+];
+const SCALE: Record<NodeKind, number> = { tree: 1.4, berry_bush: 1.6, grass: 1.2, rock: 1, iron_vein: 1, crystal: 0.7, mud: 1.2, gem_vein: 0.8, gold_vein: 1, herb: 0.8 };
 const berryGeo = new THREE.SphereGeometry(0.06, 6, 4);
 const berryMat = new THREE.MeshLambertMaterial({ color: '#d62246' });
 const BERRY_OFFSETS = [[0.12, 0.3, 0.05], [-0.1, 0.26, 0.1], [0.02, 0.34, -0.12]];
@@ -46,9 +53,10 @@ export async function loadProps(): Promise<Models> {
     });
     out.set(n, meshes);
   }));
-  for (const [name, color, glow] of ORES) {
-    out.set(name, out.get('stone_largeA')!.map((m) => {
+  for (const [name, base, color, glow, height] of ORES) {
+    out.set(name, out.get(base)!.map((m) => {
       const c = m.clone(), mat = (m.material as THREE.MeshStandardMaterial).clone();
+      if (height !== 1) c.geometry = m.geometry.clone().scale(1, height, 1);
       mat.color.set(color);
       mat.emissive.set(color).multiplyScalar(glow);
       c.material = mat;

@@ -50,7 +50,7 @@ test('survival tools are wired and a low stat shortens the cooldown to 3 s', () 
   assert.deepEqual([set.ok && set.data, set.cooldownMs], [{ auto_eat: false, auto_flee: true }, 0]);
   assert.equal(handleAction(w, { agentId: id, tool: 'rest', args: {} }).ok, true);
   assert.equal(handleAction(w, { agentId: id, tool: 'sleep', args: {} }).ok, true);
-  const none = handleAction(w, { agentId: id, tool: 'gather', args: { target: 'rock' } });
+  const none = handleAction(w, { agentId: id, tool: 'gather', args: { target: 'tree' } });
   assert.equal(!none.ok && none.error.error, 'none_nearby');
 });
 

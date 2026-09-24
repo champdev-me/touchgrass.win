@@ -108,7 +108,7 @@ test('berry bushes and trees that the current rules no longer place are pruned o
   let old = -1;
   for (let i = 0; i < tiles.length && old < 0; i++) {
     const h = hash01(i % 64, Math.floor(i / 64));
-    if (h >= 0.035 && h < 0.05) old = i; // a berry bush under the old rules, nothing now
+    if (h >= 0.04 && h < 0.05) old = i; // a berry bush under the old rules, nothing now (0.035-0.04 grows herbs)
   }
   w.nodes.set(old, { kind: 'berry_bush', left: 5, regrowAt: 0 });
   let thinned = -1; // a forest tile whose tree the thinner forests no longer place

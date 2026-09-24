@@ -51,6 +51,7 @@ test('bushes regrow after their regrow time; rocks never do', () => {
   w.gather(a.id, 'berry_bush');
   steps(w, 3);
   assert.equal(w.nodes.get(w.index(1, 1))!.left, 0);
+  a.role = 'mason'; // only masons get stone
   w.gather(a.id, 'rock');
   steps(w, 5);
   assert.equal(w.nodes.get(w.index(3, 1))!.left, 0);

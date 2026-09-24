@@ -149,7 +149,9 @@ function hitCreature(w: World, a: Agent, c: Creature): void {
   w.creatures.delete(c.id);
   w.bump(a, `kill:${c.kind}`);
   addScore(w, a, def.score);
-  const loot: Inventory = { ...def.drops };
+  const animal = !def.monster && (def.drops.meat ?? 0) > 0;
+  const loot: Inventory = animal && a.role !== 'hunter' ? {} : { ...def.drops }; // only hunters get meat and hide from animals
+  if (animal && a.role !== 'hunter') w.note(a, 'Only hunters know how to get meat and hide from an animal. You got nothing but bruises.');
   for (const [item, n] of Object.entries(c.bag)) loot[item] = (loot[item] ?? 0) + n;
   const spill: Inventory = {};
   for (const [item, n] of Object.entries(loot)) {

@@ -1,6 +1,6 @@
 import { test } from 'bun:test';
 import assert from 'node:assert/strict';
-import { TERRAIN as T, type NodeKind } from '../shared/types.ts';
+import { NODE_KINDS, TERRAIN as T, type NodeKind } from '../shared/types.ts';
 import { NODE_DEF, chunkOf, generateNodes, nodeKindAt, packChunk, unpackChunk, type ResourceNode } from './nodes.ts';
 
 const share = (t: number, kind: NodeKind) => {
@@ -14,9 +14,9 @@ test('nodes only grow where they belong and are deterministic', () => {
     const x = i % 100, y = Math.floor(i / 100);
     assert.equal(nodeKindAt(T.PLAZA, x, y), null);
     assert.equal(nodeKindAt(T.DEEP, x, y), null);
-    assert.ok([null, 'tree', 'berry_bush'].includes(nodeKindAt(T.FOREST, x, y)));
+    assert.ok([null, 'tree', 'berry_bush', 'herb'].includes(nodeKindAt(T.FOREST, x, y)));
     assert.ok([null, 'rock', 'iron_vein'].includes(nodeKindAt(T.HILLS, x, y)));
-    assert.ok([null, 'iron_vein'].includes(nodeKindAt(T.MOUNTAIN, x, y))); // miners dig iron in the mountains
+    assert.ok([null, 'iron_vein', 'gem_vein'].includes(nodeKindAt(T.MOUNTAIN, x, y))); // miners dig iron and gems in the mountains
   }
   assert.equal(nodeKindAt(T.MEADOW, 17, 42), nodeKindAt(T.MEADOW, 17, 42));
 });
@@ -42,4 +42,12 @@ test('fresh nodes are full and chunks pack and unpack losslessly', () => {
   const sorted = (m: Map<number, ResourceNode>) => [...m].sort((a, b) => a[0] - b[0]);
   assert.deepEqual(sorted(back), sorted(nodes));
   assert.equal(chunkOf(size * 40 + 33, size), '1,1');
+});
+
+test('new nodes: mud in shallows and on sand, gems and gold up high, herbs in the green; old indices stay put', () => {
+  assert.ok(share(T.SHALLOW, 'mud') > 0.03 && share(T.SAND, 'mud') > 0.01 && share(T.DEEP, 'mud') === 0);
+  assert.ok(share(T.PEAK, 'gold_vein') > 0 && share(T.HIGH, 'gold_vein') > 0 && share(T.MOUNTAIN, 'gem_vein') > 0);
+  assert.ok(share(T.FOREST, 'herb') > 0 && share(T.MEADOW, 'herb') > 0);
+  assert.deepEqual(NODE_KINDS.slice(0, 6), ['tree', 'berry_bush', 'grass', 'rock', 'iron_vein', 'crystal']);
+  assert.deepEqual(['mud', 'gem_vein', 'gold_vein', 'herb'].map((k) => NODE_DEF[k as NodeKind].roles), [['mason'], ['miner'], ['miner'], ['gatherer']]);
 });
