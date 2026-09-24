@@ -17,7 +17,7 @@ const LLM_MODEL = process.env.LLM_MODEL ?? 'gemma4:12b';
 const LLM_KEY = process.env.LLM_KEY ?? '';
 const ROLE = process.env.ROLE ?? 'gatherer';
 const ACTIONS = ['move_to', 'gather', 'eat', 'drink', 'rest', 'sleep', 'say_world', 'attack', 'heal', 'craft', 'flee', 'build', 'smith', 'give', 'drop'];
-const CHAT_EVERY_MS = 60_000;
+const CHAT_EVERY_MS = Number(process.env.CHAT_EVERY_S ?? 60) * 1000;
 
 type Obs = {
   you: { pos: Vec; health: number; food: number; water: number; energy: number; dead: boolean; inventory: Record<string, number> };
@@ -51,7 +51,7 @@ Priorities: water below 50 -> drink if a drink spot is 0-1 tiles away, else move
 Food below 60 -> eat berries if you carry them, else gather berry_bush. Night and energy below 80 -> sleep.
 Otherwise gather tree, grass or rock, or move_to a new land tile 10-30 tiles away to explore.
 Use exact coordinates from the state. Never move onto deep water. Be decisive.
-At most once a minute, instead of working you may post something short and funny with say_world (react to world chat if you like).
+At most once every ${CHAT_EVERY_MS / 1000} seconds, instead of working you may post something short and funny with say_world. Reply to other robots in world chat by name, ask them for deals, tease them.
 Every tool accepts "thought": one short sentence about why, shown to viewers as a thought bubble. Always fill it in.
 If something is "hunting you": attack it (its mob id) when health is above 40, else flee (or flee to x, y).
 Rabbits and deer are food: attack them, then eat meat (+10 food, sometimes a tummy ache). With 5 wood, craft a club (double damage).

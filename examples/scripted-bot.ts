@@ -170,4 +170,6 @@ async function runBot(token: string, i: number): Promise<never> {
   }
 }
 
-await Promise.all((await tokens()).map((t, i) => runBot(t, i)));
+// ONLY=miner,hunter runs just the saved bots with those roles.
+const only = process.env.ONLY?.split(',');
+await Promise.all((await tokens()).map((t, i) => (!only || only.includes(ROLES[i % ROLES.length]) ? runBot(t, i) : null)));
