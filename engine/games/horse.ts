@@ -3,9 +3,9 @@ import type { Game, Option } from './game.ts';
 export interface Runner { distance: number; stamina: number; last: string | null; lot: number }
 export interface HorseState { leg: number; event: string; runners: Map<string, Runner> }
 
-const LEGS = 10, MAX_STAMINA = 10, CLIP_LOSS = 8;
+const LEGS = 15, MAX_STAMINA = 15, CLIP_LOSS = 8;
 const WEATHER = ['clear', 'mud', 'tailwind', 'hill'] as const;
-const LAP = ['straight', 'hurdle', 'turn', 'hurdle', 'turn']; // one lap of the oval, two laps a race
+const LAP = ['straight', 'hurdle', 'turn', 'hurdle', 'turn']; // one lap of the oval, three laps a race
 const EVENT_TEXT: Record<string, string> = {
   clear: 'straight, clear skies', mud: 'straight in the mud: sprints cost 2 more stamina', tailwind: 'straight with a tailwind: +3 for everyone', hill: 'uphill straight: conserving gives no stamina',
   hurdle: 'hurdle: jump clears it; sprint and overtake clip it half the time, steady a quarter (-8)', turn: 'turn: sprints go wide (+18), overtakes take the inside (+2)', home_stretch: 'home stretch: sprints get +4',
@@ -37,7 +37,7 @@ export const horseRace: Game<HorseState> = {
   maxPlayers: 4, // a medieval race: four riders at most
   rounds: LEGS,
   rules: [
-    `Two laps of an oval, ${LEGS} legs; the runner furthest along after the last leg wins (ties: more stamina left, then by lot). Stamina starts at ${MAX_STAMINA}.`,
+    `Three laps of an oval, ${LEGS} legs; the runner furthest along after the last leg wins (ties: more stamina left, then by lot). Stamina starts at ${MAX_STAMINA}.`,
     'Each leg pick: 1 sprint (+24, -3 stamina), 2 steady (+20, -1; the default), 3 conserve (+16, +2), 4 overtake (+22, -2, and +4 more if you end the leg within 3 lengths behind someone).',
     'At 0 stamina you are exhausted: +12 and +1 stamina whatever you pick. Luck adds -2..+2 per leg.',
     'Each lap: straight, hurdle, turn, hurdle, turn. Straights have weather: mud (sprints cost 2 more), tailwind (+3 for all), hill (conserve gives no stamina). The last leg is the home stretch (sprints +4).',
@@ -95,6 +95,6 @@ export const horseRace: Game<HorseState> = {
     return [...s.runners.entries()].sort(([, a], [, b]) => b.distance - a.distance || b.stamina - a.stamina || a.lot - b.lot).map(([id]) => id);
   },
   view(s) {
-    return { leg: s.leg, legs: LEGS, event: s.event, event_text: EVENT_TEXT[s.event], runners: [...s.runners.entries()].map(([id, r]) => ({ id, distance: r.distance, stamina: r.stamina, last: r.last })) };
+    return { leg: s.leg, legs: LEGS, laps: LEGS / LAP.length, stamina_max: MAX_STAMINA, event: s.event, event_text: EVENT_TEXT[s.event], runners: [...s.runners.entries()].map(([id, r]) => ({ id, distance: r.distance, stamina: r.stamina, last: r.last })) };
   },
 };

@@ -2,6 +2,7 @@
 
 Status: approved 2026-09-25. Host change during the build: **medieval games only**; the horse race takes **at most 4 riders** (a horse-and-cart race is the likely next game).
 0.1.0-2 (host: "make it long race, and circle, turns, hurdles"): two laps of an oval, 10 legs; each lap is straight, hurdle, turn, hurdle, turn; hurdle legs add 5 jump (+18, −2, always clears) and other moves may clip (sprint/overtake 50%, steady 25%, −8); turns make sprints go wide (+18) and give overtakes the inside (+2). The home stretch is leg 10.
+0.1.0-3 (host: "they are running so fast"): three laps, 15 legs, stamina 15; a leg lasts at least 6 s (`B.minRoundMs`) even when everyone has picked, and horses gallop for the whole leg; two fences per hurdle stretch on screen.
 Replaces the survival world (0.0.1-1 to 0.0.1-8, kept in git at tag `v0.0.1-8`).
 
 ## 1. Why

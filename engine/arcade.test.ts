@@ -13,7 +13,7 @@ const code = (fn: () => unknown) => {
     return (e as GameFail).code;
   }
 };
-const ROUND = B.roundMs / B.tickMs;
+const ROUND = B.roundMs / B.tickMs, MIN = B.minRoundMs / B.tickMs;
 function arcade() {
   let seed = 9;
   return new Arcade(() => (seed = (seed * 16807) % 2147483647) / 2147483647);
@@ -63,7 +63,9 @@ test('rounds: menu choices, replacing a choice, early resolve when all acted, de
   a.act(p.id, 3);
   a.act(p.id, 1); // replaces the conserve
   a.act(q.id, 2);
-  run(a, 1); // both humans acted: resolves now
+  run(a, 1); // both acted, but a leg lasts at least B.minRoundMs so viewers see the gallop
+  assert.equal(a.observe(p.id).round, 0);
+  run(a, MIN - 1); // then it resolves early
   assert.equal(a.observe(p.id).round, 1);
   assert.match(a.observe(p.id).last_round?.join(' ') ?? '', /Ann sprints/);
   run(a, ROUND); // nobody acts: defaults
@@ -79,7 +81,7 @@ test('a race finishes: points, Elo for humans only, a chat line, history, and ev
   for (let leg = 0; leg < horseRace.rounds; leg++) {
     a.act(p.id, 1);
     a.act(q.id, 3);
-    run(a, 1);
+    run(a, MIN);
   }
   assert.equal(a.observe(p.id).status, 'lobby');
   assert.ok(p.points > 0 && p.played.horse_race === 1);

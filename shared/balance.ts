@@ -2,6 +2,7 @@
 export const B = {
   // arcade
   roundMs: 10_000, // decision window per round
+  minRoundMs: 6_000, // a round never resolves sooner, so viewers see the horses run
   queueWaitTicks: 20, // a queue starts this long after its first player joined
   arcadePoints: [10, 6, 3, 1], // placing points, 1st to 4th
   eloStart: 1000,

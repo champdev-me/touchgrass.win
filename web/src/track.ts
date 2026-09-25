@@ -11,8 +11,8 @@ const COATS = ['#8a5a3a', '#4a3a32', '#d8cfc4', '#b07a45']; // chestnut, black, 
 // One lap is 100 lengths: a 30-length straight, a 20-length bend, the back straight, the far bend.
 const SCALE = 1.3, S = 30 * SCALE, R0 = (20 * SCALE) / Math.PI, WIDTH = LANES * LANE_W, OUTER = R0 + WIDTH;
 export const CENTER = new THREE.Vector3(S / 2, 0, 0);
-const HURDLES = [25, 65]; // lengths into each lap, one on each straight
-const HORSE_H = 1.5, RIDER_H = 0.95, DASH_MS = 2500, BUBBLE_MS = 6000, JUMP = 2.5;
+const HURDLES = [20, 27, 60, 67]; // lengths into each lap: two fences on each straight
+const HORSE_H = 1.5, RIDER_H = 0.95, DASH_MS = 6000, BUBBLE_MS = 6000, JUMP = 2.5;
 const laneRho = (i: number) => R0 + (i + 0.5) * LANE_W;
 
 /** [x, z, heading] on the oval at `distance` lengths, `rho` units out from the bend centres. */
@@ -200,7 +200,7 @@ export class Riders {
         r.to = run.distance;
         r.t = 0;
       }
-      r.pips.replaceChildren(...Array.from({ length: 10 }, (_, k) => Object.assign(document.createElement('i'), { className: k < run.stamina ? 'on' : '' })));
+      r.pips.replaceChildren(...Array.from({ length: v.stamina_max }, (_, k) => Object.assign(document.createElement('i'), { className: k < run.stamina ? 'on' : '' })));
       r.last.replaceChildren(...(run.last ? [icon(run.last, run.last)] : []));
       const line = m.last_round.find((l) => l.startsWith(run.id));
       if (fresh) r.clipped = Boolean(line?.includes('clips'));
@@ -286,7 +286,7 @@ export class Riders {
   }
 }
 
-const ease = (t: number) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
+const A = 0.15, ease = (t: number) => (t < A ? (t * t) / (2 * A * (1 - A)) : t > 1 - A ? 1 - ((1 - t) * (1 - t)) / (2 * A * (1 - A)) : (t - A / 2) / (1 - A)); // speed up, gallop, slow down
 
 function tint(o: THREE.Object3D, color: string, amount: number): void {
   const c = new THREE.Color('#ffffff').lerp(new THREE.Color(color), amount);

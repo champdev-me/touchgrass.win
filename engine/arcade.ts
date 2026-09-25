@@ -19,7 +19,7 @@ export interface Match {
 export interface MatchRecord { id: string; game: string; tick: number; at: number; ranking: string[]; names: string[] }
 
 const HOUSE_NAMES = ['Bot Dobbin', 'Bot Clover', 'Bot Biscuit', 'Bot Thunder', 'Bot Pickles', 'Bot Noodle', 'Bot Rocket', 'Bot Maple'];
-const ROUND_TICKS = B.roundMs / B.tickMs;
+const ROUND_TICKS = B.roundMs / B.tickMs, MIN_TICKS = B.minRoundMs / B.tickMs;
 
 export class Arcade {
   players = new Map<string, Player>();
@@ -236,7 +236,8 @@ export class Arcade {
     for (const m of this.matches) {
       if (m.finishedAt !== null) continue;
       const humans = m.players.filter((id) => !this.players.get(id)?.house);
-      if (this.tick >= m.roundEndsAt || (humans.length > 0 && humans.every((id) => m.choices.has(id)))) this.resolve(m);
+      const early = this.tick >= m.roundEndsAt - ROUND_TICKS + MIN_TICKS && humans.length > 0 && humans.every((id) => m.choices.has(id));
+      if (this.tick >= m.roundEndsAt || early) this.resolve(m);
     }
     this.matches = this.matches.filter((m) => m.finishedAt === null || this.tick - m.finishedAt <= B.podiumTicks);
     const events = this.events;

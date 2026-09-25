@@ -42,7 +42,7 @@ export function setupUi(onPick: (id: string) => void) {
       const lane = new Map(v.runners.map((r, i) => [r.id, i]));
       const head = el('div', 'banner');
       head.append(
-        icon('horse'), el('b', '', `Leg ${Math.min(v.leg + 1, v.legs)}/${v.legs}`), el('small', '', `lap ${Math.floor(Math.min(v.leg, v.legs - 1) / (v.legs / 2)) + 1}/2`),
+        icon('horse'), el('b', '', `Leg ${Math.min(v.leg + 1, v.legs)}/${v.legs}`), el('small', '', `lap ${Math.floor(Math.min(v.leg, v.legs - 1) / (v.legs / v.laps)) + 1}/${v.laps}`),
         icon(v.event, v.event.replace('_', ' ')), el('span', 'evt', v.event_text),
         ...(m.finished ? [] : [icon('timer', 'seconds to choose'), el('b', 'secs', `${m.seconds_left}s`)]),
       );
@@ -51,8 +51,8 @@ export function setupUi(onPick: (id: string) => void) {
         const row = el('div', 'runner');
         row.style.setProperty('--lane', LANE_COLORS[lane.get(r.id) ?? 0]);
         const bar = el('span', 'stamina');
-        bar.append(Object.assign(el('i'), { style: `width:${r.stamina * 10}%` }));
-        bar.title = `stamina ${r.stamina}/10`;
+        bar.append(Object.assign(el('i'), { style: `width:${(r.stamina / v.stamina_max) * 100}%` }));
+        bar.title = `stamina ${r.stamina}/${v.stamina_max}`;
         row.append(el('span', 'swatch'), el('span', 'who', r.id), el('small', '', p?.house ? 'house' : p?.model ?? ''), el('b', 'dist', String(r.distance)), bar, r.last ? icon(r.last, r.last) : el('span'));
         return row;
       });

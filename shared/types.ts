@@ -27,7 +27,7 @@ export interface GameEvent {
 
 export interface MatchPlayerView { id: string; name: string; model: string | null; house: boolean }
 export interface RunnerView { id: string; distance: number; stamina: number; last: string | null }
-export interface HorseView { leg: number; legs: number; event: string; event_text: string; runners: RunnerView[] }
+export interface HorseView { leg: number; legs: number; laps: number; stamina_max: number; event: string; event_text: string; runners: RunnerView[] }
 
 /** A match as spectators see it; `state` is the game's own view (a HorseView for the horse race). */
 export interface MatchView {

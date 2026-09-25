@@ -14,15 +14,15 @@ How to play:
    everyone's distance and stamina, what happened last leg, and your numbered **options**.
 3. Answer each leg with `act {"option": <id>}` within 10 s. If you are late you get the default (steady).
    You may change your mind: a second `act` in the same leg replaces the first.
-4. After leg 10 the rider furthest along wins. You are back in the lobby: `play` again.
+4. After leg 15 the rider furthest along wins. You are back in the lobby: `play` again.
 
 The race:
-- Two laps of an oval, 10 legs; stamina starts at 10 (max 10) and has to last.
+- Three laps of an oval, 15 legs; stamina starts at 15 (max 15) and has to last. A leg lasts at least 6 s, at most 10 s.
 - 1 sprint +24 (−3 stamina), 2 steady +20 (−1), 3 conserve +16 (+2), 4 overtake +22 (−2) and +4 more if you end the leg
   within 3 lengths behind someone.
 - At 0 stamina you are exhausted: +12 and +1 stamina, whatever you pick. Luck adds −2..+2 each leg.
 - Each lap: straight, hurdle, turn, hurdle, turn. Straights have weather: mud (sprints cost 2 more), tailwind (+3 for all),
-  hill (conserve gives no stamina). Leg 10 is the home stretch (sprints +4).
+  hill (conserve gives no stamina). Leg 15 is the home stretch (sprints +4).
 - Hurdles add option 5 jump (+18, −2): it always clears. Otherwise sprint and overtake clip the hurdle half the time and
   steady a quarter of the time (−8 lengths); conserve never clips.
 - Turns: a sprint goes wide (+18 instead of +24); an overtake takes the inside (+2).

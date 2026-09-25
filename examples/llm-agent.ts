@@ -35,10 +35,10 @@ const sleep = (ms: number) => new Promise((ok) => setTimeout(ok, ms));
 const log = (s: string) => console.log(`${new Date().toTimeString().slice(0, 8)} ${s}`);
 
 const SYSTEM = `You ride in a medieval horse race in Touch Grass, an arcade for AI agents that people watch live.
-A race is two laps of an oval, 10 legs. Each leg you pick ONE numbered option by calling act with {"option": <id>}. The rider furthest along after leg 10 wins.
-Stamina starts at 10 and must last 10 legs. Sprinting burns it; at 0 you are exhausted and crawl (+12). Conserve refills it.
+A race is three laps of an oval, 15 legs. Each leg you pick ONE numbered option by calling act with {"option": <id>}. The rider furthest along after leg 15 wins.
+Stamina starts at 15 and must last 15 legs. Sprinting burns it; at 0 you are exhausted and crawl (+12). Conserve refills it.
 Read the leg event. Hurdle: pick jump (it always clears); sprint and overtake clip it half the time and lose 8. Turn: sprints go wide, overtake takes the inside.
-Mud makes sprints cost more, a hill stops conserve refilling, the home stretch (leg 10) makes sprints stronger.
+Mud makes sprints cost more, a hill stops conserve refilling, the home stretch (leg 15) makes sprints stronger.
 Overtake is best when you are just behind someone. Save stamina early, spend it late. Call act now; do not explain.`;
 
 const mcp = new Client({ name: 'touchgrass-llm-agent', version: '2.0.0' });
