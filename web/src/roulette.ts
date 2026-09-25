@@ -8,6 +8,8 @@ import { load, type Model, newTalk } from './track.ts';
 // A second table next to the tavern's.
 export const ROULETTE = TAVERN.clone().add(new THREE.Vector3(13, 0, 0));
 const BUBBLE_MS = 5000, SPIN_S = 0.9;
+// Spin and pull: lower the gun to the chest, spin the cylinder, raise it to the temple, then the trigger.
+const SPIN_FROM = 0.8, SPIN_TO = SPIN_FROM + SPIN_S, SPIN_FIRE = SPIN_TO + 1.6, CHEST = 0.45;
 
 interface Player { id: string; chips: number; nerve: number; out: boolean }
 interface RouletteView { turn: string; clicks: number; odds: string; live_in?: number; last: { who: string; move: string; bang: boolean } | null; players: Player[] }
@@ -96,7 +98,6 @@ export class Roulette {
     if (m.round !== this.round && v.last) {
       this.round = m.round; // a new turn resolved: play it (the fall and the BANG wait for the shot)
       if (v.last.move !== 'pass') this.shot = { who: v.last.who, bang: v.last.bang, spin: v.last.move === 'spin', t: 0, fired: false };
-      if (v.last.move === 'spin') sfx.spin(); // the cylinder is spun in the hand
       const s = this.seats.get(v.last.who);
       if (s && v.last.move === 'pass') this.say(s, 'passes the gun', now);
     }
@@ -181,9 +182,10 @@ export class Roulette {
 
   /** Where the gun is: on the table aimed at `aim`, or raised to the holder's temple (`hold`), trembling while they decide. */
   pose(dt: number, now: number): void {
-    const up = this.shot ? !this.shot.fired : !this.over && !this.twirl && Boolean(this.holder); // a shot in progress keeps the gun raised, even the last one
+    const shot = this.shot, spinning = Boolean(shot?.spin && !shot.fired && shot.t < SPIN_TO);
+    const target = shot ? (shot.fired ? 0 : spinning ? CHEST : 1) : !this.over && !this.twirl && this.holder ? 1 : 0; // a shot in progress keeps the gun up, even the last one
     if (this.hold < 0.02) this.heldBy = this.shot?.who ?? this.holder; // it changes hands only on the table
-    this.hold = Math.max(0, Math.min(1, this.hold + (up ? dt / 1.1 : -dt / 0.8)));
+    this.hold = target > this.hold ? Math.min(target, this.hold + dt / 1.1) : Math.max(target, this.hold - dt / 0.8);
     const e = this.hold * this.hold * (3 - 2 * this.hold), s = this.seats.get(this.heldBy), i = this.order.indexOf(this.heldBy);
     const onTable = new THREE.Vector3(ROULETTE.x, TABLE_TOP + 0.08, ROULETTE.z), flat = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, this.aim, 0));
     const lay = this.gun.getObjectByName('lay');
@@ -206,7 +208,7 @@ export class Roulette {
     const held = hand.clone().sub(TRIGGER.clone().applyQuaternion(aimAt.quaternion)); // the trigger sits in the hand
     this.gun.position.lerpVectors(onTable, held, e).add(new THREE.Vector3(0, Math.sin(e * Math.PI) * 0.25, 0));
     this.gun.quaternion.slerpQuaternions(flat, aimAt.quaternion, e);
-    if (this.shot?.spin && !this.shot.fired && this.shot.t < SPIN_S) this.gun.rotateY(Math.sin(this.shot.t * 40) * 0.08 * (1 - this.shot.t / SPIN_S)); // the cylinder spun in the hand: a quick shake
+    if (shot?.spin && !shot.fired && shot.t > SPIN_FROM && shot.t < SPIN_TO) this.gun.rotateY(Math.sin(shot.t * 40) * 0.08 * (1 - (shot.t - SPIN_FROM) / SPIN_S)); // spinning the cylinder at the chest: a quick shake
   }
 
   update(dt: number): void {
@@ -222,7 +224,8 @@ export class Roulette {
     this.label(now);
     if (shot) {
       shot.t += dt;
-      const fireAt = shot.spin ? SPIN_S + 0.9 : 1.0, s = this.seats.get(shot.who); // a breath at the temple before the trigger
+      const fireAt = shot.spin ? SPIN_FIRE : 1.0, s = this.seats.get(shot.who); // a breath at the temple before the trigger
+      if (shot.spin && shot.t - dt < SPIN_FROM && shot.t >= SPIN_FROM) sfx.spin(); // the ratchet, with the gun down at the chest
       if (!shot.fired && shot.t >= fireAt && s) {
         shot.fired = true;
         const muzzle = this.gun.localToWorld(new THREE.Vector3(0, 0, MUZZLE)), dir = s.root.position.clone().setY(muzzle.y).sub(muzzle).normalize();
