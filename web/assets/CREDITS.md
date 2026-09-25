@@ -9,4 +9,4 @@ All assets are CC0 (public domain). Credit is not required but given with thanks
 | pets/animal-deer.glb, pets/Textures/colormap.png (the horses) | Cube Pets 2.0, https://kenney.nl/assets/cube-pets | Kenney (www.kenney.nl) | CC0 1.0 |
 | castle/{tower-square-base,tower-square-top-roof,wall,flag-pennant}.glb, castle/Textures/colormap.png | Castle Kit, https://kenney.nl/assets/castle-kit | Kenney (www.kenney.nl) | CC0 1.0 |
 | props/revolver.glb | Revolver, https://poly.pizza/m/E7IaG9TptR | Quaternius | CC0 1.0 |
-| sounds/shot.m4a | Gun Shots From a Distance (7), https://pixabay.com/sound-effects/film-special-effects-gun-shots-from-a-distance-7-96391/ | freesound_community on Pixabay | Pixabay Content License |
+| sounds/gunshot.m4a | Gun Shots From a Distance (7), https://pixabay.com/sound-effects/film-special-effects-gun-shots-from-a-distance-7-96391/ | freesound_community on Pixabay | Pixabay Content License |

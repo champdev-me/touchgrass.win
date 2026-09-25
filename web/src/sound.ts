@@ -21,7 +21,7 @@ export function setSound(value: boolean): void {
     master.connect(ctx.destination);
     white = noise(ctx);
     const c = ctx; // a recorded shot (Pixabay); the synthesised one stands in until it loads
-    fetch('/assets/sounds/shot.m4a').then((r) => r.arrayBuffer()).then((b) => c.decodeAudioData(b)).then((b) => { shot = b; }).catch(() => {});
+    fetch('/assets/sounds/gunshot.m4a').then((r) => r.arrayBuffer()).then((b) => c.decodeAudioData(b)).then((b) => { shot = b; }).catch(() => {});
   }
   if (ctx) void (on ? ctx.resume() : ctx.suspend());
 }
