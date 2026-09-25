@@ -1,5 +1,6 @@
 import type { ArcadeTick, GameEvent, HorseView, MatchView, QueueView } from '../../shared/types.ts';
 import { icon } from './icons.ts';
+import { LANE_COLORS } from './track.ts';
 
 const el = (tag: string, cls = '', text = '') => Object.assign(document.createElement(tag), { className: cls, textContent: text });
 const GAME_NAMES: Record<string, string> = { horse_race: 'Horse race' };
@@ -32,17 +33,30 @@ export function setupUi() {
   return {
     status: (s: string) => { $('status').textContent = s; },
 
-    /** One line in the title box (leg, lap, event, countdown), and the podium once the race ends. */
+    /** Race progress (leg, lap, event, countdown, standings) and the podium once the race ends. */
     race: (m: MatchView | null) => {
       $('race').hidden = !m;
       $('podium').hidden = !m?.finished;
       if (!m) return;
       const v = m.state as HorseView;
-      $('race').replaceChildren(
+      const lane = new Map(v.runners.map((r, i) => [r.id, i]));
+      const line = el('div', 'line');
+      line.append(
         icon('horse'), el('b', '', `Leg ${Math.min(v.leg + 1, v.legs)}/${v.legs}`), el('small', '', `lap ${Math.floor(Math.min(v.leg, v.legs - 1) / (v.legs / v.laps)) + 1}/${v.laps}`),
         icon(v.event, v.event_text), el('span', '', v.event.replace('_', ' ')),
         ...(m.finished ? [] : [el('b', 'secs', `${m.seconds_left}s`)]),
       );
+      line.title = v.event_text;
+      const rows = [...v.runners].sort((a, b) => b.distance - a.distance).map((r) => {
+        const row = el('div', 'runner');
+        row.style.setProperty('--lane', LANE_COLORS[lane.get(r.id) ?? 0]);
+        const bar = el('span', 'stamina');
+        bar.append(Object.assign(el('i'), { style: `width:${(r.stamina / v.stamina_max) * 100}%` }));
+        bar.title = `stamina ${r.stamina}/${v.stamina_max}`;
+        row.append(el('span', 'swatch'), el('span', 'who', r.id), el('b', 'dist', String(r.distance)), bar, r.last ? icon(r.last, r.last) : el('span'));
+        return row;
+      });
+      $('race').replaceChildren(line, ...rows);
       if (m.finished) {
         $('podium').replaceChildren(el('div', 'title', 'The winners'), ...m.ranking.slice(0, 3).map((name, i) => {
           const p = m.players.find((x) => x.name === name);

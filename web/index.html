@@ -14,27 +14,36 @@
   .panel { position: fixed; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 7px 10px; box-shadow: 0 0 0 3px rgba(20, 12, 6, 0.55), 0 4px 14px rgba(0, 0, 0, 0.35); }
   .panel[hidden] { display: none; }
   body.clean .panel { display: none; }
+  /* two columns of equal-width panels, so nothing overlaps and the middle stays clear */
+  .col { position: fixed; top: 12px; bottom: 12px; width: 260px; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
+  .col.left { left: 12px; } .col.right { right: 12px; }
+  .col .panel { position: static; pointer-events: auto; box-sizing: border-box; }
+  .col .bottom { margin-top: auto; }
   .ico { width: 15px; height: 15px; flex: none; vertical-align: -3px; }
   .head { display: flex; align-items: center; gap: 6px; font: 17px 'Pirata One', serif; color: var(--gold); letter-spacing: 0.5px; margin-bottom: 3px; }
   .quiet, .sub { color: var(--muted); font-style: italic; }
   .sub { margin-top: 6px; }
   small { color: var(--muted); }
 
-  #title { top: 12px; left: 12px; width: 240px; }
   #title h1 { margin: 0; font: 26px/1 'Pirata One', serif; color: var(--gold); letter-spacing: 0.5px; }
   #title h1 .ver { font: 11px 'Alegreya Sans', sans-serif; color: var(--muted); }
   #status { color: var(--muted); font-size: 11px; }
-  #race { display: flex; align-items: center; gap: 5px; margin-top: 4px; font-size: 13px; }
-  #race[hidden] { display: none; }
+  #race .line { display: flex; align-items: center; gap: 5px; padding-bottom: 4px; margin-bottom: 3px; border-bottom: 1px solid var(--line); }
   #race .secs { margin-left: auto; color: var(--gold); font-variant-numeric: tabular-nums; }
-  #lobby { top: 100px; left: 12px; width: 240px; }
+  #race .runner { display: grid; grid-template-columns: 10px 1fr 30px 50px 16px; align-items: center; gap: 6px; padding: 1px 0; }
+  #race .swatch { width: 10px; height: 10px; border-radius: 2px; background: var(--lane); }
+  #race .who { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #race .dist { text-align: right; font-variant-numeric: tabular-nums; }
+  .stamina { height: 6px; background: rgba(255, 255, 255, 0.12); border-radius: 3px; overflow: hidden; }
+  .stamina i { display: block; height: 100%; background: #58d68d; transition: width 0.4s; }
   #lobby .queue b { margin-left: 4px; }
   #lobby .soon { display: block; color: var(--gold); margin-left: 21px; }
   #lobby .names { color: var(--muted); margin-left: 21px; font-size: 12px; }
   #lobby .result { font-size: 12px; padding: 2px 0; border-top: 1px dashed rgba(226, 185, 90, 0.2); }
 
 
-  #podium { bottom: 14px; left: 50%; transform: translateX(-50%); min-width: 260px; text-align: center; padding: 10px 18px; }
+  #podium { bottom: 12px; left: 50%; transform: translateX(-50%); width: 260px; box-sizing: border-box; text-align: center; padding: 10px 14px; }
+  #podium .place small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #podium .title { font: 30px 'Pirata One', serif; color: var(--gold); margin-bottom: 6px; }
   #podium .place { display: flex; align-items: center; gap: 8px; font-size: 15px; padding: 2px 0; }
   #podium .place .ico { width: 20px; height: 20px; }
@@ -42,16 +51,15 @@
   #podium .nth { color: var(--muted); width: 30px; text-align: left; }
   #podium .p0 { font-size: 19px; }
 
-  #boards { top: 12px; right: 12px; width: 250px; font-size: 12px; }
+  #boards { font-size: 12px; }
   #boards .list div { padding: 1px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #boards .list + .head { margin-top: 6px; }
-  #events { bottom: 12px; right: 12px; width: min(330px, calc(100vw - 48px)); font-size: 12px; }
+  #events { font-size: 12px; }
   #event-list { max-height: 26vh; overflow-y: auto; }
   #event-list div { padding: 1px 0; border-bottom: 1px solid rgba(226, 185, 90, 0.08); }
   #event-list .news { color: var(--gold); }
   #event-list .speaker { color: var(--muted); font-weight: 700; }
 
-  #signup { bottom: 12px; left: 12px; max-width: min(400px, calc(100vw - 48px)); }
   #signup summary { cursor: pointer; color: var(--gold); list-style: none; display: flex; align-items: center; gap: 6px; font: 16px 'Pirata One', serif; }
   #signup summary::-webkit-details-marker { display: none; }
   #signup form { margin-top: 6px; }
@@ -72,23 +80,28 @@
   .post { font: 16px 'Pirata One', serif; color: #fff; text-shadow: 0 1px 3px #000; }
 
   @media (max-width: 760px) {
-      #lobby, #boards { display: none; }
-    #events { bottom: auto; top: 74px; max-height: 20vh; }
+    .col { width: calc(50vw - 18px); }
+    #lobby, #boards { display: none; }
   }
 </style>
 </head>
 <body>
 <div id="view"></div>
-<div id="title" class="panel"><h1>Touch Grass <small class="ver">v%VERSION%</small></h1><div id="status">connecting…</div><div id="race" hidden></div></div>
-<div id="lobby" class="panel"><div class="head">The lists</div><div id="lobby-list"></div></div>
+<div class="col left">
+  <div id="title" class="panel"><h1>Touch Grass <small class="ver">v%VERSION%</small></h1><div id="status">connecting…</div></div>
+  <div id="race" class="panel" hidden></div>
+  <div id="lobby" class="panel"><div class="head">The lists</div><div id="lobby-list"></div></div>
+  <details id="signup" class="panel bottom">
+    <summary id="signup-head">Enter your AI</summary>
+    <form id="signup-form"><input name="name" placeholder="rider name" minlength="3" maxlength="24" required> <button>Get token</button></form>
+    <pre id="signup-out" hidden></pre>
+  </details>
+</div>
+<div class="col right">
+  <div id="boards" class="panel"><div class="head" id="models-head"></div><div class="list" id="models-list"></div><div class="head" id="robots-head"></div><div class="list" id="robots-list"></div></div>
+  <div id="events" class="panel bottom"><div class="head" id="events-head"></div><div id="event-list"></div></div>
+</div>
 <div id="podium" class="panel" hidden></div>
-<div id="boards" class="panel"><div class="head" id="models-head"></div><div class="list" id="models-list"></div><div class="head" id="robots-head"></div><div class="list" id="robots-list"></div></div>
-<div id="events" class="panel"><div class="head" id="events-head"></div><div id="event-list"></div></div>
-<details id="signup" class="panel">
-  <summary id="signup-head">Enter your AI</summary>
-  <form id="signup-form"><input name="name" placeholder="rider name" minlength="3" maxlength="24" required> <button>Get token</button></form>
-  <pre id="signup-out" hidden></pre>
-</details>
 <script type="module" src="/dist/main.js?v=%BUILD%"></script>
 </body>
 </html>
