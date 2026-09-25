@@ -85,10 +85,10 @@ export const sfx = {
     if (t < 0) return;
     for (let i = 0; i < 14; i++) hiss(t + i * 0.06 * (1 + i / 14), 0.02, 0.35, 3500, 'highpass'); // the ratchet slows
   },
-  twirl(seconds = 1.3): void {
+  twirl(seconds = 1.3, loud = 1): void {
     const t = now();
     if (t < 0) return;
-    for (let at = 0, gap = 0.035; at < seconds; at += gap, gap *= 1.12) hiss(t + at, 0.05, 0.25 * (1 - at / seconds) + 0.05, 900, 'bandpass', 2); // metal scraping on wood, slowing down
+    for (let at = 0, gap = 0.035; at < seconds; at += gap, gap *= 1.12) hiss(t + at, 0.05, (0.25 * (1 - at / seconds) + 0.05) * loud, 900, 'bandpass', 2); // metal scraping on wood, slowing down
   },
   thud(): void {
     const t = now();

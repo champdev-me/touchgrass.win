@@ -112,8 +112,8 @@ export class Roulette {
       const next = this.order.indexOf(v.turn);
       if (this.holder && next >= 0) {
         const diff = Math.atan2(Math.sin(seatAngle(next) - this.aim), Math.cos(seatAngle(next) - this.aim));
-        this.twirl = { from: this.aim, to: this.aim + diff + Math.PI * 2 * (diff > 0 ? 1 : -1), t: 0, s: 1.3 }; // one full spin, then it points at them
-        sfx.twirl(1.3);
+        this.twirl = { from: this.aim, to: this.aim + diff, t: 0, s: 0.6 }; // slid across to the next player; only a chosen spin twirls
+        sfx.twirl(0.35, 0.4);
       } else if (next >= 0) this.aim = seatAngle(next);
       this.holder = v.turn;
     }
