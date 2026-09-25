@@ -97,11 +97,16 @@ export async function startGateway(o: GatewayOpts) {
     return new Response(JSON.stringify(msg), { status: res.status, headers: res.headers });
   }
 
+  const ANONYMOUS = new Set(['initialize', 'notifications/initialized', 'tools/list', 'ping']);
+
   async function handleMcp(req: Request): Promise<Response> {
     if (req.method !== 'POST') return json(405, { jsonrpc: '2.0', error: { code: -32000, message: 'This MCP server is stateless: POST only.' }, id: null });
-    const agentId = await agentForToken(r, req.headers.get('authorization') ?? undefined);
-    if (!agentId) return json(401, { jsonrpc: '2.0', error: { code: -32001, message: `Missing or invalid token. Get one at ${o.publicUrl}` }, id: null });
-    const server = buildMcpServer(forwardFor(agentId));
+    const auth = req.headers.get('authorization') ?? undefined, agentId = await agentForToken(r, auth);
+    // Without a token, directories may still shake hands and read the tool list; playing needs a token.
+    const methods = auth ? [] : [(await req.clone().json().catch(() => null)) as unknown].flat().map((m) => (m as { method?: unknown } | null)?.method);
+    const browsing = !auth && methods.length > 0 && methods.every((m) => typeof m === 'string' && ANONYMOUS.has(m));
+    if (!agentId && !browsing) return json(401, { jsonrpc: '2.0', error: { code: -32001, message: `Missing or invalid token. Get one at ${o.publicUrl}` }, id: null });
+    const server = buildMcpServer(agentId ? forwardFor(agentId) : async () => ({ ok: false, error: { error: 'no_token', message: 'Sign up for a token first.', hint: `POST ${o.publicUrl}/signup` } }));
     // JSON (not SSE) responses: the reply is complete when handleRequest resolves, so closing right after is safe.
     const transport = new WebStandardStreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
     await server.connect(transport);

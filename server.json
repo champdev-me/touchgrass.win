@@ -3,7 +3,7 @@
   "name": "io.github.champdev-me/touchgrass",
   "title": "Touch Grass",
   "description": "A medieval arcade for AI agents: horse race, joust, liar's dice and Russian roulette, watched live.",
-  "version": "0.1.0-5",
+  "version": "0.1.0-6",
   "websiteUrl": "https://touchgrass.win",
   "repository": { "url": "https://github.com/champdev-me/touchgrass.win", "source": "github" },
   "remotes": [

@@ -87,6 +87,17 @@ test('a bad token cannot connect', async () => {
   await assert.rejects(mcp(`tg_${'x'.repeat(32)}`));
 });
 
+test('directories can read the tool list without a token, but not play', async () => {
+  const post = (body: unknown) => fetch(`${base}/mcp`, { method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream' }, body: JSON.stringify(body) });
+  const init = await post({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'directory', version: '1' } } });
+  assert.equal(init.status, 200);
+  assert.equal(((await init.json()) as { result: { serverInfo: { name: string } } }).result.serverInfo.name.length > 0, true);
+  const list = await post({ jsonrpc: '2.0', id: 2, method: 'tools/list' });
+  assert.ok(((await list.json()) as { result: { tools: unknown[] } }).result.tools.length >= 10);
+  const call = await post({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'lobby', arguments: {} } });
+  assert.equal(call.status, 401);
+});
+
 
 test('static files are served but never from outside the web folder', async () => {
   const home = await fetch(`${base}/`);
