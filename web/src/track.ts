@@ -12,7 +12,7 @@ const COATS = ['#8a5a3a', '#4a3a32', '#d8cfc4', '#b07a45']; // chestnut, black, 
 const SCALE = 1.3, S = 30 * SCALE, R0 = (20 * SCALE) / Math.PI, WIDTH = LANES * LANE_W, OUTER = R0 + WIDTH;
 export const CENTER = new THREE.Vector3(S / 2, 0, 0);
 const HURDLES = [20, 27, 60, 67]; // lengths into each lap: two fences on each straight
-const HORSE_H = 1.5, RIDER_H = 0.95, DASH_MS = 6000, BUBBLE_MS = 6000, JUMP = 2.5;
+const HORSE_H = 1.5, RIDER_H = 0.95, BUBBLE_MS = 6000, JUMP = 2.5, GALLOP = 2.5; // GALLOP: lengths a second at a normal run
 const laneRho = (i: number) => R0 + (i + 0.5) * LANE_W;
 
 /** [x, z, heading] on the oval at `distance` lengths, `rho` units out from the bend centres. */
@@ -149,9 +149,9 @@ interface Rider {
   mixers: THREE.AnimationMixer[];
   horseActs: Map<string, THREE.AnimationAction>;
   clip: string;
-  from: number;
-  to: number;
-  t: number;
+  shown: number; // where it is drawn, in lengths
+  to: number; // where the engine says it is
+  speed: number; // lengths a second
   pips: HTMLElement;
   last: HTMLElement;
   bubble: HTMLElement;
@@ -168,6 +168,7 @@ export class Riders {
   round = -1;
   winner: string | null = null;
   finished = false;
+  arriveBy = 0; // performance.now() when riders should reach their latest distance
 
   constructor(scene: THREE.Scene) {
     this.scene = scene;
@@ -192,14 +193,14 @@ export class Riders {
     this.round = m.round;
     this.finished = m.finished;
     this.winner = m.finished ? m.ranking[0] ?? null : null;
+    // Aim to arrive a second after the next leg is due, so riders never stand still mid-race.
+    this.arriveBy = performance.now() + (m.finished ? 2 : m.seconds_left + 1) * 1000;
     v.runners.forEach((run, i) => {
       const player = m.players.find((p) => p.name === run.id);
-      const r = this.riders.get(run.id) ?? this.spawn(run.id, player?.house ? 'house' : player?.model ?? '', i);
-      if (run.distance !== r.to) {
-        r.from = r.from + (r.to - r.from) * ease(r.t);
-        r.to = run.distance;
-        r.t = 0;
-      }
+      const known = this.riders.get(run.id);
+      const r = known ?? this.spawn(run.id, player?.house ? 'house' : player?.model ?? '', i);
+      if (!known) r.shown = run.distance; // joined mid-race: start where they are
+      r.to = run.distance;
       r.pips.replaceChildren(...Array.from({ length: v.stamina_max }, (_, k) => Object.assign(document.createElement('i'), { className: k < run.stamina ? 'on' : '' })));
       r.last.replaceChildren(...(run.last ? [icon(run.last, run.last)] : []));
       const line = m.last_round.find((l) => l.startsWith(run.id));
@@ -244,7 +245,7 @@ export class Riders {
     const drive = look.clips.find((c) => c.name === 'drive');
     if (drive) rm.clipAction(drive).play(); // seated, hands on the reins
     const r: Rider = {
-      root, body, lane, clipped: false, mixers: [hm, rm], clip: '', from: 0, to: 0, t: 1, pips, last, bubble, bubbleUntil: 0,
+      root, body, lane, clipped: false, mixers: [hm, rm], clip: '', shown: 0, to: 0, speed: 0, pips, last, bubble, bubbleUntil: 0,
       horseActs: new Map(this.horse!.clips.map((c) => [c.name, hm.clipAction(c)])),
     };
     this.place(r, 0);
@@ -255,9 +256,14 @@ export class Riders {
   update(dt: number): void {
     const now = performance.now();
     for (const [name, r] of this.riders) {
-      r.t = Math.min(1, r.t + (dt * 1000) / DASH_MS);
-      this.place(r, r.from + (r.to - r.from) * ease(r.t));
-      this.play(r, r.t < 1 ? 'run' : this.finished && name === this.winner ? 'dance' : 'idle');
+      const want = Math.max(0, r.to - r.shown) / Math.max(0.5, (this.arriveBy - now) / 1000);
+      r.speed += (want - r.speed) * (1 - Math.pow(0.2, dt)); // no sudden speed changes
+      r.shown = Math.min(r.to, r.shown + r.speed * dt);
+      this.place(r, r.shown);
+      const moving = r.speed > 0.3;
+      this.play(r, moving ? 'run' : this.finished && name === this.winner ? 'dance' : 'idle');
+      const run = r.horseActs.get('run');
+      if (run) run.timeScale = Math.min(1.6, Math.max(0.5, r.speed / GALLOP)); // exhausted horses gallop slower
       r.bubble.hidden = now > r.bubbleUntil;
       for (const m of r.mixers) m.update(dt);
     }
@@ -268,7 +274,7 @@ export class Riders {
     const [x, z, heading] = onOval(distance, laneRho(r.lane)), near = Math.max(0, 1 - fromHurdle(distance) / JUMP);
     r.root.position.set(x, 0, z);
     r.root.rotation.y = heading; // models face +z
-    const crossing = r.t < 1 && near > 0;
+    const crossing = r.speed > 0.3 && near > 0;
     r.body.position.y = crossing && !r.clipped ? 1.1 * (1 - (1 - near) ** 2) : 0;
     r.body.rotation.x = crossing && r.clipped ? 0.4 * near : 0;
   }
@@ -286,7 +292,6 @@ export class Riders {
   }
 }
 
-const A = 0.15, ease = (t: number) => (t < A ? (t * t) / (2 * A * (1 - A)) : t > 1 - A ? 1 - ((1 - t) * (1 - t)) / (2 * A * (1 - A)) : (t - A / 2) / (1 - A)); // speed up, gallop, slow down
 
 function tint(o: THREE.Object3D, color: string, amount: number): void {
   const c = new THREE.Color('#ffffff').lerp(new THREE.Color(color), amount);
