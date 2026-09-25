@@ -213,6 +213,16 @@ async function decide(o: Obs, memory: string[], chatOk: boolean): Promise<Action
     const msg = ((await res.json()) as Completion).choices?.[0]?.message;
     const tc = msg?.tool_calls?.[0];
     if (!tc || !ACTIONS.includes(tc.function.name)) {
+      // Small models often write the call as text, e.g. `buy {"listing": "sale_3"}`: take it when it names a real tool.
+      const m = (msg?.content ?? '').match(/\b([a-z_]+)\s*(\{[\s\S]*\})/);
+      if (m && ACTIONS.includes(m[1])) {
+        try {
+          const args = JSON.parse(m[2]) as Record<string, unknown>;
+          return { name: m[1], args, why: 'model choice (written as text)' };
+        } catch {
+          // not valid JSON: fall through
+        }
+      }
       log(`model gave no usable tool call${tc ? ` (${tc.function.name})` : ''}: ${(msg?.content ?? '').replace(/\s+/g, ' ').slice(0, 100)}`);
       return null;
     }
