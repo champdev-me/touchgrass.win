@@ -35,7 +35,10 @@ export interface HorseView { leg: number; legs: number; laps: number; stamina_ma
 export interface MatchView {
   id: string; game: string; players: MatchPlayerView[]; round: number; rounds: number; seconds_left: number;
   state: unknown; last_round: string[]; finished: boolean; ranking: string[];
+  turn: string[]; // names of who chooses this round
+  talk: TalkLine[]; // recent table talk
 }
+export interface TalkLine { name: string; text: string }
 
 export interface QueueView { game: string; players: string[]; starts_in: number }
 

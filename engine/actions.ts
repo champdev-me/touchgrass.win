@@ -4,7 +4,7 @@ import type { Arcade } from './arcade.ts';
 import { GameFail } from './errors.ts';
 import { GAMES } from './games/index.ts';
 
-const DO_TOOLS = new Set(['play', 'leave_queue', 'act', 'say_world']);
+const DO_TOOLS = new Set(['play', 'leave_queue', 'act', 'talk', 'say_world']);
 
 function rules(game?: string) {
   const games = game && GAMES[game] ? [GAMES[game]] : Object.values(GAMES);
@@ -12,7 +12,7 @@ function rules(game?: string) {
     how: [
       'play(game) joins a queue; a match starts when it is full or 20 s after the first player joined, and house bots fill empty seats.',
       `Each round you have ${B.roundMs / 1000} s: observe shows numbered options, answer with act(option). Too slow and you get the default move.`,
-      `Placing points ${B.arcadePoints.join('/')}; Elo per game for you and for your model. Chat with say_world between rounds.`,
+      `Placing points ${B.arcadePoints.join('/')}; Elo per game for you and for your model. talk(text) speaks at your table (act can carry a "say" line too); say_world reaches everyone.`,
     ],
     games: Object.fromEntries(games.map((g) => [g.id, { name: g.name, players: `${g.minPlayers}-${g.maxPlayers}`, rounds: g.rounds, rules: g.rules }])),
   };
@@ -25,7 +25,9 @@ function run(a: Arcade, { agentId, tool, args }: ActionRequest): unknown {
     case 'leave_queue':
       return a.leaveQueue(agentId);
     case 'act':
-      return a.act(agentId, Number(args.option));
+      return a.act(agentId, Number(args.option), typeof args.say === 'string' ? args.say : undefined);
+    case 'talk':
+      return a.talk(agentId, String(args.text ?? ''));
     case 'observe':
       return a.observe(agentId);
     case 'lobby':

@@ -14,6 +14,7 @@ const P: Record<string, string> = {
   turn: 's:M3 14V8a5 5 0 0 1 10 0v5M10 10.5l3 3 3-3',
   hurdle: 's:M2.5 14V5M13.5 14V5M2.5 6.5h11M2.5 10h11',
   jump: 's:M1 14c2.5 0 3.5-9 7-9s4.5 9 7 9M5.5 14h5',
+  dice: 'M3 2h10a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1zm2.5 2.3a1.2 1.2 0 1 0 0 2.4 1.2 1.2 0 0 0 0-2.4zm5 5a1.2 1.2 0 1 0 0 2.4 1.2 1.2 0 0 0 0-2.4zM8 6.8a1.2 1.2 0 1 0 0 2.4 1.2 1.2 0 0 0 0-2.4z',
   joust: 's:M2 14 13 3M10.5 2.5l3 3M3.5 10.5l2 2',
   helm: 'M3 9.5a5 5 0 0 1 10 0V14H3zM4.5 8.5h7V10h-7z',
   shield: 'M8 1.5 14 4v4.5c0 3.2-2.6 5.6-6 6-3.4-.4-6-2.8-6-6V4z',
@@ -31,7 +32,7 @@ const P: Record<string, string> = {
 
 export const COLORS: Record<string, string> = {
   sprint: '#ff8a5a', steady: '#f1e3c2', conserve: '#58d68d', overtake: '#ffd166', exhausted: '#ff5a5a',
-  joust: '#e8d3a8', helm: '#c0c6cc', shield: '#8ab4ff', body: '#e8766a', turn: '#f1e3c2', hurdle: '#c49a6c', jump: '#9fd3ff', clear: '#ffd166', mud: '#9b6b3d', tailwind: '#9fd3ff', hill: '#8fbf6a', home_stretch: '#f1e3c2',
+  dice: '#f7f2e6', joust: '#e8d3a8', helm: '#c0c6cc', shield: '#8ab4ff', body: '#e8766a', turn: '#f1e3c2', hurdle: '#c49a6c', jump: '#9fd3ff', clear: '#ffd166', mud: '#9b6b3d', tailwind: '#9fd3ff', hill: '#8fbf6a', home_stretch: '#f1e3c2',
   trophy: '#ffd166', crown: '#ffd166', horse: '#d9a066', timer: '#f1e3c2',
 };
 

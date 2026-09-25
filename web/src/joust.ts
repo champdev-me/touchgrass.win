@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import type { JoustView, MatchView } from '../../shared/types.ts';
 import { icon } from './icons.ts';
-import { type Model, mount, S } from './track.ts';
+import { type Model, mount, newTalk, S } from './track.ts';
 
 // The tilt runs along the oval's infield: riders charge along x, either side of a barrier at z = 0.
 const XC = S / 2;
@@ -49,6 +49,7 @@ export class Jousters {
   winner: string | null = null;
   unhorsed: string | null = null;
   names: string[] = [];
+  talkSeen = '';
 
   constructor(scene: THREE.Scene) {
     this.scene = scene;
@@ -62,9 +63,18 @@ export class Jousters {
       }
       this.riders = [];
       this.match = m?.id ?? '';
+      this.talkSeen = m ? newTalk(m.talk, '').seen : '';
     }
     if (!m) return;
     const v = m.state as JoustView;
+    const talk = newTalk(m.talk, this.talkSeen);
+    this.talkSeen = talk.seen;
+    for (const t of talk.lines) {
+      const r = this.riders[this.names.indexOf(t.name)];
+      if (!r) continue;
+      r.bubble.textContent = `“${t.text}”`;
+      r.bubbleUntil = performance.now() + BUBBLE_MS;
+    }
     if (!this.riders.length) {
       this.names = v.riders.map((r) => r.id);
       this.riders = v.riders.map((r, i) => this.spawn(r.id, m, horse, robots, i));

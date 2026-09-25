@@ -16,6 +16,8 @@ export interface Game<S> {
   rounds: number;
   finished(s: S): boolean;
   ranking(s: S): string[]; // best first
-  view(s: S): unknown; // what observe and spectators see
+  view(s: S): unknown; // what spectators see (and observe, unless playerView says otherwise)
+  playerView?(s: S, player: string): unknown; // what one player may see, for hidden information
+  actors?(s: S): string[]; // turn-based games: who chooses this round (default: everyone)
   rules: string[];
 }

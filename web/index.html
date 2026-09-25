@@ -91,6 +91,11 @@
   .tag .pips i.on { background: #58d68d; }
   .tag .bubble { margin: 0 auto 3px; max-width: 200px; width: max-content; white-space: normal; background: #f4e7c8; color: #22160c; border-radius: 6px; padding: 1px 6px; font-weight: 700; }
   .tag .bubble[hidden] { display: none; }
+  .sign { font: 22px 'Pirata One', serif; color: var(--gold); background: rgba(20, 12, 6, 0.8); border: 1px solid var(--line); border-radius: 6px; padding: 2px 12px; white-space: nowrap; }
+  .sign.liar { color: #fff; background: #8b1e1e; border-color: #ff7a5a; } /* no transform animation: CSS2D positions it with transform */
+  .tag.turn { box-shadow: 0 0 0 2px var(--gold); }
+  .tag.out { opacity: 0.45; text-decoration: line-through; }
+  #race .who.out { text-decoration: line-through; opacity: 0.6; }
   .post { font: 16px 'Pirata One', serif; color: #fff; text-shadow: 0 1px 3px #000; }
 
   @media (max-width: 760px) {

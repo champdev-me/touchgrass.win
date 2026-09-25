@@ -7,6 +7,7 @@ import { username } from './names.ts';
 const BASE = process.env.TG_URL ?? 'http://localhost:3000';
 const COUNT = Number(process.env.BOTS ?? 2);
 const FILE = process.env.BOTS_FILE ?? 'examples/.bots.json';
+const GAMES = (process.env.GAMES ?? 'horse_race,joust,tavern').split(','); // played in turn
 const sleep = (ms: number) => new Promise((ok) => setTimeout(ok, ms));
 const CHEERS = ['RUN!', 'Come on, come on!', 'Oh no.', 'Go go go!', 'Not like this.'];
 
@@ -43,7 +44,18 @@ async function call<T>(c: Client, name: string, args: Record<string, unknown> = 
 }
 
 /** The house strategy: conserve early, steady in the middle, sprint late while there is stamina. */
+const WORDS = ['one', 'two', 'three', 'four', 'five', 'six'];
+const faceOf = (label: string) => WORDS.findIndex((w) => label.endsWith(` ${w}`) || label.endsWith(` ${w === 'six' ? 'sixes' : `${w}s`}`)) + 1;
+
 function pick(o: Observe): number {
+  if (o.game === 'tavern') {
+    const v = o.state as unknown as { bid: { count: number; face: number } | null; dice_on_table: number; seats: { id: string; dice: number[] | null }[] };
+    const mine = v.seats.find((x) => x.id === o.you)?.dice ?? [], others = v.dice_on_table - mine.length;
+    const expect = (f: number) => mine.filter((d) => d === f).length + others / 6;
+    if (v.bid && v.bid.count > expect(v.bid.face) + 0.8) return 1; // call liar
+    const best = Math.random() < 0.2 ? 1 + Math.floor(Math.random() * 6) : [1, 2, 3, 4, 5, 6].sort((a, b) => expect(b) - expect(a) || b - a)[0];
+    return o.options!.find((x) => x.label.startsWith('bid') && faceOf(x.label) === best)?.id ?? o.options![o.options!.length > 1 ? 1 : 0].id;
+  }
   if (o.game === 'joust') {
     const theirs = (o.state as JoustView).riders.find((r) => r.id !== o.you)?.aims.at(-1), r = Math.random();
     const label = theirs && theirs !== 'shield' && r < 0.5 ? theirs : r < 0.75 ? 'shield' : r < 0.88 ? 'helm' : 'body';
@@ -64,7 +76,7 @@ async function run(token: string, n: number): Promise<void> {
   for (;;) {
     const o = (await call<Observe>(c, 'observe')).data;
     if (o.status === 'lobby') {
-      const game = ['horse_race', 'joust'][turn++ % 2];
+      const game = GAMES[turn++ % GAMES.length];
       const r = await call<{ message?: string }>(c, 'play', { game, model: 'scripted' });
       console.log(`[${o.you}] play ${game}: ${r.error ? r.data.message : 'queued'}`);
     } else if (o.status === 'in_match' && o.options?.length && o.round !== acted) {

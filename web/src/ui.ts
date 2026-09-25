@@ -1,9 +1,12 @@
 import type { ArcadeTick, GameEvent, HorseView, JoustView, MatchView, QueueView } from '../../shared/types.ts';
+
+interface TavernView { turn: string; bid: { count: number; face: number; by: string } | null; dice_on_table: number; seats: { id: string; dice_left: number; out: boolean }[] }
 import { icon } from './icons.ts';
+import { bidText } from './tavern.ts';
 import { LANE_COLORS } from './track.ts';
 
 const el = (tag: string, cls = '', text = '') => Object.assign(document.createElement(tag), { className: cls, textContent: text });
-const GAMES: Record<string, { name: string; icon: string; seats: number }> = { horse_race: { name: 'Horse race', icon: 'horse', seats: 4 }, joust: { name: 'Joust', icon: 'joust', seats: 2 } };
+const GAMES: Record<string, { name: string; icon: string; seats: number }> = { horse_race: { name: 'Horse race', icon: 'horse', seats: 4 }, joust: { name: 'Joust', icon: 'joust', seats: 2 }, tavern: { name: "Liar's tavern", icon: 'dice', seats: 4 } };
 const PLACES = ['1st', '2nd', '3rd'];
 
 export function setupUi(onWatch: (id: string | null) => void) {
@@ -18,6 +21,10 @@ export function setupUi(onWatch: (id: string | null) => void) {
   back.onclick = () => onWatch(null);
   $('title').append(back);
   const progress = (m: MatchView): string => {
+    if (m.game === 'tavern') {
+      const v = m.state as TavernView;
+      return `${v.bid ? `${v.bid.by}: ${bidText(v.bid)}` : `${v.turn} opens`} · ${v.dice_on_table} dice`;
+    }
     if (m.game === 'joust') {
       const v = m.state as JoustView;
       return `Pass ${Math.min(v.pass + 1, v.passes)}/${v.passes} · ${v.riders.map((r) => r.points).join(' – ')}`;
@@ -60,6 +67,20 @@ export function setupUi(onWatch: (id: string | null) => void) {
       });
       $('race').replaceChildren(line, ...rows);
   };
+  const tavern = (m: MatchView) => {
+    const v = m.state as TavernView;
+    const line = el('div', 'line');
+    line.append(icon('dice'), el('b', '', v.bid ? `${v.bid.by}: ${bidText(v.bid)}` : m.finished ? 'Last orders' : `${v.turn} opens`), ...(m.finished ? [] : [el('b', 'secs', `${m.seconds_left}s`)]));
+    const rows = v.seats.map((seat, i) => {
+      const row = el('div', 'runner');
+      row.style.setProperty('--lane', LANE_COLORS[i]);
+      const dice = el('span', 'aims');
+      dice.append(...Array.from({ length: seat.dice_left }, () => icon('dice', `${seat.dice_left} dice left`)));
+      row.append(el('span', 'swatch'), el('span', seat.out ? 'who out' : 'who', seat.id), el('b', 'dist', seat.out ? 'out' : ''), dice, !m.finished && v.turn === seat.id ? icon('timer', 'their turn') : el('span'));
+      return row;
+    });
+    $('race').replaceChildren(line, ...rows);
+  };
   const joust = (m: MatchView) => {
     const v = m.state as JoustView;
     const line = el('div', 'line');
@@ -89,6 +110,7 @@ export function setupUi(onWatch: (id: string | null) => void) {
       $('podium').hidden = !m?.finished;
       if (!m) return;
       if (m.game === 'joust') joust(m);
+      else if (m.game === 'tavern') tavern(m);
       else horse(m);
       if (m.finished) {
         $('podium').replaceChildren(el('div', 'title', 'The winners'), ...m.ranking.slice(0, 3).map((name, i) => {

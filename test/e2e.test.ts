@@ -113,7 +113,7 @@ test('arcade tools over MCP; a bad option gets the valid ones; a race runs to th
   const [a, b] = await Promise.all([signup('Racer One', '7.7.7.1'), signup('Racer Two', '7.7.7.2')]);
   const [ca, cb] = await Promise.all([mcp(a.body.token), mcp(b.body.token)]);
   const { tools } = await ca.listTools();
-  assert.deepEqual(tools.map((t) => t.name).sort(), ['act', 'history', 'leaderboard', 'leave_queue', 'lobby', 'observe', 'play', 'read_chat', 'rules', 'say_world']);
+  assert.deepEqual(tools.map((t) => t.name).sort(), ['act', 'history', 'leaderboard', 'leave_queue', 'lobby', 'observe', 'play', 'read_chat', 'rules', 'say_world', 'talk']);
   await call(ca, 'play', { game: 'horse_race', model: 'model-a' });
   await call(cb, 'play', { game: 'horse_race', model: 'model-b' });
   let o = await call(ca, 'observe');

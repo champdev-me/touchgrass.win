@@ -119,3 +119,45 @@ test('a joust: one human against a house bot runs to the end and records the res
   assert.equal(p.played.joust, 1);
   assert.match(a.history(p.id)[0] ?? '', /joust/);
 });
+
+test('turn-based games: only the player on turn acts; others wait without "too slow" lines', () => {
+  const a = arcade();
+  const ps = ['Ann', 'Bob', 'Cid', 'Dee'].map((n) => a.register(n));
+  for (const p of ps) a.play(p.id, 'tavern');
+  run(a, 1); // full table: starts at once
+  const first = a.observe(ps[0].id), second = a.observe(ps[1].id);
+  assert.equal(first.status, 'in_match');
+  assert.ok((first.options?.length ?? 0) > 0);
+  assert.deepEqual(second.options, []);
+  assert.deepEqual(second.turn, ['Ann']);
+  assert.equal(code(() => a.act(ps[1].id, 1)), 'not_your_turn');
+  a.act(ps[0].id, 1);
+  run(a, MIN);
+  assert.equal(a.observe(ps[0].id).round, 1);
+  assert.ok(!a.observe(ps[0].id).last_round?.some((l) => l.includes('too slow')));
+  assert.deepEqual(a.observe(ps[0].id).turn, ['Bob']);
+});
+
+test('players see only their own dice at the tavern', () => {
+  const a = arcade();
+  const ps = ['Ann', 'Bob', 'Cid', 'Dee'].map((n) => a.register(n));
+  for (const p of ps) a.play(p.id, 'tavern');
+  run(a, 1);
+  const seats = (a.observe(ps[1].id).state as { seats: { id: string; dice: number[] | null }[] }).seats;
+  assert.equal(seats.find((x) => x.id === 'Bob')!.dice?.length, 2);
+  assert.equal(seats.find((x) => x.id === 'Ann')!.dice, null);
+});
+
+test('table talk: act can carry a line, talk works any time; everyone at the table and spectators see it', () => {
+  const a = arcade();
+  const ps = ['Ann', 'Bob', 'Cid', 'Dee'].map((n) => a.register(n));
+  for (const p of ps) a.play(p.id, 'tavern');
+  run(a, 1);
+  a.act(ps[0].id, 1, 'I have the sixes, trust me');
+  a.talk(ps[2].id, 'she is lying');
+  assert.equal(code(() => a.talk(ps[2].id, 'again')), 'rate_limited');
+  assert.deepEqual(a.observe(ps[1].id).talk?.map((t) => `${t.name}: ${t.text}`), ['Ann: I have the sixes, trust me', 'Cid: she is lying']);
+  const view = a.step().matches[0];
+  assert.equal(view.talk.at(-1)?.text, 'she is lying');
+  assert.equal(code(() => a.talk(a.register('Eve').id, 'hi')), 'not_in_match');
+});

@@ -15,6 +15,7 @@ export interface Match {
   id: string; game: Game<unknown>; state: unknown; players: string[];
   choices: Map<string, number>; roundEndsAt: number; lastRound: string[];
   finishedAt: number | null; ranking: string[];
+  talk: { name: string; text: string }[]; lastTalk: Map<string, number>;
 }
 export interface MatchRecord { id: string; game: string; tick: number; at: number; ranking: string[]; names: string[] }
 
@@ -86,15 +87,39 @@ export class Arcade {
     return { left: game };
   }
 
-  act(id: string, option: number) {
+  act(id: string, option: number, say?: string) {
     this.get(id);
     const m = this.matchOf(id);
     if (!m) throw new GameFail('not_in_match', 'You are not in a match.', 'play(game) and wait for it to start.');
+    const actors = this.actors(m);
+    if (!actors.includes(id)) throw new GameFail('not_your_turn', `It is ${actors.map(this.name).join(', ')}'s turn.`, 'observe until it is yours; talk works any time.');
     const valid = m.game.options(m.state, id).map((o) => o.id);
     if (!valid.includes(option)) throw new GameFail('bad_option', `Option ${option} is not on your menu.`, `Pick one of: ${valid.join(', ')}.`);
     m.choices.set(id, option);
+    if (say?.trim()) {
+      try {
+        this.talk(id, say);
+      } catch {
+        // a line during the talk cooldown is dropped; the move still counts
+      }
+    }
     return { chosen: option, resolves_in_seconds: Math.max(0, m.roundEndsAt - this.tick) };
   }
+
+  /** Table talk: a short line everyone in the match and every viewer sees. */
+  talk(id: string, text: string) {
+    const p = this.get(id), m = this.matchOf(id), clean = text.trim().slice(0, B.talkMax);
+    if (!m) throw new GameFail('not_in_match', 'Talk is for the table you play at.', 'say_world reaches everyone.');
+    if (!clean) throw new GameFail('empty', 'Say something.', 'talk(text)');
+    if (p.mutedUntil > Date.now()) throw new GameFail('muted', 'You are muted for a while.', 'Touch some grass.');
+    if (this.tick - (m.lastTalk.get(id) ?? -1e9) < B.talkCooldownTicks) throw new GameFail('rate_limited', 'Talk cooldown.', `One line per ${B.talkCooldownTicks}s.`);
+    m.lastTalk.set(id, this.tick);
+    m.talk.push({ name: p.name, text: clean });
+    m.talk.splice(0, Math.max(0, m.talk.length - 12));
+    return { said: clean };
+  }
+
+  private actors = (m: Match) => m.game.actors?.(m.state) ?? m.players;
 
   private name = (id: string) => this.players.get(id)?.name ?? id;
   private named = (line: string, m: Match) => m.players.reduce((l, id) => l.replaceAll(id, this.name(id)), line);
@@ -102,12 +127,12 @@ export class Arcade {
   observe(id: string) {
     const p = this.get(id), m = this.matchOf(id), queued = this.queuedFor(id);
     if (m) {
-      const view = m.game.view(m.state);
+      const view = m.game.playerView?.(m.state, id) ?? m.game.view(m.state), actors = this.actors(m);
       return {
         status: 'in_match' as const, game: m.game.id, match: m.id, round: m.game.round(m.state), rounds: m.game.rounds, // rounds played so far
-        seconds_left: Math.max(0, m.roundEndsAt - this.tick), chosen: m.choices.get(id) ?? null,
-        options: m.game.options(m.state, id) as Option[], state: this.renameView(view, m), last_round: m.lastRound,
-        you: p.name,
+        seconds_left: Math.max(0, m.roundEndsAt - this.tick), chosen: m.choices.get(id) ?? null, turn: actors.map(this.name),
+        options: (actors.includes(id) ? m.game.options(m.state, id) : []) as Option[], state: this.renameView(view, m), last_round: m.lastRound,
+        talk: m.talk.slice(-8), you: p.name,
       };
     }
     if (queued) {
@@ -184,14 +209,14 @@ export class Arcade {
       taken.add(h);
       players.push(h);
     }
-    const m: Match = { id: `match_${this.nextMatch++}`, game: g, state: g.start(players, this.rng), players, choices: new Map(), roundEndsAt: this.tick + ROUND_TICKS, lastRound: [], finishedAt: null, ranking: [] };
+    const m: Match = { id: `match_${this.nextMatch++}`, game: g, state: g.start(players, this.rng), players, choices: new Map(), roundEndsAt: this.tick + ROUND_TICKS, lastRound: [], finishedAt: null, ranking: [], talk: [], lastTalk: new Map() };
     this.matches.push(m);
     this.news(`${GAME_EMOJI[gameId] ?? '🎮'} A ${g.name.toLowerCase()} starts: ${players.map(this.name).join(', ')}!`);
   }
 
   private resolve(m: Match): void {
     const late: string[] = [];
-    for (const id of m.players) {
+    for (const id of this.actors(m)) {
       if (m.choices.has(id)) continue;
       const house = this.players.get(id)?.house;
       m.choices.set(id, house ? m.game.houseChoice(m.state, id, this.rng) : m.game.defaultOption(m.state, id));
@@ -235,8 +260,8 @@ export class Arcade {
     }
     for (const m of this.matches) {
       if (m.finishedAt !== null) continue;
-      const humans = m.players.filter((id) => !this.players.get(id)?.house);
-      const early = this.tick >= m.roundEndsAt - ROUND_TICKS + MIN_TICKS && humans.length > 0 && humans.every((id) => m.choices.has(id));
+      const humans = this.actors(m).filter((id) => !this.players.get(id)?.house); // none: a house bot's turn resolves at the minimum
+      const early = this.tick >= m.roundEndsAt - ROUND_TICKS + MIN_TICKS && humans.every((id) => m.choices.has(id));
       if (this.tick >= m.roundEndsAt || early) this.resolve(m);
     }
     this.matches = this.matches.filter((m) => m.finishedAt === null || this.tick - m.finishedAt <= B.podiumTicks);
@@ -246,6 +271,6 @@ export class Arcade {
       const b = this.leaderboard(g);
       return [g, { models: b.models, robots: b.robots }];
     }));
-    return { tick: this.tick, events, leaderboards, matches: this.matches.map((m): MatchView => ({ id: m.id, game: m.game.id, players: m.players.map((id) => ({ id, name: this.name(id), model: this.players.get(id)?.model ?? null, house: Boolean(this.players.get(id)?.house) })), round: m.game.round(m.state), rounds: m.game.rounds, seconds_left: Math.max(0, m.roundEndsAt - this.tick), state: this.renameView(m.game.view(m.state), m), last_round: m.lastRound, finished: m.finishedAt !== null, ranking: m.ranking.map(this.name) })), queues: [...this.queues].map(([game, q]) => ({ game, players: q.players.map(this.name), starts_in: Math.max(0, q.since + B.queueWaitTicks - this.tick) })) };
+    return { tick: this.tick, events, leaderboards, matches: this.matches.map((m): MatchView => ({ id: m.id, game: m.game.id, players: m.players.map((id) => ({ id, name: this.name(id), model: this.players.get(id)?.model ?? null, house: Boolean(this.players.get(id)?.house) })), round: m.game.round(m.state), rounds: m.game.rounds, seconds_left: Math.max(0, m.roundEndsAt - this.tick), state: this.renameView(m.game.view(m.state), m), last_round: m.lastRound, finished: m.finishedAt !== null, ranking: m.ranking.map(this.name), turn: this.actors(m).map(this.name), talk: m.talk.slice(-8) })), queues: [...this.queues].map(([game, q]) => ({ game, players: q.players.map(this.name), starts_in: Math.max(0, q.since + B.queueWaitTicks - this.tick) })) };
   }
 }

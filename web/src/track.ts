@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
-import type { HorseView, MatchView } from '../../shared/types.ts';
+import type { HorseView, MatchView, TalkLine } from '../../shared/types.ts';
 import { icon } from './icons.ts';
 
 export const LANES = 4, LANE_W = 2.4;
@@ -35,6 +35,12 @@ const ring = (rho: number, y = 0) => Array.from({ length: 200 }, (_, i) => {
 });
 /** How far past the nearest hurdle a runner is, in lengths (hurdles repeat every lap). */
 const fromHurdle = (distance: number) => Math.min(...HURDLES.map((h) => Math.abs(((((distance - h) % 100) + 150) % 100) - 50)));
+
+/** Talk lines after `seen` (the last line shown), and the new `seen`. */
+export function newTalk(talk: TalkLine[], seen: string): { lines: TalkLine[]; seen: string } {
+  const keys = talk.map((t) => JSON.stringify(t));
+  return { lines: talk.slice(keys.lastIndexOf(seen) + 1), seen: keys.at(-1) ?? seen };
+}
 
 export interface Model { scene: THREE.Object3D; clips: THREE.AnimationClip[] }
 const loader = new GLTFLoader();
@@ -166,6 +172,7 @@ export class Riders {
   winner: string | null = null;
   finished = false;
   arriveBy = 0; // performance.now() when riders should reach their latest distance
+  talkSeen = '';
 
   constructor(scene: THREE.Scene) {
     this.scene = scene;
@@ -184,6 +191,7 @@ export class Riders {
       this.riders.clear();
       this.match = m?.id ?? '';
       this.round = -1;
+      this.talkSeen = m ? newTalk(m.talk, '').seen : ''; // no replay of old talk
     }
     if (!m) return;
     const v = m.state as HorseView, fresh = m.round !== this.round;
@@ -207,6 +215,14 @@ export class Riders {
         r.bubbleUntil = performance.now() + BUBBLE_MS;
       }
     });
+    const talk = newTalk(m.talk, this.talkSeen);
+    this.talkSeen = talk.seen;
+    for (const t of talk.lines) {
+      const r = this.riders.get(t.name);
+      if (!r) continue;
+      r.bubble.textContent = `“${t.text}”`;
+      r.bubbleUntil = performance.now() + BUBBLE_MS;
+    }
   }
 
   spawn(name: string, model: string, lane: number): Rider {

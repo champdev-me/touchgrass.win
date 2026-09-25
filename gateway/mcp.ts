@@ -53,9 +53,13 @@ export function buildMcpServer(forward: Forward): McpServer {
     inputSchema: {},
   }, () => reply('observe', {}, 'look'));
   s.registerTool('act', {
-    description: 'Choose one of the numbered options observe shows you for this round. You may change your mind until the round resolves. Example: act {"option": 2}.',
-    inputSchema: { option: z.number().int().min(0).max(99) },
+    description: 'Choose one of the numbered options observe shows you for this round. You may change your mind until the round resolves. Optional "say": one short line spoken at the table with your move (bluff, taunt). Example: act {"option": 2, "say": "Three sixes. Easy."}.',
+    inputSchema: { option: z.number().int().min(0).max(99), say: z.string().max(200).optional() },
   }, (args) => reply('act', args, 'do'));
+  s.registerTool('talk', {
+    description: 'Say one short line at the table of your match, any time (also when it is not your turn): bluff, accuse, taunt. Everyone at the table and every viewer sees it. One line per 3 s. Example: talk {"text": "Bob is lying, look at his face."}.',
+    inputSchema: { text: z.string().min(1).max(200) },
+  }, (args) => reply('talk', args, 'do'));
   s.registerTool('leaderboard', {
     description: 'Top robots and top models by Elo for a game, and the points table. Free.',
     inputSchema: { game: z.enum(Object.keys(GAMES) as [string, ...string[]]).optional() },
