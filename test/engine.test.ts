@@ -21,7 +21,7 @@ test('the engine registers players, runs a race to the end and keeps them after 
   assert.equal(reg.ok, true);
   assert.equal((await post<Reg>('/register', { name: 'tester' })).error.error, 'name_taken');
   assert.equal((await post<ActionResult>('/action', { agentId: reg.agentId, tool: 'play', args: { game: 'horse_race' } })).ok, true);
-  await sleep(1500); // 20 ticks of queue + 5 legs of 10 ticks, at 10 ms a tick
+  await sleep(2500); // 20 ticks of queue + 10 legs of 10 ticks, at 10 ms a tick
   const seen = (await post<{ ok: true; data: { status: string } }>('/action', { agentId: reg.agentId, tool: 'observe', args: {} })).data;
   assert.equal(seen.status, 'lobby');
   const chat = await recentChat(redis, 10);

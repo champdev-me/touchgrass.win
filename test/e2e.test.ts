@@ -122,7 +122,7 @@ test('arcade tools over MCP; a bad option gets the valid ones; a race runs to th
     o = await call(ca, 'observe');
   }
   assert.equal(o.data.status, 'in_match');
-  assert.deepEqual(o.data.options?.map((x) => x.id), [1, 2, 3, 4]);
+  assert.deepEqual(o.data.options?.map((x) => x.id).slice(0, 4), [1, 2, 3, 4]); // hurdle legs add 5 jump
   const bad = await call(ca, 'act', { option: 9 });
   assert.equal(bad.data.error, 'bad_option');
   for (let i = 0; i < 40 && o.data.status !== 'lobby'; i++) {

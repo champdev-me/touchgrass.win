@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { B } from '../shared/balance.ts';
 import { Arcade } from './arcade.ts';
 import { GameFail } from './errors.ts';
+import { horseRace } from './games/horse.ts';
 
 const code = (fn: () => unknown) => {
   try {
@@ -75,7 +76,7 @@ test('a race finishes: points, Elo for humans only, a chat line, history, and ev
   const p = a.register('Ann'), q = a.register('Bob');
   for (const x of [p, q]) a.play(x.id, 'horse_race');
   run(a, B.queueWaitTicks);
-  for (let leg = 0; leg < 5; leg++) {
+  for (let leg = 0; leg < horseRace.rounds; leg++) {
     a.act(p.id, 1);
     a.act(q.id, 3);
     run(a, 1);
@@ -95,7 +96,7 @@ test('a player who stops acting still finishes the race on defaults', () => {
   const a = arcade();
   const p = a.register('Ghost');
   a.play(p.id, 'horse_race');
-  run(a, B.queueWaitTicks + 5 * ROUND + 1);
+  run(a, B.queueWaitTicks + horseRace.rounds * ROUND + 1);
   assert.equal(a.observe(p.id).status, 'lobby');
   assert.equal(p.played.horse_race, 1);
 });
