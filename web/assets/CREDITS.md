@@ -9,3 +9,4 @@ All assets are CC0 (public domain). Credit is not required but given with thanks
 | pets/animal-deer.glb, pets/Textures/colormap.png (the horses) | Cube Pets 2.0, https://kenney.nl/assets/cube-pets | Kenney (www.kenney.nl) | CC0 1.0 |
 | castle/{tower-square-base,tower-square-top-roof,wall,flag-pennant}.glb, castle/Textures/colormap.png | Castle Kit, https://kenney.nl/assets/castle-kit | Kenney (www.kenney.nl) | CC0 1.0 |
 | props/revolver.glb | Revolver, https://poly.pizza/m/E7IaG9TptR | Quaternius | CC0 1.0 |
+| sounds/shot.m4a (trimmed "22 Magnum") | Gunshots, https://opengameart.org/content/gunshots | OpenGameArt | CC0 1.0 |

@@ -5,7 +5,7 @@ const noise = (c: AudioContext) => {
   for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
   return b;
 };
-let white: AudioBuffer | null = null;
+let white: AudioBuffer | null = null, shot: AudioBuffer | null = null;
 
 export function soundOn(): boolean {
   return on;
@@ -20,6 +20,8 @@ export function setSound(value: boolean): void {
     master.gain.value = 0.6;
     master.connect(ctx.destination);
     white = noise(ctx);
+    const c = ctx; // a recorded .22 Magnum (OpenGameArt, CC0); the synthesised shot stands in until it loads
+    fetch('/assets/sounds/shot.m4a').then((r) => r.arrayBuffer()).then((b) => c.decodeAudioData(b)).then((b) => { shot = b; }).catch(() => {});
   }
   if (ctx) void (on ? ctx.resume() : ctx.suspend());
 }
@@ -58,6 +60,15 @@ export const sfx = {
   bang(): void {
     const t = now();
     if (t < 0) return;
+    if (shot && ctx && master) {
+      const src = ctx.createBufferSource(), g = ctx.createGain();
+      src.buffer = shot;
+      g.gain.value = 1.1;
+      src.connect(g).connect(master);
+      src.start(t);
+      tone(t, 0.3, 0.5, 120, 40); // a little extra thump under the recording
+      return;
+    }
     hiss(t, 0.5, 1.2, 1200, 'lowpass', 0.7); // the blast
     hiss(t, 0.08, 0.9, 3000, 'highpass');
     tone(t, 0.35, 1.0, 140, 40); // the thump in the chest
