@@ -114,6 +114,7 @@ export function buildObservation(w: World, a: Agent) {
       in_combat: w.inCombat(a),
       ...baseLines(w, a),
       farm: farmLines(w, a),
+      bed: w.bedOf(a),
       duel: duelView(w, a.id),
       challenged_by: w.challenges.has(a.id) ? `${w.agents.get(w.challenges.get(a.id)!.from)?.name}: answer_challenge within ${Math.max(0, w.challenges.get(a.id)!.expiresAt - w.tick)}s` : null,
       clues: clueLines(w, a, (x, y) => TERRAIN_NAME[w.at(x, y)]),

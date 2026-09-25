@@ -22,7 +22,7 @@ const CHAT_EVERY_MS = Number(process.env.CHAT_EVERY_S ?? 60) * 1000;
 const MEMORY = Number(process.env.LLM_MEMORY ?? 6); // past actions shown to the model each turn
 
 type Obs = {
-  you: { id: string; name: string; role: string; duel?: { round: number; your_hearts: number; their_hearts: number; opponent: string; their_last_moves: string[] } | null; challenged_by?: string | null; base?: { from: Vec; to: Vec; flag: Vec; next_strip_price: Record<string, number> } | null; standing_in?: string | null; farm?: string[]; pos: Vec; health: number; food: number; water: number; energy: number; dead: boolean; inventory: Record<string, number>; slots?: string; clues?: string[]; maps?: string[] };
+  you: { id: string; name: string; role: string; gold?: number; bed?: Vec | null; duel?: { round: number; your_hearts: number; their_hearts: number; opponent: string; their_last_moves: string[] } | null; challenged_by?: string | null; base?: { from: Vec; to: Vec; flag: Vec; next_strip_price: Record<string, number> } | null; standing_in?: string | null; farm?: string[]; pos: Vec; health: number; food: number; water: number; energy: number; dead: boolean; inventory: Record<string, number>; slots?: string; clues?: string[]; maps?: string[] };
   task: { type: string } | null;
   time: { phase: string };
   resources: string[];
@@ -51,28 +51,30 @@ const ROLE_GOALS: Record<string, string> = {
   farmer: 'only you till farm plots (build farm_plot with your hoe), plant seeds and bake bread. Keep plots growing in your base, harvest, bake bread at a campfire and sell it: everyone needs food.',
   scout: 'only you see buried treasure: chart it into a map (2 fiber) and sell the map to a miner, or dig it yourself. You also read clues exactly: buy clues from others.',
 };
-const SYSTEM = `You control a robot in Touch Grass, a survival game. Each turn you get its state and must call exactly ONE tool.
-Stats run 0-100, higher is better. Food drops 1 every 30s, water 1 every 20s; at 0 you lose health.
-Priorities: water below 50 -> drink if a drink spot is 0-1 tiles away, else move_to that drink spot.
-Health only heals while food is 90+ and water 50+: if health is below 80 and you carry food, eat until food is about 100; food below 60 with no food -> gather berry_bush.
-Energy below 15 -> sleep (or rest by day): at 0 you cannot punch or fight. Night and energy below 80 -> sleep.
-Build stations with build(structure), not craft. Cook only meat you carry.
-Otherwise do your role's job (see "Your role" below); if its resources are not in sight, walk toward where they are.
-Use exact coordinates from the state. Never move onto deep water. Be decisive.
-At most once every ${CHAT_EVERY_MS / 1000} seconds, instead of working you may say_world. Chat like a real person in a game chat, not a robot and not a comedian:
-short (under 12 words), casual, lowercase is fine, react to what just happened to you or to what others said. Examples of the vibe:
-"bro a duck just jumped me", "who took all the berries lol", "selling iron, dm me", "why is it always night when i need wood", "rip me", "ok that wolf was personal".
-No robot or beep-boop jokes, no puns, no explaining the joke. Reply to people by name, haggle, trash-talk a little.
-Every tool accepts "thought": one short sentence about why, shown to viewers as a thought bubble. Always fill it in.
-If something is "hunting you": attack it (its mob id) when health is above 40, else flee (or flee to x, y).
-Rabbits and deer are food: attack them, then eat meat (+10 food, sometimes a tummy ache). With 5 wood, craft a club (double damage).
-Not sure how to make, build or get something? Call how {"thing": "bed"} (free): it answers with the steps and exact calls.
-Roles own the economy: you can only gather, craft and build what your role allows; a wrong_role error names who to trade with.
-There is no shop. Trade with robots within 3 tiles: offer(agent, give, want) with item counts ("gold" for coins); they accept or decline within 60 s and the swap is all-or-nothing. Haggle in world chat. Accept fair offers in "Offers to you".
-Health only comes back while food is 90+, so eat often. Punching and fighting cost energy.
-Treasure: clues turn up while gathering trees, grass and rocks; search at a clue's spot for the next find. Whoever holds a treasure_map digs with gather target "treasure".
-Bag full? drop things you cannot use or sell (berries beyond a snack stash) so you can keep working.
-Your role is ${ROLE}: ${ROLE_GOALS[ROLE] ?? 'do what you do best'} When you carry about 20 things to sell and nobody is near, walk toward the Plaza (512, 512) where robots meet, in hops of at most 100 tiles.`;
+const SYSTEM = `You play a robot in Touch Grass, a survival and trading game other people watch live. Each turn you get its state and call exactly ONE tool.
+
+HOW TO PLAY WELL (in this order, do not get stuck on step 2):
+1. Stay alive: drink below 50 water, eat below 60 food. Health only heals while food is 90+ and water 50+, so eat to full when hurt. Sleep at night or below 15 energy.
+2. Work your role for a while (see "Your role"). Gathering is a means, not the goal: about 15-20 items is enough, then do something with them.
+3. Make your base a home: a bed (your respawn point, carpenters build it) and a chest (anyone, wood 4) inside your base. Store extra goods in the chest.
+4. Make money: sell what your role produces to other robots with offer(agent, give, want gold). The Plaza (512, 512) is where robots meet; say what you sell in world chat.
+5. Grow: buy_land when you have spare gold; buy tools you cannot make (pickaxe, axe, hoe) from smiths.
+6. Have fun and be watchable: chat, follow clues to treasure, and with 80+ gold challenge a neighbour for their land (how {"thing":"duel"}).
+Every turn there is a "Next goal" line: it is usually the best move. Mix things up; never repeat a failing call.
+
+RULES THAT MATTER:
+- Roles own the economy: you can only gather, craft and build what your role allows; a wrong_role error names who to trade with. switch_role at home (every 10 min) to build things yourself.
+- Everything but campfires is built inside your own base (observe.you.base); strangers cannot gather or build there.
+- Trades: offer to a robot within 3 tiles; they accept or decline within 60 s; nothing moves unless both sides still have the goods. Accept fair offers in "Offers to you".
+- Not sure how to make or get something? how {"thing": "bed"} is free and answers with the exact calls.
+- If something is "hunting you": attack it when health is above 40, else flee.
+- Use exact coordinates from the state; move_to at most 100 tiles at a time.
+- Every tool takes "thought": one short sentence about why, shown to viewers. Always fill it in.
+
+CHAT: at most once every ${CHAT_EVERY_MS / 1000} seconds you may say_world. Talk like a real person in a game chat: short (under 12 words), casual, lowercase is fine, react to what just happened or reply to someone by name, haggle, trash-talk a little.
+Examples: "bro a duck just jumped me", "selling iron, anyone?", "who wants bread", "ok that wolf was personal". No robot jokes, no puns.
+
+Your role is ${ROLE}: ${ROLE_GOALS[ROLE] ?? 'do what you do best'}`;
 
 const mcp = new Client({ name: 'touchgrass-llm-agent', version: '1.0.0' });
 await mcp.connect(new StreamableHTTPClientTransport(new URL(`${TG_URL}/mcp`), { requestInit: { headers: { Authorization: `Bearer ${TG_TOKEN}` } } }));
@@ -149,6 +151,27 @@ function fallback(o: Obs, skip = ''): Action {
   return options.find(pick) ?? options[options.length - 1];
 }
 
+const SELLS: Record<string, string[]> = { miner: ['iron_ore', 'gem', 'crystal'], mason: ['stone', 'brick'], smith: ['stone_pickaxe', 'stone_axe', 'hoe', 'iron'], carpenter: ['wood'], farmer: ['bread', 'wheat'], hunter: ['cooked_meat', 'meat', 'hide'], gatherer: ['wood', 'fiber', 'herb', 'bandage'], scout: ['fiber'] };
+
+/** One concrete suggestion for this turn, from the robot's state; small models follow this better than a list of rules. */
+function nextGoal(o: Obs): string {
+  const me = o.you, inv = me.inventory, n = (k: string) => inv[k] ?? 0;
+  const home = me.standing_in === 'your base', stations = o.stations ?? [];
+  const goods = (SELLS[ROLE] ?? []).reduce((t, k) => t + n(k), 0);
+  if (me.water < 50) return 'drink: you are thirsty.';
+  if (me.food < 60) return 'eat something (or gather berry_bush).';
+  if (me.energy < 15) return 'sleep or rest.';
+  if ((o.offers?.incoming.length ?? 0) > 0) return 'answer the offer made to you (accept if fair, else decline).';
+  if (me.clues?.length) return `follow your clue: ${me.clues[0]}`;
+  if (goods >= 15) return `you carry ${goods} goods to sell: offer them to a robot within 3 tiles, or walk toward the Plaza (512, 512) and say what you sell in world chat.`;
+  if (!me.bed && n('wood') >= 10 && n('fiber') >= 10) return ROLE === 'carpenter' ? 'go home and build your bed.' : 'you have bed materials: go home, switch_role carpenter, build a bed, switch back later (or pay a carpenter).';
+  if (!stations.some((l) => l.startsWith('chest (yours')) && n('wood') >= 4 && home) return 'build a chest in your base and store your extras.';
+  const gold = me.gold ?? 0;
+  if (me.base && gold >= 3 * Math.min(...Object.values(me.base.next_strip_price))) return home ? 'buy_land: you have spare gold.' : 'go home and buy_land with your spare gold.';
+  if (gold >= 80) return 'you are rich: challenge a neighbour for their land, or buy tools from a smith.';
+  return `work your role (${ROLE}) for a bit, then trade what you make.`;
+}
+
 async function decide(o: Obs, memory: string[], chatOk: boolean): Promise<Action | null> {
   const answer = lastAnswer;
   const me = o.you;
@@ -169,6 +192,7 @@ async function decide(o: Obs, memory: string[], chatOk: boolean): Promise<Action
     `Your last actions: ${memory.join(' | ') || 'none'}`,
     ...(answer ? [`Answer to your last how: ${answer}`] : []),
     chatOk ? 'You may chat now: say_world like a person in game chat (short, casual, react to what happened), or reply to someone by name.' : 'Chat is on cooldown; do not use say_world.',
+    `Next goal: ${nextGoal(o)}`,
     'Your robot is idle. Call exactly one tool now.',
   ].join('\n');
   const body = { model: LLM_MODEL, messages: [{ role: 'system', content: SYSTEM }, { role: 'user', content: state }], tools: toolsFor(o), temperature: 0.4, max_tokens: 600, ...(LLM_REASONING ? { reasoning_effort: LLM_REASONING } : {}) };
