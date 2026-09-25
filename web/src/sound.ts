@@ -88,6 +88,23 @@ export const sfx = {
     hiss(t + 0.45, 0.06, 0.8, 1600, 'bandpass', 1.5); // the cylinder snaps shut
     tone(t + 0.45, 0.08, 0.4, 420, 180, 'square');
   },
+  horn(): void {
+    const t = now();
+    if (t < 0) return;
+    tone(t, 0.35, 0.2, 392, 390, 'sawtooth'); // a herald's horn: the match begins
+    tone(t + 0.38, 0.7, 0.22, 523, 520, 'sawtooth');
+  },
+  whoosh(): void {
+    const t = now();
+    if (t < 0) return;
+    hiss(t, 0.35, 0.18, 900, 'bandpass', 0.6);
+  },
+  knock(): void {
+    const t = now();
+    if (t < 0) return;
+    tone(t, 0.12, 0.6, 260, 120, 'triangle'); // hooves on a wooden rail
+    hiss(t, 0.08, 0.5, 1200, 'bandpass', 2);
+  },
   twirl(seconds = 1.3, loud = 1): void {
     const t = now();
     if (t < 0) return;

@@ -150,6 +150,7 @@ interface Rider {
   body: THREE.Group; // horse, caparison and rider: this is what jumps and stumbles
   lane: number;
   clipped: boolean;
+  overHurdle: boolean; // for one sound per hurdle
   mixers: THREE.AnimationMixer[];
   horseActs: Map<string, THREE.AnimationAction>;
   clip: string;
@@ -194,6 +195,7 @@ export class Riders {
       this.match = m?.id ?? '';
       this.round = -1;
       this.talkSeen = m ? newTalk(m.talk, '').seen : ''; // no replay of old talk
+      if (m && m.round === 0 && !m.finished) sfx.horn(); // they're off
     }
     if (!m) return;
     const v = m.state as HorseView, fresh = m.round !== this.round;
@@ -232,7 +234,7 @@ export class Riders {
     const { root, body, mixers, horseActs, pips, last, bubble } = mount(this.horse!, this.robots, name, model, lane);
     this.scene.add(root);
     const r: Rider = {
-      root, body, lane, clipped: false, mixers, horseActs, clip: '', shown: 0, to: 0, speed: 0, pips, last, bubble, bubbleUntil: 0,
+      root, body, lane, clipped: false, overHurdle: false, mixers, horseActs, clip: '', shown: 0, to: 0, speed: 0, pips, last, bubble, bubbleUntil: 0,
     };
     this.place(r, 0);
     this.riders.set(name, r);
@@ -266,6 +268,8 @@ export class Riders {
     r.root.position.set(x, 0, z);
     r.root.rotation.y = heading; // models face +z
     const crossing = r.speed > 0.3 && near > 0;
+    if (crossing && near > 0.9 && !r.overHurdle) (r.clipped ? sfx.knock : sfx.whoosh)();
+    r.overHurdle = near > 0.9 ? true : near === 0 ? false : r.overHurdle;
     r.body.position.y = crossing && !r.clipped ? 1.1 * (1 - (1 - near) ** 2) : 0;
     r.body.rotation.x = crossing && r.clipped ? 0.4 * near : 0;
   }

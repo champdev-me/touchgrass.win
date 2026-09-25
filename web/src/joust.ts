@@ -66,6 +66,7 @@ export class Jousters {
       this.riders = [];
       this.match = m?.id ?? '';
       this.talkSeen = m ? newTalk(m.talk, '').seen : '';
+      if (m && m.round === 0 && !m.finished) sfx.horn(); // to the lists!
     }
     if (!m) return;
     const v = m.state as JoustView;
@@ -151,7 +152,10 @@ export class Jousters {
         r.bubbleUntil = now + BUBBLE_MS;
         if (/strikes|shield/.test(r.line)) r.lance.scale.set(1, 1, 0.45); // it shatters on the hit
       }
-      if (this.unhorsed === this.names[i] && this.t >= 0.5) this.fall(r, Math.min(1, (this.t - 0.5) * 3));
+      if (this.unhorsed === this.names[i] && this.t >= 0.5) {
+        if (wasBefore && this.t >= 0.5) setTimeout(sfx.thud, 300); // the rider hits the ground
+        this.fall(r, Math.min(1, (this.t - 0.5) * 3));
+      }
       r.bubble.hidden = now > r.bubbleUntil;
       const clip = this.t < 1 ? 'run' : this.finished && this.names[i] === this.winner ? 'dance' : 'idle';
       if (r.clip !== clip) {
