@@ -4,6 +4,7 @@ import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import type { HorseView, MatchView, TalkLine } from '../../shared/types.ts';
 import { icon } from './icons.ts';
+import { sfx } from './sound.ts';
 
 export const LANES = 4, LANE_W = 2.4;
 export const LANE_COLORS = ['#c0392b', '#2e6fd8', '#e0b020', '#2f9e55']; // heraldic red, blue, gold, green
@@ -173,6 +174,7 @@ export class Riders {
   finished = false;
   arriveBy = 0; // performance.now() when riders should reach their latest distance
   talkSeen = '';
+  hoofIn = 0;
 
   constructor(scene: THREE.Scene) {
     this.scene = scene;
@@ -217,6 +219,7 @@ export class Riders {
     });
     const talk = newTalk(m.talk, this.talkSeen);
     this.talkSeen = talk.seen;
+    if (talk.lines.length) sfx.blip();
     for (const t of talk.lines) {
       const r = this.riders.get(t.name);
       if (!r) continue;
@@ -237,7 +240,12 @@ export class Riders {
   }
 
   update(dt: number): void {
-    const now = performance.now();
+    const now = performance.now(), running = [...this.riders.values()].filter((r) => r.speed > 0.3).length;
+    this.hoofIn -= dt;
+    if (running && this.hoofIn <= 0) {
+      sfx.hoof(0.1 + running * 0.05);
+      this.hoofIn = 0.07 + Math.random() * 0.06 + 0.12 / running; // more horses, faster drumming
+    }
     for (const [name, r] of this.riders) {
       const want = Math.max(0, r.to - r.shown) / Math.max(0.5, (this.arriveBy - now) / 1000);
       r.speed += (want - r.speed) * (1 - Math.pow(0.2, dt)); // no sudden speed changes

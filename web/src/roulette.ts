@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import type { MatchView } from '../../shared/types.ts';
 import { buildTavern, seatAngle, seatRobot, TABLE_TOP, TAVERN } from './tavern.ts';
+import { sfx } from './sound.ts';
 import { load, type Model, newTalk } from './track.ts';
 
 // A second table next to the tavern's.
@@ -85,6 +86,7 @@ export class Roulette {
     if (m.round !== this.round && v.last) {
       this.round = m.round; // a new turn resolved: play it (the fall and the BANG wait for the shot)
       if (v.last.move !== 'pass') this.shot = { who: v.last.who, bang: v.last.bang, spin: v.last.move === 'spin', t: 0, fired: false };
+      if (v.last.move === 'spin') sfx.spin();
       if (v.last.move === 'spin') this.twirl = { from: this.aim, to: this.aim + Math.PI * 4, t: 0, s: SPIN_S }; // spun twice, back on the holder
       const s = this.seats.get(v.last.who);
       if (s && v.last.move === 'pass') this.say(s, 'passes the gun', now);
@@ -96,11 +98,13 @@ export class Roulette {
       s.tag.classList.toggle('out', p.out && !waiting);
       if (p.out && this.shot?.who !== p.id) s.fallen = 1; // already down
     });
-    for (const t of newTalk(m.talk, this.talkSeen).lines) {
+    const talk = newTalk(m.talk, this.talkSeen);
+    this.talkSeen = talk.seen;
+    for (const t of talk.lines) {
       const s = this.seats.get(t.name);
       if (s) this.say(s, `“${t.text}”`, now);
     }
-    this.talkSeen = newTalk(m.talk, this.talkSeen).seen;
+    if (talk.lines.length) sfx.blip();
     if (!this.shot && v.turn !== this.holder) {
       const next = this.order.indexOf(v.turn);
       if (this.holder && next >= 0) {
@@ -162,12 +166,17 @@ export class Roulette {
         shot.fired = true;
         const dir = s.root.position.clone().sub(ROULETTE).setY(0).normalize();
         if (shot.bang) {
+          sfx.bang();
+          setTimeout(sfx.thud, 550); // the robot hits the floor
           this.burst(this.gun.position.clone().addScaledVector(dir, MUZZLE).setY(TABLE_TOP + 0.1), dir);
           this.sign.element.textContent = `BANG! ${shot.who} is out`;
           this.sign.element.classList.add('liar');
           this.signUntil = now + 4500;
           s.tag.classList.add('out');
-        } else this.say(s, 'click.', now);
+        } else {
+          sfx.click();
+          this.say(s, 'click.', now);
+        }
       }
       if (shot.fired) {
         const k = Math.min(1, (shot.t - fireAt) / 0.12);

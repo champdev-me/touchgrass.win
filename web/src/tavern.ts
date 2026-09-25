@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import type { MatchView } from '../../shared/types.ts';
+import { sfx } from './sound.ts';
 import { LANE_COLORS, type Model, newTalk, S } from './track.ts';
 
 // The tavern sits between the oval's back straight and the castle wall.
@@ -131,6 +132,7 @@ export class Tavern {
       this.revealKey = revealKey;
       this.flashFace = r.bid.face;
       this.flashUntil = now + 5000;
+      sfx.slam(); // LIAR! a fist on the table
     }
     const called = r && now < this.flashUntil ? r : null; // a liar call is on show
     v.seats.forEach((seat, i) => {
@@ -141,6 +143,7 @@ export class Tavern {
       s.body.visible = !seat.out || shown.length > 0;
       const key = JSON.stringify(shown);
       if (key !== s.lastDice) {
+        if (s.lastDice && i === 0) sfx.dice(); // one rattle per roll of the table
         s.lastDice = key;
         s.dice.clear();
         shown.forEach((d, k) => {
@@ -155,6 +158,7 @@ export class Tavern {
     // Talk lines after the last one shown become bubbles.
     const talk = newTalk(m.talk, this.talkSeen);
     this.talkSeen = talk.seen;
+    if (talk.lines.length) sfx.blip();
     for (const line of talk.lines) {
       const s = this.sitters.get(line.name);
       if (!s) continue;

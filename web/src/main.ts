@@ -6,6 +6,7 @@ import { buildTilt, HALF, JOUST_FOCUS, Jousters } from './joust.ts';
 import { buildRoulette, Roulette, ROULETTE } from './roulette.ts';
 import { buildTavern, Tavern, TAVERN } from './tavern.ts';
 import { buildTrack, CENTER, onOval, Riders } from './track.ts';
+import { sfx } from './sound.ts';
 import { setupUi } from './ui.ts';
 
 const host = document.getElementById('view')!;
@@ -34,7 +35,7 @@ function resize() {
 addEventListener('resize', resize);
 resize();
 
-let matches: MatchView[] = [], queues: QueueView[] = [], watching: string | null = null;
+let matches: MatchView[] = [], queues: QueueView[] = [], watching: string | null = null, cheered = '';
 const ui = setupUi((id) => {
   watching = id;
   show();
@@ -56,6 +57,10 @@ function show(): void {
   tavern.sync(m?.game === 'tavern' ? m : null, riders.robots);
   roulette.sync(m?.game === 'roulette' ? m : null, riders.robots);
   ui.race(m);
+  if (m?.finished && cheered !== m.id) {
+    cheered = m.id;
+    sfx.fanfare();
+  }
   ui.home(watching ? null : matches, queues);
 }
 

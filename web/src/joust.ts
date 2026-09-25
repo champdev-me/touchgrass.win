@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import type { JoustView, MatchView } from '../../shared/types.ts';
 import { icon } from './icons.ts';
+import { sfx } from './sound.ts';
 import { type Model, mount, newTalk, S } from './track.ts';
 
 // The tilt runs along the oval's infield: riders charge along x, either side of a barrier at z = 0.
@@ -50,6 +51,7 @@ export class Jousters {
   unhorsed: string | null = null;
   names: string[] = [];
   talkSeen = '';
+  hoofIn = 0;
 
   constructor(scene: THREE.Scene) {
     this.scene = scene;
@@ -69,6 +71,7 @@ export class Jousters {
     const v = m.state as JoustView;
     const talk = newTalk(m.talk, this.talkSeen);
     this.talkSeen = talk.seen;
+    if (talk.lines.length) sfx.blip();
     for (const t of talk.lines) {
       const r = this.riders[this.names.indexOf(t.name)];
       if (!r) continue;
@@ -135,6 +138,12 @@ export class Jousters {
     const now = performance.now(), wasBefore = this.t < 0.5;
     this.t = Math.min(1, this.t + (dt * 1000) / CHARGE_MS);
     const meet = wasBefore && this.t >= 0.5;
+    if (meet && this.riders.some((r) => /strikes|shield/.test(r.line))) sfx.crack();
+    this.hoofIn -= dt;
+    if (this.t < 1 && this.hoofIn <= 0) {
+      sfx.hoof(0.3);
+      this.hoofIn = 0.11 + Math.random() * 0.04; // two horses at the gallop
+    }
     this.riders.forEach((r, i) => {
       this.place(r, i, this.t);
       if (meet) {

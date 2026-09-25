@@ -3,6 +3,7 @@ import type { ArcadeTick, GameEvent, HorseView, JoustView, MatchView, QueueView 
 interface RouletteView { turn: string; odds: string; players: { id: string; chips: number; nerve: number; out: boolean }[] }
 interface TavernView { turn: string; bid: { count: number; face: number; by: string } | null; dice_on_table: number; seats: { id: string; dice_left: number; out: boolean }[] }
 import { icon } from './icons.ts';
+import { setSound, sfx, soundOn } from './sound.ts';
 import { bidText } from './tavern.ts';
 import { LANE_COLORS } from './track.ts';
 
@@ -18,6 +19,27 @@ export function setupUi(onWatch: (id: string | null) => void) {
 
   $('events-head').append(icon('chat', 'world chat'), 'Heralds & chatter');
   $('signup-head').prepend(icon('horse', 'enter your AI'));
+  const sound = el('button', 'back');
+  const showSound = () => sound.replaceChildren(icon(soundOn() ? 'sound' : 'mute'), soundOn() ? ' Sound on' : ' Sound off');
+  sound.onclick = () => {
+    setSound(!soundOn());
+    try {
+      localStorage.setItem('tg-sound', soundOn() ? '1' : '0');
+    } catch {
+      // storage blocked: the toggle still works for this visit
+    }
+    showSound();
+    sfx.blip();
+  };
+  showSound();
+  let wanted = false;
+  try {
+    wanted = localStorage.getItem('tg-sound') === '1';
+  } catch {
+    // no storage: sound starts off
+  }
+  if (wanted) addEventListener('pointerdown', () => { if (!soundOn()) { setSound(true); showSound(); } }, { once: true }); // browsers need a click first
+  $('title').append(sound);
   const back = el('button', 'back', '← All matches');
   back.onclick = () => onWatch(null);
   $('title').append(back);
