@@ -6,7 +6,7 @@ const el = (tag: string, cls = '', text = '') => Object.assign(document.createEl
 const GAME_NAMES: Record<string, string> = { horse_race: 'Horse race' };
 const PLACES = ['1st', '2nd', '3rd'];
 
-export function setupUi(onPick: (id: string) => void) {
+export function setupUi() {
   const $ = (id: string) => document.getElementById(id)!;
   const feed = $('event-list');
   const lines: GameEvent[] = [];
@@ -34,7 +34,7 @@ export function setupUi(onPick: (id: string) => void) {
     status: (s: string) => { $('status').textContent = s; },
 
     /** The banner for the shown match, standings sorted by distance, and the podium once it ends. */
-    race: (m: MatchView | null, all: MatchView[]) => {
+    race: (m: MatchView | null) => {
       $('race').hidden = !m;
       $('podium').hidden = !m?.finished;
       if (!m) return;
@@ -56,13 +56,7 @@ export function setupUi(onPick: (id: string) => void) {
         row.append(el('span', 'swatch'), el('span', 'who', r.id), el('small', '', p?.house ? 'house' : p?.model ?? ''), el('b', 'dist', String(r.distance)), bar, r.last ? icon(r.last, r.last) : el('span'));
         return row;
       });
-      const tabRow = el('div', 'tabs');
-      if (all.length > 1) all.forEach((x, i) => {
-        const b = el('button', x.id === m.id ? 'on' : '', `Race ${i + 1}${x.finished ? ' ✓' : ''}`);
-        b.onclick = () => onPick(x.id);
-        tabRow.append(b);
-      });
-      $('race').replaceChildren(head, ...rows, ...(all.length > 1 ? [tabRow] : []));
+      $('race').replaceChildren(head, ...rows);
       if (m.finished) {
         $('podium').replaceChildren(el('div', 'title', 'The winners'), ...m.ranking.slice(0, 3).map((name, i) => {
           const p = m.players.find((x) => x.name === name);

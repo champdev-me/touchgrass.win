@@ -51,9 +51,8 @@ const flat = (w: number, d: number, color: string, y: number) => {
 /** The tiltyard: grass, a dirt track with lanes, leg posts, a checkered finish, castle walls and towers. */
 export async function buildTrack(scene: THREE.Scene): Promise<void> {
   const piece = async (name: string) => (await load(`/assets/castle/${name}.glb`)).scene;
-  const [base, mid, roof, wall, banner, pennant, fence, oak, tree] = await Promise.all([
-    piece('tower-square-base'), piece('tower-square-mid'), piece('tower-square-top-roof'), piece('wall'),
-    piece('flag-banner-long'), piece('flag-pennant'), piece('wall-narrow-wood-fence'),
+  const [base, roof, wall, pennant, oak, tree] = await Promise.all([
+    piece('tower-square-base'), piece('tower-square-top-roof'), piece('wall'), piece('flag-pennant'),
     load('/assets/tree_oak.glb').then((m) => m.scene), load('/assets/tree_default.glb').then((m) => m.scene),
   ]);
   const put = (o: THREE.Object3D, x: number, z: number, s: number, rotY = 0, y = 0) => {
@@ -116,12 +115,8 @@ export async function buildTrack(scene: THREE.Scene): Promise<void> {
     scene.add(hurdle);
   }
 
-  // A keep in the infield; castle walls all round with towers and banners; trees beyond.
+  // Castle walls all round with towers; trees beyond. The infield stays open so nothing hides the riders.
   const T = 3;
-  put(base, S / 2, 0, T);
-  put(mid, S / 2, 0, T, 0, T * 1.01);
-  put(roof, S / 2, 0, T, 0, T * 2.02);
-  for (const side of [-1, 1]) put(banner, S / 2, (side * T) / 2 + side * 0.05, 1.6, side * Math.PI / 2, T * 1.1);
   const M = 22, x0 = -OUTER - M, x1 = S + OUTER + M, z0 = OUTER + M, WALL_S = 3;
   const side = (from: THREE.Vector3, to: THREE.Vector3) => {
     const n = Math.round(from.distanceTo(to) / WALL_S), rot = Math.atan2(to.x - from.x, to.z - from.z) + Math.PI / 2;

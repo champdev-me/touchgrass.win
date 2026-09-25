@@ -32,20 +32,17 @@ addEventListener('resize', resize);
 resize();
 
 let matches: MatchView[] = [], shown: string | null = null;
-const ui = setupUi((id) => {
-  shown = id;
-  show();
-});
+const ui = setupUi();
 const riders = new Riders(scene);
 const [sx, sz] = onOval(0, 14), START = new THREE.Vector3(sx, 0, sz); // the finish line, where the camera waits
 await Promise.all([buildTrack(scene), riders.load()]);
 
-// Keep watching the picked match while it lasts, else the first live one, else the latest finished.
+// Keep watching the shown match to its podium, then the first live one, else the latest finished.
 function show(): void {
   const m = matches.find((x) => x.id === shown) ?? matches.find((x) => !x.finished) ?? matches.at(-1) ?? null;
   shown = m?.id ?? null;
   riders.sync(m);
-  ui.race(m, matches);
+  ui.race(m);
 }
 
 connect((m: ServerMsg) => {
