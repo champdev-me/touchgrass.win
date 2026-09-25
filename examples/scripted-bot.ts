@@ -49,9 +49,7 @@ const faceOf = (label: string) => WORDS.findIndex((w) => label.endsWith(` ${w}`)
 
 function pick(o: Observe): number {
   if (o.game === 'roulette') {
-    const v = o.state as unknown as { clicks: number; players: { id: string; chips: number }[] }, left = 6 - v.clicks, chips = v.players.find((p) => p.id === o.you)?.chips ?? 0;
-    const label = left <= 2 && chips > 0 ? 'pass the gun' : left <= 4 ? 'spin and pull' : 'pull the trigger';
-    return o.options!.find((x) => x.label === label)?.id ?? 2;
+    return 1; // no choice but the trigger
   }
   if (o.game === 'tavern') {
     const v = o.state as unknown as { bid: { count: number; face: number } | null; dice_on_table: number; seats: { id: string; dice: number[] | null }[] };

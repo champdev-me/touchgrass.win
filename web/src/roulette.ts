@@ -7,15 +7,13 @@ import { load, type Model, newTalk } from './track.ts';
 
 // A second table next to the tavern's.
 export const ROULETTE = TAVERN.clone().add(new THREE.Vector3(13, 0, 0));
-const BUBBLE_MS = 5000, SPIN_S = 0.9;
-// Spin and pull: lower the gun to the chest, spin the cylinder, raise it to the temple, then the trigger.
-const SPIN_FROM = 0.8, SPIN_TO = SPIN_FROM + SPIN_S, SPIN_FIRE = SPIN_TO + 1.6, CHEST = 0.45;
+const BUBBLE_MS = 5000, RELOAD_MS = 1500;
 
-interface Player { id: string; chips: number; nerve: number; out: boolean }
+interface Player { id: string; nerve: number; out: boolean }
 interface RouletteView { turn: string; clicks: number; odds: string; live_in?: number; last: { who: string; move: string; bang: boolean } | null; players: Player[] }
 interface Seat { root: THREE.Group; body: THREE.Object3D; arm: THREE.Object3D | null; armLen: number; out: boolean; armRest: THREE.Quaternion | null; mixer: THREE.AnimationMixer; tag: HTMLElement; bubble: HTMLElement; bubbleUntil: number; fallen: number }
 interface Puff { mesh: THREE.Mesh; vel: THREE.Vector3; life: number; age: number; grow: number }
-interface Shot { who: string; bang: boolean; spin: boolean; t: number; fired: boolean }
+interface Shot { who: string; bang: boolean; t: number; fired: boolean }
 
 export function buildRoulette(scene: THREE.Scene): void {
   buildTavern(scene, ROULETTE);
@@ -62,6 +60,8 @@ export class Roulette {
   odds = '';
   live = false;
   winner = '';
+  reloadUntil = 0; // after a bang: one new bullet before the gun moves on
+  pauseLeft = 0; // seconds of the engine's pause after a bang, for the table to react
 
   constructor(scene: THREE.Scene) {
     this.scene = scene;
@@ -97,9 +97,7 @@ export class Roulette {
     v.players.forEach((p, i) => this.seats.get(p.id) ?? this.spawn(p.id, m, robots, i));
     if (m.round !== this.round && v.last) {
       this.round = m.round; // a new turn resolved: play it (the fall and the BANG wait for the shot)
-      if (v.last.move !== 'pass') this.shot = { who: v.last.who, bang: v.last.bang, spin: v.last.move === 'spin', t: 0, fired: false };
-      const s = this.seats.get(v.last.who);
-      if (s && v.last.move === 'pass') this.say(s, 'passes the gun', now);
+      this.shot = { who: v.last.who, bang: v.last.bang, t: 0, fired: false };
     }
     v.players.forEach((p) => {
       const s = this.seats.get(p.id)!;
@@ -120,13 +118,14 @@ export class Roulette {
     this.odds = v.odds;
     this.live = v.live_in === 0;
     this.winner = m.finished ? m.ranking[0] ?? '' : '';
-    if (!this.shot) this.handOff();
+    this.pauseLeft = m.pause_left;
+    if (!this.shot && now > this.reloadUntil) this.handOff();
     this.label(now);
   }
 
   /** Once the last shot has played: spin the gun round the table to whoever's turn it is. */
   handOff(): void {
-    if (this.turn === this.holder || this.winner) return;
+    if (this.turn === this.holder || this.winner || this.pauseLeft > 1) return; // the gun waits on the table while the table reacts
     const next = this.order.indexOf(this.turn);
     if (this.holder && next >= 0) {
       const diff = Math.atan2(Math.sin(seatAngle(next) - this.aim), Math.cos(seatAngle(next) - this.aim));
@@ -141,9 +140,11 @@ export class Roulette {
     const sign = this.sign.element, shot = this.shot;
     if (now < this.signUntil) return; // BANG stays up a while
     sign.classList.remove('liar');
-    if (shot && !shot.fired) sign.textContent = `${shot.who} ${shot.spin ? 'spins the cylinder' : 'pulls the trigger'}…`;
+    if (shot && !shot.fired) sign.textContent = `${shot.who} pulls the trigger…`;
     else if (shot) sign.textContent = 'click.';
     else if (this.winner) sign.textContent = `${this.winner} walks out alive!`;
+    else if (now < this.reloadUntil) sign.textContent = 'reloading: one bullet';
+    else if (this.pauseLeft > 1 && this.turn !== this.holder) sign.textContent = 'a moment of silence…';
     else if (this.twirl) sign.textContent = `the gun goes to ${this.turn}`;
     else {
       sign.textContent = `${this.holder} holds the gun · ${this.live ? 'the next chamber is LIVE' : this.odds}`;
@@ -182,8 +183,8 @@ export class Roulette {
 
   /** Where the gun is: on the table aimed at `aim`, or raised to the holder's temple (`hold`), trembling while they decide. */
   pose(dt: number, now: number): void {
-    const shot = this.shot, spinning = Boolean(shot?.spin && !shot.fired && shot.t < SPIN_TO);
-    const target = shot ? (shot.fired ? 0 : spinning ? CHEST : 1) : !this.over && !this.twirl && this.holder ? 1 : 0; // a shot in progress keeps the gun up, even the last one
+    const shot = this.shot, reloading = now < this.reloadUntil;
+    const target = shot ? (shot.fired ? 0 : 1) : !this.over && !this.twirl && !reloading && this.holder && !this.seats.get(this.holder)?.out ? 1 : 0; // a shot in progress keeps the gun up, even the last one
     if (this.hold < 0.02) this.heldBy = this.shot?.who ?? this.holder; // it changes hands only on the table
     this.hold = target > this.hold ? Math.min(target, this.hold + dt / 1.1) : Math.max(target, this.hold - dt / 0.8);
     const e = this.hold * this.hold * (3 - 2 * this.hold), s = this.seats.get(this.heldBy), i = this.order.indexOf(this.heldBy);
@@ -208,7 +209,6 @@ export class Roulette {
     const held = hand.clone().sub(TRIGGER.clone().applyQuaternion(aimAt.quaternion)); // the trigger sits in the hand
     this.gun.position.lerpVectors(onTable, held, e).add(new THREE.Vector3(0, Math.sin(e * Math.PI) * 0.25, 0));
     this.gun.quaternion.slerpQuaternions(flat, aimAt.quaternion, e);
-    if (shot?.spin && !shot.fired && shot.t > SPIN_FROM && shot.t < SPIN_TO) this.gun.rotateY(Math.sin(shot.t * 40) * 0.08 * (1 - (shot.t - SPIN_FROM) / SPIN_S)); // spinning the cylinder at the chest: a quick shake
   }
 
   update(dt: number): void {
@@ -219,12 +219,16 @@ export class Roulette {
       this.aim = this.twirl.from + (this.twirl.to - this.twirl.from) * e;
       if (this.twirl.t >= 1) this.twirl = null;
     }
+    if (this.reloadUntil && now > this.reloadUntil && !this.shot) {
+      this.reloadUntil = 0;
+      this.handOff();
+    }
     const shot = this.shot;
     this.pose(dt, now);
     this.label(now);
     if (shot) {
       shot.t += dt;
-      const fireAt = shot.spin ? SPIN_FIRE : 1.0, s = this.seats.get(shot.who); // a breath at the temple before the trigger
+      const fireAt = 1.0, s = this.seats.get(shot.who); // a breath at the temple before the trigger
       if (!shot.fired && shot.t >= fireAt && s) {
         shot.fired = true;
         const muzzle = this.gun.localToWorld(new THREE.Vector3(0, 0, MUZZLE)), dir = s.root.position.clone().setY(muzzle.y).sub(muzzle).normalize();
@@ -234,7 +238,7 @@ export class Roulette {
           this.burst(muzzle, dir);
           this.sign.element.textContent = `BANG! ${shot.who} is out`;
           this.sign.element.classList.add('liar');
-          this.signUntil = now + 4500;
+          this.signUntil = now + 2200; // then 'reloading', then a moment of silence
           s.tag.classList.add('out');
         } else {
           sfx.click();
@@ -248,7 +252,10 @@ export class Roulette {
       }
       if (shot.t > fireAt + (shot.bang ? 2.2 : 0.9)) { // a click: on as soon as the gun is back on the table
         this.shot = null;
-        this.handOff(); // straight on to the next player: no second lift for the shooter
+        if (shot.bang && !this.winner) {
+          this.reloadUntil = now + RELOAD_MS; // a new bullet, then on
+          sfx.reload();
+        } else this.handOff(); // straight on to the next player: no second lift for the shooter
       }
     }
     for (const [name, s] of this.seats) {

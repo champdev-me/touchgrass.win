@@ -173,3 +173,21 @@ test('games can set a slower pace: a roulette turn never resolves before its own
   run(a, 9000 / B.tickMs - MIN);
   assert.equal(a.observe(ps[0].id).round, 1);
 });
+
+test('a pause after a bang: the next roulette turn waits for the table to react', () => {
+  const a = arcade();
+  const ps = ['Ann', 'Bob', 'Cid', 'Dee'].map((n) => a.register(n));
+  for (const p of ps) a.play(p.id, 'roulette');
+  run(a, 1);
+  const st = a.matches[0].state as { live: number; at: number };
+  st.live = st.at; // the next pull fires
+  a.act(ps[0].id, 1);
+  run(a, 9000 / B.tickMs);
+  assert.ok(a.observe(ps[1].id).last_round?.some((l) => l.includes('BANG')));
+  assert.equal(a.step().matches[0].pause_left, 12000 / B.tickMs - 1);
+  a.act(ps[1].id, 1);
+  run(a, 9000 / B.tickMs);
+  assert.equal(a.observe(ps[1].id).round, 1); // still pausing
+  run(a, 12000 / B.tickMs);
+  assert.equal(a.observe(ps[1].id).round, 2);
+});

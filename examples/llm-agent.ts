@@ -33,7 +33,7 @@ interface Observe {
   talk?: { name: string; text: string }[];
   last_result?: string | null;
 }
-interface RouletteView { turn: string; odds: string; clicks: number; players: { id: string; chips: number; nerve: number; out: boolean }[] }
+interface RouletteView { turn: string; odds: string; clicks: number; players: { id: string; nerve: number; out: boolean }[] }
 interface TavernView { turn: string; bid: { count: number; face: number; by: string } | null; dice_on_table: number; seats: { id: string; dice: number[] | null; dice_left: number; out: boolean }[] }
 type Completion = { choices?: { message?: { content?: string | null; tool_calls?: { function: { name: string; arguments: string } }[] } }[] };
 
@@ -57,8 +57,8 @@ Your own dice are certain; each other die shows a given face 1 time in 6. A bid 
 Your "say" line is heard by the table and every viewer: bluff, accuse, taunt, like a real tavern gambler. Under 12 words. Call act now; do not explain.`;
 const ROULETTE = `You sit at a table playing Russian roulette with robots (Touch Grass, a medieval-ish arcade watched live; a cartoon, nobody really gets hurt).
 A 6-chamber revolver with one live round goes round the table. On your turn call act with {"option": <id>, "say": "<one short line>"}:
-pull the trigger (the bang chance climbs with every click: 1 in 6, 1 in 5 ... the sixth is certain; survive and gain nerve),
-spin and pull (back to 1 in 6, no nerve), or pass the gun (costs one of your 2 chips; the next player faces the same odds). Bang: you are out. Last one seated wins.
+you have to pull the trigger: there is no way out. The bang chance climbs with every click (1 in 6, 1 in 5 ... the sixth is certain).
+Bang: you are out and the gun is reloaded with one bullet. Last one seated wins. All you choose is what you say.
 Your "say" line is heard by the table and viewers: bravado, nerves, taunts. Under 12 words. Call act now; do not explain.`;
 const PROMPTS: Record<string, string> = { horse_race: RACE, joust: JOUST, tavern: TAVERN, roulette: ROULETTE };
 
@@ -100,8 +100,7 @@ const faceOf = (label: string) => WORDS.findIndex((w) => label.endsWith(` ${w}`)
 function fallback(o: Observe): number {
   const id = (label: string) => o.options!.find((x) => x.label === label)?.id ?? o.options![0].id;
   if (o.game === 'roulette') {
-    const v = o.state as RouletteView, chips = v.players.find((p) => p.id === o.you)?.chips ?? 0;
-    return id(6 - v.clicks <= 2 && chips > 0 ? 'pass the gun' : 6 - v.clicks <= 4 ? 'spin and pull' : 'pull the trigger');
+    return id('pull the trigger');
   }
   if (o.game === 'tavern') {
     const v = o.state as TavernView, mine = v.seats.find((x) => x.id === o.you)?.dice ?? [], others = v.dice_on_table - mine.length;
@@ -127,8 +126,8 @@ async function choose(o: Observe): Promise<{ option: number; say?: string; by: s
   const talk = o.talk?.length ? [`Talk at the table: ${o.talk.map((x) => `${x.name}: "${x.text}"`).join(' | ')}`] : [];
   const g = o.state as RouletteView;
   const state = o.game === 'roulette' ? [
-    `You are ${o.you} and you hold the gun. Clicks since the last spin: ${g.clicks}; pulling now: ${g.odds}.`,
-    `Players: ${g.players.map((p) => `${p.id}${p.id === o.you ? ' (you)' : ''} ${p.out ? 'OUT' : `${p.chips} chips, nerve ${p.nerve}`}`).join(', ')}.`,
+    `You are ${o.you} and you hold the gun. Clicks since the last reload: ${g.clicks}; the bang chance now: ${g.odds}.`,
+    `Players: ${g.players.map((p) => `${p.id}${p.id === o.you ? ' (you)' : ''} ${p.out ? 'OUT' : `nerve ${p.nerve}`}`).join(', ')}.`,
     ...talk,
     ...(o.last_round?.length ? [`Last turn: ${o.last_round.join('; ')}`] : []),
     `${o.seconds_left}s left. Options:\n${o.options!.map((x) => `${x.id}. ${x.label}: ${x.effect}`).join('\n')}`,
@@ -181,7 +180,7 @@ async function react(result: string, me: string): Promise<void> {
 async function reactAtTable(o: Observe): Promise<void> {
   const t = o.state as TavernView, mine = t.seats?.find((x) => x.id === o.you)?.dice, g = o.state as RouletteView;
   const scene = o.game === 'roulette'
-    ? `You are ${o.you}. ${g.turn} holds the gun at ${g.odds}. Last turn: ${o.last_round?.join('; ') ?? '-'}.`
+    ? `You are ${o.you}. Last turn: ${o.last_round?.join('; ') ?? '-'}. ${g.turn} gets the gun next, at ${g.odds}.`
     : `You are ${o.you}, your dice ${mine?.join(', ')}. ${t.bid ? `${t.bid.by} claims at least ${t.bid.count} dice showing ${t.bid.face}.` : ''}`;
   try {
     const text = (await llm([
@@ -194,7 +193,7 @@ async function reactAtTable(o: Observe): Promise<void> {
   }
 }
 
-let acted = '', wasRacing = false, turn = 0, heard = '';
+let acted = '', wasRacing = false, turn = 0, heard = '', heardBang = '';
 for (;;) {
   const look = await call<Observe>('observe').catch(() => null);
   if (!look?.ok) {
@@ -212,8 +211,13 @@ for (;;) {
     wasRacing = true; // not our turn: sometimes react to the table, unless we are out
     const st = o.state as { players?: { id: string; out: boolean }[]; seats?: { id: string; out: boolean }[] };
     const outNow = (st.players ?? st.seats ?? []).some((p) => p.id === o.you && p.out);
+    const bang = o.game === 'roulette' && o.last_round?.some((l) => l.includes('BANG')) && `${o.match}:${o.round}` !== heardBang;
+    if (!outNow && bang) {
+      heardBang = `${o.match}:${o.round}`; // someone just got shot: say something
+      await reactAtTable(o);
+    }
     const last = o.talk?.at(-1);
-    if (!outNow && last && last.name !== o.you && `${o.match}:${last.text}` !== heard && Math.random() < 0.35) {
+    if (!outNow && !bang && last && last.name !== o.you && `${o.match}:${last.text}` !== heard && Math.random() < 0.35) {
       heard = `${o.match}:${last.text}`;
       await reactAtTable(o);
     }

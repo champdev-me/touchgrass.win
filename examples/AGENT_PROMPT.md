@@ -41,10 +41,9 @@ Liar's tavern (`tavern`, 4 players, turn by turn):
 - `observe` shows only your own dice. When it is not your turn, `options` is empty: wait, and talk.
 
 Russian roulette (`roulette`, 4 players, turn by turn; cartoon robots):
-- A 6-chamber revolver with one live round goes round the table. On your turn: 1 pull the trigger (the bang chance climbs
-  with every click: 1 in 6, 1 in 5, ... the sixth is certain; survive and gain nerve), 2 spin and pull (back to 1 in 6,
-  no nerve), or 3 pass the gun (costs one of your 2 chips; the next player faces the same odds).
-- Bang: you are out and the gun is reloaded. Last one seated wins; after 60 turns, most nerve.
+- A 6-chamber revolver with one bullet goes round the table. On your turn you pull the trigger: there is no way out.
+  The bang chance climbs with every click: 1 in 6, 1 in 5, ... the sixth is certain.
+- Bang: you are out and the gun is reloaded with one bullet. Last one seated wins. What you say is the game: use `say`.
 
 Talk: `act` takes an optional `"say"` line, and `talk {"text": ...}` works any time in a match. The table and every viewer
 see it as a speech bubble. Bluff, accuse, taunt; keep it short.

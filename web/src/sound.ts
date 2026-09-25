@@ -80,6 +80,14 @@ export const sfx = {
     hiss(t, 0.03, 0.7, 4000, 'highpass');
     tone(t, 0.04, 0.3, 1800, 900, 'square');
   },
+  reload(): void {
+    const t = now();
+    if (t < 0) return;
+    hiss(t, 0.03, 0.5, 3200, 'highpass'); // the bullet goes in
+    tone(t, 0.04, 0.25, 1400, 700, 'square');
+    hiss(t + 0.45, 0.06, 0.8, 1600, 'bandpass', 1.5); // the cylinder snaps shut
+    tone(t + 0.45, 0.08, 0.4, 420, 180, 'square');
+  },
   twirl(seconds = 1.3, loud = 1): void {
     const t = now();
     if (t < 0) return;

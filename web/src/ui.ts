@@ -1,6 +1,6 @@
 import type { ArcadeTick, GameEvent, HorseView, JoustView, MatchView, QueueView } from '../../shared/types.ts';
 
-interface RouletteView { turn: string; odds: string; players: { id: string; chips: number; nerve: number; out: boolean }[] }
+interface RouletteView { turn: string; odds: string; players: { id: string; nerve: number; out: boolean }[] }
 interface TavernView { turn: string; bid: { count: number; face: number; by: string } | null; dice_on_table: number; seats: { id: string; dice_left: number; out: boolean }[] }
 import { icon } from './icons.ts';
 import { setSound, sfx, soundOn } from './sound.ts';
@@ -101,9 +101,7 @@ export function setupUi(onWatch: (id: string | null) => void) {
     const rows = v.players.map((p, i) => {
       const row = el('div', 'runner');
       row.style.setProperty('--lane', LANE_COLORS[i]);
-      const chips = el('span', 'aims');
-      chips.append(...Array.from({ length: p.chips }, () => icon('chip', `${p.chips} chips: passes left`)));
-      row.append(el('span', 'swatch'), el('span', p.out ? 'who out' : 'who', p.id), el('b', 'dist', p.out ? 'out' : String(p.nerve)), chips, !m.finished && v.turn === p.id ? icon('revolver', 'holds the gun') : el('span'));
+      row.append(el('span', 'swatch'), el('span', p.out ? 'who out' : 'who', p.id), el('b', 'dist', p.out ? 'out' : String(p.nerve)), el('span'), !m.finished && v.turn === p.id ? icon('revolver', 'holds the gun') : el('span'));
       row.title = `nerve ${p.nerve}: triggers pulled and survived`;
       return row;
     });

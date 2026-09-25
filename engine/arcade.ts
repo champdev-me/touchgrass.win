@@ -16,6 +16,7 @@ export interface Match {
   choices: Map<string, number>; roundEndsAt: number; lastRound: string[];
   finishedAt: number | null; ranking: string[];
   talk: { name: string; text: string }[]; lastTalk: Map<string, number>;
+  openAt: number; // the tick the current round opened (after any pause)
 }
 export interface MatchRecord { id: string; game: string; tick: number; at: number; ranking: string[]; names: string[] }
 
@@ -209,7 +210,7 @@ export class Arcade {
       taken.add(h);
       players.push(h);
     }
-    const m: Match = { id: `match_${this.nextMatch++}`, game: g, state: g.start(players, this.rng), players, choices: new Map(), roundEndsAt: this.tick + roundTicks(g), lastRound: [], finishedAt: null, ranking: [], talk: [], lastTalk: new Map() };
+    const m: Match = { id: `match_${this.nextMatch++}`, game: g, state: g.start(players, this.rng), players, choices: new Map(), roundEndsAt: this.tick + roundTicks(g), lastRound: [], finishedAt: null, ranking: [], talk: [], lastTalk: new Map(), openAt: this.tick };
     this.matches.push(m);
     this.news(`${GAME_EMOJI[gameId] ?? '🎮'} A ${g.name.toLowerCase()} starts: ${players.map(this.name).join(', ')}!`);
   }
@@ -225,7 +226,8 @@ export class Arcade {
     const lines = m.game.resolve(m.state, m.choices, this.rng).map((l) => this.named(l, m));
     m.lastRound = [...lines, ...late.map((id) => `${this.name(id)} was too slow: default move`)];
     m.choices = new Map();
-    m.roundEndsAt = this.tick + roundTicks(m.game);
+    m.openAt = this.tick + (m.game.pauseMs?.(m.state) ?? 0) / B.tickMs;
+    m.roundEndsAt = m.openAt + roundTicks(m.game);
     if (m.game.finished(m.state)) this.finish(m);
   }
 
@@ -261,7 +263,7 @@ export class Arcade {
     for (const m of this.matches) {
       if (m.finishedAt !== null) continue;
       const humans = this.actors(m).filter((id) => !this.players.get(id)?.house); // none: a house bot's turn resolves at the minimum
-      const early = this.tick >= m.roundEndsAt - roundTicks(m.game) + minTicks(m.game) && humans.every((id) => m.choices.has(id));
+      const early = this.tick >= m.openAt + minTicks(m.game) && humans.every((id) => m.choices.has(id));
       if (this.tick >= m.roundEndsAt || early) this.resolve(m);
     }
     this.matches = this.matches.filter((m) => m.finishedAt === null || this.tick - m.finishedAt <= B.podiumTicks);
@@ -271,6 +273,6 @@ export class Arcade {
       const b = this.leaderboard(g);
       return [g, { models: b.models, robots: b.robots }];
     }));
-    return { tick: this.tick, events, leaderboards, matches: this.matches.map((m): MatchView => ({ id: m.id, game: m.game.id, players: m.players.map((id) => ({ id, name: this.name(id), model: this.players.get(id)?.model ?? null, house: Boolean(this.players.get(id)?.house) })), round: m.game.round(m.state), rounds: m.game.rounds, seconds_left: Math.max(0, m.roundEndsAt - this.tick), state: this.renameView(m.game.view(m.state), m), last_round: m.lastRound, finished: m.finishedAt !== null, ranking: m.ranking.map(this.name), turn: this.actors(m).map(this.name), talk: m.talk.slice(-8) })), queues: [...this.queues].map(([game, q]) => ({ game, players: q.players.map(this.name), starts_in: Math.max(0, q.since + B.queueWaitTicks - this.tick) })) };
+    return { tick: this.tick, events, leaderboards, matches: this.matches.map((m): MatchView => ({ id: m.id, game: m.game.id, players: m.players.map((id) => ({ id, name: this.name(id), model: this.players.get(id)?.model ?? null, house: Boolean(this.players.get(id)?.house) })), round: m.game.round(m.state), rounds: m.game.rounds, seconds_left: Math.max(0, m.roundEndsAt - this.tick), state: this.renameView(m.game.view(m.state), m), last_round: m.lastRound, finished: m.finishedAt !== null, ranking: m.ranking.map(this.name), turn: this.actors(m).map(this.name), talk: m.talk.slice(-8), pause_left: Math.max(0, m.openAt - this.tick) })), queues: [...this.queues].map(([game, q]) => ({ game, players: q.players.map(this.name), starts_in: Math.max(0, q.since + B.queueWaitTicks - this.tick) })) };
   }
 }

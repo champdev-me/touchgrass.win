@@ -17,7 +17,6 @@ const P: Record<string, string> = {
   sound: 's:M2 6h3l4-3.5v11L5 10H2zM11 5.5a3.5 3.5 0 0 1 0 5M12.5 3.5a6 6 0 0 1 0 9',
   mute: 's:M2 6h3l4-3.5v11L5 10H2zM11 6l4 4M15 6l-4 4',
   revolver: 'M1.5 5h9l1-1.5h3V7h-2.5l-1 1H9.5l-1 1.5H6.2L5 14H2.3l1.4-5.5-2.2-.5z',
-  chip: 'M8 2a6 6 0 1 1 0 12A6 6 0 0 1 8 2zm0 2.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7z',
   dice: 'M3 2h10a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1zm2.5 2.3a1.2 1.2 0 1 0 0 2.4 1.2 1.2 0 0 0 0-2.4zm5 5a1.2 1.2 0 1 0 0 2.4 1.2 1.2 0 0 0 0-2.4zM8 6.8a1.2 1.2 0 1 0 0 2.4 1.2 1.2 0 0 0 0-2.4z',
   joust: 's:M2 14 13 3M10.5 2.5l3 3M3.5 10.5l2 2',
   helm: 'M3 9.5a5 5 0 0 1 10 0V14H3zM4.5 8.5h7V10h-7z',
@@ -38,7 +37,7 @@ export const COLORS: Record<string, string> = {
   sprint: '#ff8a5a', steady: '#f1e3c2', conserve: '#58d68d', overtake: '#ffd166', exhausted: '#ff5a5a',
   sound: 's:M2 6h3l4-3.5v11L5 10H2zM11 5.5a3.5 3.5 0 0 1 0 5M12.5 3.5a6 6 0 0 1 0 9',
   mute: 's:M2 6h3l4-3.5v11L5 10H2zM11 6l4 4M15 6l-4 4',
-  revolver: '#c0c6cc', chip: '#e2b95a', dice: '#f7f2e6', joust: '#e8d3a8', helm: '#c0c6cc', shield: '#8ab4ff', body: '#e8766a', turn: '#f1e3c2', hurdle: '#c49a6c', jump: '#9fd3ff', clear: '#ffd166', mud: '#9b6b3d', tailwind: '#9fd3ff', hill: '#8fbf6a', home_stretch: '#f1e3c2',
+  revolver: '#c0c6cc', dice: '#f7f2e6', joust: '#e8d3a8', helm: '#c0c6cc', shield: '#8ab4ff', body: '#e8766a', turn: '#f1e3c2', hurdle: '#c49a6c', jump: '#9fd3ff', clear: '#ffd166', mud: '#9b6b3d', tailwind: '#9fd3ff', hill: '#8fbf6a', home_stretch: '#f1e3c2',
   trophy: '#ffd166', crown: '#ffd166', horse: '#d9a066', timer: '#f1e3c2',
 };
 

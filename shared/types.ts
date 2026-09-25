@@ -37,6 +37,7 @@ export interface MatchView {
   state: unknown; last_round: string[]; finished: boolean; ranking: string[];
   turn: string[]; // names of who chooses this round
   talk: TalkLine[]; // recent table talk
+  pause_left: number; // seconds before the round opens (a pause to react)
 }
 export interface TalkLine { name: string; text: string }
 

@@ -20,6 +20,7 @@ export interface Game<S> {
   playerView?(s: S, player: string): unknown; // what one player may see, for hidden information
   actors?(s: S): string[];
   roundMs?: number; // decision window, if not the arcade's
-  minRoundMs?: number; // a round never resolves sooner, if not the arcade's // turn-based games: who chooses this round (default: everyone)
+  minRoundMs?: number; // a round never resolves sooner, if not the arcade's
+  pauseMs?(s: S): number; // a wait before the next round opens, e.g. to react after a dramatic moment // turn-based games: who chooses this round (default: everyone)
   rules: string[];
 }
