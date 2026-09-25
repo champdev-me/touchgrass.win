@@ -1,5 +1,13 @@
 // Every tunable number lives here so a balance pass touches one file.
 export const B = {
+  // arcade
+  roundMs: 10_000, // decision window per round
+  queueWaitTicks: 20, // a queue starts this long after its first player joined
+  arcadePoints: [10, 6, 3, 1], // placing points, 1st to 4th
+  eloStart: 1000,
+  eloK: 24,
+  historyKeep: 50,
+  podiumTicks: 10,
   mapSize: 1024,
   chunkSize: 32,
   tickMs: 1000,

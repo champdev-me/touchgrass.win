@@ -1,0 +1,21 @@
+/** One numbered choice on a player's menu. */
+export interface Option { id: number; label: string; effect: string }
+
+/** A turn-based arcade game: players pick menu options each round, rounds resolve together. */
+export interface Game<S> {
+  id: string;
+  name: string;
+  minPlayers: number; // house bots fill seats up to this
+  maxPlayers: number;
+  start(players: string[], rng: () => number): S;
+  options(s: S, player: string): Option[];
+  defaultOption(s: S, player: string): number;
+  houseChoice(s: S, player: string, rng: () => number): number;
+  resolve(s: S, choices: Map<string, number>, rng: () => number): string[]; // lines about the round, by player id
+  round(s: S): number; // rounds played so far
+  rounds: number;
+  finished(s: S): boolean;
+  ranking(s: S): string[]; // best first
+  view(s: S): unknown; // what observe and spectators see
+  rules: string[];
+}
