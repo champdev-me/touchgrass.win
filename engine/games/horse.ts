@@ -24,7 +24,7 @@ export const horseRace: Game<HorseState> = {
   id: 'horse_race',
   name: 'Horse race',
   minPlayers: 4,
-  maxPlayers: 8,
+  maxPlayers: 4, // a medieval race: four riders at most
   rounds: LEGS,
   rules: [
     `${LEGS} legs; the runner furthest along after the last leg wins (ties: more stamina left, then by lot). Stamina starts at ${MAX_STAMINA}.`,

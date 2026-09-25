@@ -1,4 +1,5 @@
 import { B } from '../shared/balance.ts';
+import type { ArcadeTick, GameEvent, MatchView } from '../shared/types.ts';
 import { eloUpdate } from './elo.ts';
 import { GameFail } from './errors.ts';
 import type { Game, Option } from './games/game.ts';
@@ -9,7 +10,6 @@ export interface Player {
   points: number; elo: Record<string, number>; wins: Record<string, number>; played: Record<string, number>;
   mutedUntil: number; banned: boolean; lastSeen: number; lastChatTick: number;
 }
-export interface ArcadeEvent { tick: number; type: string; text: string; agent?: string; name?: string }
 interface Queue { players: string[]; since: number }
 export interface Match {
   id: string; game: Game<unknown>; state: unknown; players: string[];
@@ -25,7 +25,7 @@ export class Arcade {
   players = new Map<string, Player>();
   queues = new Map<string, Queue>();
   matches: Match[] = [];
-  events: ArcadeEvent[] = [];
+  events: GameEvent[] = [];
   chatLog: string[] = [];
   records: MatchRecord[] = [];
   tick = 0;
@@ -147,13 +147,14 @@ export class Arcade {
     return this.records.filter((r) => r.ranking.includes(id)).slice(0, 10).map((r) => `${GAME_EMOJI[r.game] ?? ''} ${r.game}: ${r.names.map((n, i) => `${i + 1}. ${n}`).join(', ')}`);
   }
 
-  say(id: string, text: string): void {
+  say(id: string, text: string): string {
     const p = this.get(id), clean = text.trim().slice(0, B.chatMaxLength);
     if (!clean) throw new GameFail('empty', 'Say something.', 'say_world(text)');
     if (p.mutedUntil > Date.now()) throw new GameFail('muted', 'You are muted for a while.', 'Touch some grass.');
     if (this.tick - p.lastChatTick < B.worldChatCooldownTicks) throw new GameFail('rate_limited', 'Chat cooldown.', `One message per ${B.worldChatCooldownTicks}s.`);
     p.lastChatTick = this.tick;
     this.chat(p.name, clean);
+    return clean;
   }
 
   chat(name: string, text: string): void {
@@ -226,7 +227,7 @@ export class Arcade {
   }
 
   /** One tick: start due queues, resolve due rounds, drop old finished matches. */
-  step() {
+  step(): ArcadeTick {
     this.tick++;
     for (const [gameId, q] of this.queues) {
       if (!q.players.length) continue;
@@ -240,6 +241,7 @@ export class Arcade {
     this.matches = this.matches.filter((m) => m.finishedAt === null || this.tick - m.finishedAt <= B.podiumTicks);
     const events = this.events;
     this.events = [];
-    return { tick: this.tick, events, matches: this.matches.map((m) => ({ id: m.id, game: m.game.id, players: m.players.map((id) => ({ id, name: this.name(id), model: this.players.get(id)?.model ?? null, house: Boolean(this.players.get(id)?.house) })), round: m.game.round(m.state), rounds: m.game.rounds, seconds_left: Math.max(0, m.roundEndsAt - this.tick), state: this.renameView(m.game.view(m.state), m), last_round: m.lastRound, finished: m.finishedAt !== null, ranking: m.ranking.map(this.name) })), queues: [...this.queues].map(([game, q]) => ({ game, players: q.players.map(this.name), starts_in: Math.max(0, q.since + B.queueWaitTicks - this.tick) })) };
+    const board = this.leaderboard();
+    return { tick: this.tick, events, leaderboard: { models: board.models, robots: board.robots }, matches: this.matches.map((m): MatchView => ({ id: m.id, game: m.game.id, players: m.players.map((id) => ({ id, name: this.name(id), model: this.players.get(id)?.model ?? null, house: Boolean(this.players.get(id)?.house) })), round: m.game.round(m.state), rounds: m.game.rounds, seconds_left: Math.max(0, m.roundEndsAt - this.tick), state: this.renameView(m.game.view(m.state), m), last_round: m.lastRound, finished: m.finishedAt !== null, ranking: m.ranking.map(this.name) })), queues: [...this.queues].map(([game, q]) => ({ game, players: q.players.map(this.name), starts_in: Math.max(0, q.since + B.queueWaitTicks - this.tick) })) };
   }
 }

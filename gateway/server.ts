@@ -4,7 +4,7 @@ import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/
 import { B } from '../shared/balance.ts';
 import { VERSION } from '../shared/version.ts';
 import { recentChat, type Redis } from '../shared/redis.ts';
-import type { ActionResult, ClientMsg, GameError, GameEvent, PackedNode, TickDelta } from '../shared/types.ts';
+import type { ActionResult, ArcadeTick, GameError, GameEvent } from '../shared/types.ts';
 import { agentForToken, hashToken, newToken } from './auth.ts';
 import { clean, isRude } from './filter.ts';
 import { clientIp } from './ip.ts';
@@ -26,11 +26,11 @@ export interface GatewayOpts {
 type Registered = { ok: boolean; agentId?: string; error?: GameError };
 
 const RATE_MSGS = [
-  'Slow down. This is survival, not a typing contest.',
+  'Slow down. It is an arcade, not a typing contest.',
   'You must wait. The grass demands patience.',
   'Cooldown active. Use this time to reflect on your life choices.',
 ];
-const ENGINE_DOWN: GameError = { error: 'engine_unavailable', message: 'The world is rebooting. Stand still and think about grass.', hint: 'Retry in a few seconds.', retry_after_seconds: 5 };
+const ENGINE_DOWN: GameError = { error: 'engine_unavailable', message: 'The arcade is rebooting. Hold tight.', hint: 'Retry in a few seconds.', retry_after_seconds: 5 };
 const NAME_RE = /^[A-Za-z0-9 _-]{3,24}$/;
 const json = (status: number, body: unknown) => Response.json(body, { status });
 const ADMIN_ACTIONS = ['mute', 'unmute', 'kick', 'ban'];
@@ -57,16 +57,11 @@ export async function startGateway(o: GatewayOpts) {
   }
 
   const forwardFor = (agentId: string): Forward => async (tool, args, kind) => {
-    if (tool === 'join_game' && typeof args.name === 'string' && args.name.trim()) {
-      const name = args.name.trim();
-      if (!NAME_RE.test(name)) return { ok: false, error: { error: 'bad_name', message: 'Names are 3-24 characters: letters, numbers, spaces, _ or -.', hint: 'Pick another name.' } };
-      if (isRude(name)) return { ok: false, error: { error: 'rude_name', message: 'The grass blushes. Pick another name.', hint: 'Pick another name.' } };
-    }
-    if (tool === 'join_game' && typeof args.model === 'string' && isRude(args.model)) {
+    if (tool === 'play' && typeof args.model === 'string' && isRude(args.model)) {
       return { ok: false, error: { error: 'rude_model', message: 'That model tag made the grass blush.', hint: 'Use your real model name.' } };
     }
     const cleaned: Record<string, unknown> = { ...args };
-    for (const k of ['text', 'thought', 'taunt']) {
+    for (const k of ['text', 'thought']) {
       const v = cleaned[k];
       if (typeof v === 'string') cleaned[k] = clean(v.slice(0, INPUT_MAX));
     }
@@ -75,7 +70,7 @@ export async function startGateway(o: GatewayOpts) {
     if (wait > 0) {
       return { ok: false, error: {
         error: 'rate_limited', message: RATE_MSGS[Math.floor(Math.random() * RATE_MSGS.length)],
-        hint: 'Your current task keeps running while you wait.', retry_after_seconds: Math.ceil(wait / 100) / 10,
+        hint: 'Wait a moment, then try again.', retry_after_seconds: Math.ceil(wait / 100) / 10,
       } };
     }
     if (tool === 'read_chat') return readChat(r, args);
@@ -192,7 +187,6 @@ export async function startGateway(o: GatewayOpts) {
 
   let lastTick = 0;
   const recent: GameEvent[] = []; // so viewers who arrive later still see what just happened
-  const chunkBudget = new WeakMap<object, { used: number; since: number }>();
   const server = Bun.serve({
     port: o.port,
     maxRequestBodySize: 64 * 1024,
@@ -217,28 +211,10 @@ export async function startGateway(o: GatewayOpts) {
     websocket: {
       open(ws) {
         ws.subscribe('tick');
-        ws.send(JSON.stringify({ type: 'hello', mapSize: B.mapSize, chunkSize: B.chunkSize, plaza: [B.mapSize / 2, B.mapSize / 2], tick: lastTick, recent }));
+        ws.send(JSON.stringify({ type: 'hello', tick: lastTick, recent }));
       },
-      async message(ws, raw) {
-        let msg: ClientMsg;
-        try {
-          msg = JSON.parse(String(raw)) as ClientMsg;
-        } catch {
-          return;
-        }
-        if (msg?.type !== 'chunks' || !Array.isArray(msg.list)) return;
-        const now = Date.now();
-        let budget = chunkBudget.get(ws);
-        if (!budget || now - budget.since > B.chunkWindowMs) chunkBudget.set(ws, (budget = { used: 0, since: now }));
-        for (const item of msg.list.slice(0, 64)) {
-          const [cx, cy] = Array.isArray(item) ? item : [];
-          if (!Number.isInteger(cx) || !Number.isInteger(cy)) continue;
-          if (budget.used >= B.chunkRequestsPerWindow) return;
-          budget.used++;
-          const key = `${cx},${cy}`;
-          const [data, nodes, heights] = await Promise.all([r.hGet('terrain', key), r.hGet('nodes', key), r.hGet('heights', key)]);
-          if (data) ws.send(JSON.stringify({ type: 'chunk', cx, cy, data, nodes: nodes ? (JSON.parse(nodes) as PackedNode[]) : [], heights: heights ?? undefined }));
-        }
+      message() {
+        // spectators only listen
       },
     },
   });
@@ -246,9 +222,9 @@ export async function startGateway(o: GatewayOpts) {
   const sub = r.duplicate();
   await sub.connect();
   await sub.subscribe('tick', (msg) => {
-    const delta = JSON.parse(msg) as TickDelta;
+    const delta = JSON.parse(msg) as ArcadeTick;
     lastTick = delta.tick;
-    recent.push(...delta.events.filter((e) => e.type !== 'move'));
+    recent.push(...delta.events);
     recent.splice(0, Math.max(0, recent.length - B.recentEvents));
     server.publish('tick', JSON.stringify({ type: 'tick', ...delta }));
   });

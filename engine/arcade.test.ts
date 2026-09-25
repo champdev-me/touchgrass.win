@@ -37,12 +37,13 @@ test('a queue waits 20 s, then starts with house bots filling the field to 4', (
   assert.equal(a.observe(p.id).status, 'in_match');
 });
 
-test('eight in the queue start at once; a lone leaver empties the queue', () => {
+test('four in the queue start at once (a fifth waits for the next race); a lone leaver empties the queue', () => {
   const a = arcade();
-  const ps = Array.from({ length: 8 }, (_, i) => a.register(`P${i}`));
+  const ps = Array.from({ length: 5 }, (_, i) => a.register(`P${i}`));
   for (const p of ps) a.play(p.id, 'horse_race');
   run(a, 1);
-  assert.equal(a.matches[0]?.players.length, 8);
+  assert.equal(a.matches[0]?.players.length, 4);
+  assert.equal(a.observe(ps[4].id).status, 'queued');
   const b = arcade();
   const x = b.register('Solo');
   b.play(x.id, 'horse_race');

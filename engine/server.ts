@@ -3,38 +3,27 @@ import type { Redis } from '../shared/redis.ts';
 import type { ActionRequest } from '../shared/types.ts';
 import { handleAction } from './actions.ts';
 import { adminAction } from './admin.ts';
-import { K, flush, loadWorld, saveAgentNow, saveAllNodes, saveTerrain } from './persist.ts';
-import { generateNodes } from './nodes.ts';
+import { GameFail } from './errors.ts';
+import { K, flush, loadArcade } from './persist.ts';
 import { appendReplay } from './replay.ts';
-import { generateLand } from './terrain.ts';
-import { GameFail, World } from './world.ts';
 
 export interface EngineOpts {
   redis: Redis;
   port: number;
-  seed: string;
   replayDir: string;
-  size?: number;
   tickMs?: number;
 }
 
+const refuse = (e: unknown) => {
+  if (e instanceof GameFail) return Response.json({ ok: false, error: { error: e.code, message: e.message, hint: e.hint } });
+  throw e;
+};
+
 export async function startEngine(o: EngineOpts) {
   const r = o.redis;
-  let w = await loadWorld(r, o.seed);
-  if (w) {
-    console.log(`[engine] restored world at tick ${w.tick} with ${w.agents.size} agents`);
-  } else {
-    const size = o.size ?? B.mapSize;
-    const land = generateLand(o.seed, size);
-    w = new World(land.tiles, size, Math.random, land.heights);
-    w.seed = o.seed;
-    w.nodes = generateNodes(w.tiles, size);
-    await saveTerrain(r, w.tiles, size, w.heights);
-    await saveAllNodes(r, w);
-    await flush(r, w);
-    console.log(`[engine] generated a new ${size}x${size} world from seed "${o.seed}" with ${w.nodes.size} resource nodes`);
-  }
-  const world = w;
+  const arcade = await loadArcade(r);
+  await flush(r, arcade);
+  console.log(`[engine] arcade ready with ${arcade.players.size} players`);
 
   const server = Bun.serve({
     port: o.port,
@@ -42,26 +31,24 @@ export async function startEngine(o: EngineOpts) {
     async fetch(req) {
       const { pathname } = new URL(req.url);
       try {
-        if (req.method === 'GET' && pathname === '/health') return Response.json({ ok: true, tick: world.tick, agents: world.agents.size });
+        if (req.method === 'GET' && pathname === '/health') return Response.json({ ok: true, tick: arcade.tick, players: arcade.players.size });
         if (req.method === 'POST' && pathname === '/register') {
           const { name } = (await req.json()) as { name?: unknown };
           try {
-            const a = world.register(String(name));
-            await saveAgentNow(r, world, a.id);
-            return Response.json({ ok: true, agentId: a.id });
+            const p = arcade.register(String(name));
+            await flush(r, arcade);
+            return Response.json({ ok: true, agentId: p.id });
           } catch (e) {
-            if (e instanceof GameFail) return Response.json({ ok: false, error: { error: e.code, message: e.message, hint: e.hint } });
-            throw e;
+            return refuse(e);
           }
         }
-        if (req.method === 'POST' && pathname === '/action') return Response.json(handleAction(world, (await req.json()) as ActionRequest));
+        if (req.method === 'POST' && pathname === '/action') return Response.json(handleAction(arcade, (await req.json()) as ActionRequest));
         if (req.method === 'POST' && pathname === '/admin') {
           const { action, agentId, minutes } = (await req.json()) as { action?: unknown; agentId?: unknown; minutes?: unknown };
           try {
-            return Response.json({ ok: true, ...adminAction(world, String(action), String(agentId), Number(minutes ?? 0)) });
+            return Response.json({ ok: true, ...adminAction(arcade, String(action), String(agentId), Number(minutes ?? 0)) });
           } catch (e) {
-            if (e instanceof GameFail) return Response.json({ ok: false, error: { error: e.code, message: e.message, hint: e.hint } });
-            throw e;
+            return refuse(e);
           }
         }
         return Response.json({ error: 'not_found' }, { status: 404 });
@@ -75,37 +62,33 @@ export async function startEngine(o: EngineOpts) {
   let inFlight: Promise<void> | null = null;
   const tick = async (): Promise<void> => {
     try {
-      const delta = world.step();
+      const delta = arcade.step();
       await r.publish('tick', JSON.stringify(delta));
       await appendReplay(o.replayDir, 1, delta.events);
-      const said = delta.events.filter((e) => e.type !== 'move');
-      if (said.length) {
+      if (delta.events.length) {
         const m = r.multi();
-        for (const e of said) m.addCommand(['XADD', K.chat, 'MAXLEN', '~', String(B.chatStreamMax), '*', 'tick', String(e.tick), 'type', e.type, 'name', e.name ?? '', 'text', e.text]);
+        for (const e of delta.events) m.addCommand(['XADD', K.chat, 'MAXLEN', '~', String(B.chatStreamMax), '*', 'tick', String(e.tick), 'type', e.type, 'name', e.name ?? '', 'text', e.text]);
         await m.exec();
       }
-      if (world.tick % B.flushEveryTicks === 0 || world.urgent) {
-        world.urgent = false;
-        await flush(r, world);
-      }
+      if (arcade.tick % B.flushEveryTicks === 0) await flush(r, arcade);
     } catch (e) {
       console.error('[engine] tick failed', e);
     }
   };
   const timer = setInterval(() => {
-    if (inFlight) return; // a slow tick skips the next one instead of overlapping; close() waits for it
+    if (inFlight) return; // a slow tick skips the next one instead of overlapping
     inFlight = tick().finally(() => {
       inFlight = null;
     });
   }, o.tickMs ?? B.tickMs);
 
   return {
-    world,
+    arcade,
     port: server.port as number,
     async close(): Promise<void> {
       clearInterval(timer);
       await inFlight;
-      await flush(r, world);
+      await flush(r, arcade);
       await server.stop(true);
     },
   };

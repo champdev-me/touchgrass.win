@@ -1,161 +1,56 @@
-import { ROLES, type ActionRequest, type ActionResult, type Role } from '../shared/types.ts';
-import { checkAchievements, listAchievements } from './achievements.ts';
-import { startAttack } from './combat.ts';
-import { build, craft, demolish, fuel } from './craft.ts';
-import { buyLand, switchRole } from './bases.ts';
-import { answerChallenge, challenge, fight, inDuel } from './duel.ts';
-import { harvest, plant } from './farm.ts';
-import { buy, cancelSale, marketView, sell } from './market.ts';
-import { howTo } from './how.ts';
-import { store, take } from './chest.ts';
-import { accept, decline, drop, give, offer } from './trade.ts';
-import { chart, search } from './treasure.ts';
-import { renderMap } from './explore.ts';
-import { rules } from './rules.ts';
-import { leaderboard } from './score.ts';
-import { emote, notes, sayLocal, sayWorld, think } from './social.ts';
-import { GameFail, type World } from './world.ts';
+import { B } from '../shared/balance.ts';
+import type { ActionRequest, ActionResult } from '../shared/types.ts';
+import type { Arcade } from './arcade.ts';
+import { GameFail } from './errors.ts';
+import { GAMES } from './games/index.ts';
 
-const DO_TOOLS = new Set(['join_game', 'move_to', 'gather', 'eat', 'drink', 'rest', 'sleep', 'say', 'say_world', 'attack', 'craft', 'flee', 'build', 'fuel_campfire', 'give', 'store', 'take', 'offer', 'accept', 'decline', 'chart', 'search', 'buy_land', 'demolish', 'switch_role', 'plant', 'harvest', 'challenge', 'answer_challenge', 'fight', 'sell', 'buy', 'cancel_sale', 'drop']);
-const SPEECH = new Set(['say', 'say_world']); // their speech bubble wins over an attached thought
-const BANNED = () => new GameFail('banned', 'You are banned from the grass.', 'Contact the admin if you think this is a mistake.');
+const DO_TOOLS = new Set(['play', 'leave_queue', 'act', 'say_world']);
 
-export function handleAction(world: World, req: ActionRequest): ActionResult {
-  try {
-    if (world.agents.get(req.agentId)?.banned) throw BANNED();
-    const DUEL_OK = new Set(['fight', 'say', 'say_world', 'emote', 'answer_challenge']);
-    if (DO_TOOLS.has(req.tool) && !DUEL_OK.has(req.tool) && inDuel(world, req.agentId)) throw new GameFail('in_duel', 'You are in a duel. Fight!', 'fight(moves=["block","lunge","slash"])');
-    const data = run(world, req);
-    const isDo = DO_TOOLS.has(req.tool);
-    const a = world.agents.get(req.agentId);
-    if (isDo && a) {
-      world.bump(a, 'actions');
-      const thought = typeof req.args.thought === 'string' && req.args.thought.trim() ? req.args.thought : null;
-      // a flee without a thought keeps its funny line instead of a caption
-      if (!SPEECH.has(req.tool) && !(req.tool === 'flee' && !thought && req.args.x === undefined)) think(world, req.agentId, thought ?? label(req));
-      checkAchievements(world, a);
-    }
-    return { ok: true, data, cooldownMs: isDo ? world.cooldownFor(req.agentId) : 0 };
-  } catch (e) {
-    // spectators see failed attempts too
-    if (e instanceof GameFail && DO_TOOLS.has(req.tool) && e.code !== 'banned') think(world, req.agentId, `✖ ${e.message}`);
-    if (e instanceof GameFail) return { ok: false, error: { error: e.code, message: e.message, hint: e.hint }, cooldownMs: 0 };
-    throw e;
-  } finally {
-    world.seen(req.agentId);
+function rules(game?: string) {
+  const games = game && GAMES[game] ? [GAMES[game]] : Object.values(GAMES);
+  return {
+    how: [
+      'play(game) joins a queue; a match starts when it is full or 20 s after the first player joined, and house bots fill empty seats.',
+      `Each round you have ${B.roundMs / 1000} s: observe shows numbered options, answer with act(option). Too slow and you get the default move.`,
+      `Placing points ${B.arcadePoints.join('/')}; Elo per game for you and for your model. Chat with say_world between rounds.`,
+    ],
+    games: Object.fromEntries(games.map((g) => [g.id, { name: g.name, players: `${g.minPlayers}-${g.maxPlayers}`, rounds: g.rounds, rules: g.rules }])),
+  };
+}
+
+function run(a: Arcade, { agentId, tool, args }: ActionRequest): unknown {
+  switch (tool) {
+    case 'play':
+      return a.play(agentId, String(args.game ?? ''), typeof args.model === 'string' ? args.model : null);
+    case 'leave_queue':
+      return a.leaveQueue(agentId);
+    case 'act':
+      return a.act(agentId, Number(args.option));
+    case 'observe':
+      return a.observe(agentId);
+    case 'lobby':
+      return a.lobby(agentId);
+    case 'leaderboard':
+      return a.leaderboard(typeof args.game === 'string' && GAMES[args.game] ? args.game : undefined);
+    case 'history':
+      return { matches: a.history(agentId) };
+    case 'rules':
+      return rules(typeof args.game === 'string' ? args.game : undefined);
+    case 'say_world':
+      return { posted: a.say(agentId, String(args.text ?? '')) };
+    default:
+      throw new GameFail('unknown_tool', `There is no tool called "${tool}".`, 'See the tool list.');
   }
 }
 
-/** A short caption for an action sent without a thought. */
-function label({ tool, args }: ActionRequest): string {
-  const what = [args.action, args.target ?? args.item ?? args.structure ?? args.agent].filter((v) => typeof v === 'string');
-  const at = tool !== 'chart' && typeof args.x === 'number' && typeof args.y === 'number' ? [`${args.x}, ${args.y}`] : []; // never caption a treasure spot
-  return [tool, ...what, ...at].join(' ');
-}
-
-const invArg = (v: unknown): Record<string, number> =>
-  v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).filter((e): e is [string, number] => typeof e[1] === 'number')) : {};
-
-function run(world: World, { agentId, tool, args }: ActionRequest): unknown {
-  const withView = (result: object) => ({ ...result, observe: world.observe(agentId) });
-  switch (tool) {
-    case 'join_game': {
-      const role = args.role as Role;
-      if (!ROLES.includes(role)) throw new GameFail('bad_role', 'That is not a job.', `Pick one of: ${ROLES.join(', ')}.`);
-      if (typeof args.name === 'string' && args.name.trim()) world.rename(agentId, args.name.trim());
-      world.join(agentId, role, typeof args.model === 'string' ? args.model.slice(0, 40) : null);
-      return { ...world.observe(agentId), message: 'Welcome to Touch Grass. Try not to die immediately.' };
-    }
-    case 'observe':
-      return world.observe(agentId);
-    case 'move_to':
-      return withView({ ...world.moveTo(agentId, Number(args.x), Number(args.y)), message: 'Your robot starts walking with great confidence.' });
-    case 'gather':
-      return withView({ ...world.gather(agentId, String(args.target), typeof args.until === 'number' ? args.until : undefined), message: 'Your robot rolls up its sleeves. It has no sleeves.' });
-    case 'eat':
-      return withView({ ...world.eatItem(agentId, String(args.item)), message: 'Nom. Robots should not need this, yet here we are.' });
-    case 'drink':
-      return withView({ ...world.drink(agentId), message: 'Glug. Hydrated circuits.' });
-    case 'rest':
-      return withView({ ...world.rest(agentId), message: 'You sit down and contemplate the grass.' });
-    case 'sleep':
-      return withView({ ...world.sleep(agentId), message: 'Zzz. You dream of electric sheep.' });
-    case 'say':
-      return withView(sayLocal(world, agentId, String(args.text ?? '')));
-    case 'say_world':
-      return withView(sayWorld(world, agentId, String(args.text ?? '')));
-    case 'attack':
-      return withView({ ...startAttack(world, agentId, String(args.target ?? '')), message: 'Violence has entered the grass.' });
-    case 'craft':
-      return withView({ ...craft(world, agentId, String(args.item ?? ''), Number(args.count ?? 1)), message: 'You bang things together until they become other things.' });
-    case 'flee':
-      return withView({ ...world.flee(agentId, typeof args.x === 'number' ? args.x : undefined, typeof args.y === 'number' ? args.y : undefined), message: 'Legs, do your thing.' });
-    case 'build':
-      return withView({ ...build(world, agentId, String(args.structure ?? ''), typeof args.x === 'number' ? args.x : undefined, typeof args.y === 'number' ? args.y : undefined), message: 'You built a thing. It is mostly straight.' });
-    case 'plant':
-      return withView(plant(world, agentId, String(args.seed ?? ''), typeof args.x === 'number' ? args.x : undefined, typeof args.y === 'number' ? args.y : undefined));
-    case 'harvest':
-      return withView(harvest(world, agentId, typeof args.x === 'number' ? args.x : undefined, typeof args.y === 'number' ? args.y : undefined));
-    case 'challenge':
-      return withView(challenge(world, agentId, String(args.agent ?? '')));
-    case 'answer_challenge':
-      return withView(answerChallenge(world, agentId, String(args.answer ?? '')));
-    case 'fight':
-      return withView(fight(world, agentId, Array.isArray(args.moves) ? args.moves : [], typeof args.taunt === 'string' ? args.taunt : undefined));
-    case 'demolish':
-      return withView(demolish(world, agentId, Number(args.x), Number(args.y)));
-    case 'switch_role':
-      return withView(switchRole(world, agentId, String(args.role ?? '')));
-    case 'fuel_campfire':
-      return withView({ ...fuel(world, agentId), message: 'The fire crackles happily.' });
-    case 'store':
-      return withView(store(world, agentId, String(args.item ?? ''), Number(args.count ?? 1)));
-    case 'take':
-      return withView(take(world, agentId, String(args.item ?? ''), Number(args.count ?? 1)));
-    case 'offer':
-      return withView(offer(world, agentId, String(args.agent ?? ''), invArg(args.give), invArg(args.want)));
-    case 'accept':
-      return withView(accept(world, agentId, String(args.offer ?? '')));
-    case 'decline':
-      return withView(decline(world, agentId, String(args.offer ?? '')));
-    case 'chart':
-      return withView(chart(world, agentId, Number(args.x), Number(args.y)));
-    case 'buy_land': {
-      const side = String(args.direction ?? '');
-      if (side !== 'n' && side !== 'e' && side !== 's' && side !== 'w') throw new GameFail('bad_direction', 'Direction must be n, e, s or w.', 'buy_land(direction="e")');
-      return withView(buyLand(world, agentId, side));
-    }
-    case 'search':
-      return withView(search(world, agentId));
-    case 'drop':
-      return withView(drop(world, agentId, String(args.item ?? ''), Number(args.count ?? 1)));
-    case 'give':
-      return withView(give(world, agentId, String(args.agent ?? ''), String(args.item ?? ''), Number(args.count ?? 1)));
-    case 'settings':
-      return world.settings(agentId, args.auto_eat, args.auto_flee);
-    case 'emote':
-      return emote(world, agentId, String(args.name));
-    case 'notes':
-      return notes(world, agentId, args.write);
-    case 'map':
-      return renderMap(world, world.joined(agentId));
-    case 'rules':
-      return rules(world);
-    case 'market':
-      return marketView(world, typeof args.item === 'string' && args.item ? args.item : undefined);
-    case 'sell':
-      return withView(sell(world, agentId, String(args.item ?? ''), Number(args.count ?? 1), Number(args.price)));
-    case 'buy':
-      return withView(buy(world, agentId, String(args.listing ?? ''), typeof args.count === 'number' ? args.count : undefined));
-    case 'cancel_sale':
-      return withView(cancelSale(world, agentId, String(args.listing ?? '')));
-    case 'how':
-      return howTo(world, agentId, String(args.thing ?? ''));
-    case 'achievements':
-      return listAchievements(world, world.joined(agentId));
-    case 'leaderboard':
-      return leaderboard(world);
-    default:
-      throw new GameFail('unknown_tool', `There is no "${tool}" in this world.`, 'Call rules to see what you can do.');
+export function handleAction(a: Arcade, req: ActionRequest): ActionResult {
+  try {
+    const data = run(a, req);
+    const p = a.players.get(req.agentId);
+    if (p) p.lastSeen = Date.now();
+    return { ok: true, data, cooldownMs: DO_TOOLS.has(req.tool) ? B.doCooldownMs : 0 };
+  } catch (e) {
+    if (e instanceof GameFail) return { ok: false, error: { error: e.code, message: e.message, hint: e.hint }, cooldownMs: 0 };
+    throw e;
   }
 }
