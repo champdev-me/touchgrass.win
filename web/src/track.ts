@@ -199,7 +199,7 @@ export class Riders {
       const player = m.players.find((p) => p.name === run.id);
       const known = this.riders.get(run.id);
       const r = known ?? this.spawn(run.id, player?.house ? 'house' : player?.model ?? '', i);
-      if (!known) r.shown = run.distance; // joined mid-race: start where they are
+      if (!known) r.shown = m.round > 0 && !m.finished ? Math.max(0, run.distance - GALLOP * 6) : run.distance; // mid-race: a leg behind, so it gallops at once
       r.to = run.distance;
       r.pips.replaceChildren(...Array.from({ length: v.stamina_max }, (_, k) => Object.assign(document.createElement('i'), { className: k < run.stamina ? 'on' : '' })));
       r.last.replaceChildren(...(run.last ? [icon(run.last, run.last)] : []));
