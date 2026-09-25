@@ -17,12 +17,12 @@ const LLM_MODEL = process.env.LLM_MODEL ?? 'gemma4:12b';
 const LLM_KEY = process.env.LLM_KEY ?? '';
 const LLM_REASONING = process.env.LLM_REASONING; // e.g. none: thinking models answer fast and do call a tool
 const ROLE = process.env.ROLE ?? 'gatherer';
-const ACTIONS = ['move_to', 'gather', 'eat', 'drink', 'rest', 'sleep', 'say_world', 'attack', 'craft', 'flee', 'build', 'offer', 'accept', 'decline', 'give', 'store', 'take', 'chart', 'search', 'drop', 'how', 'buy_land', 'switch_role', 'demolish', 'plant', 'harvest'];
+const ACTIONS = ['move_to', 'gather', 'eat', 'drink', 'rest', 'sleep', 'say_world', 'attack', 'craft', 'flee', 'build', 'offer', 'accept', 'decline', 'give', 'store', 'take', 'chart', 'search', 'drop', 'how', 'buy_land', 'switch_role', 'demolish', 'plant', 'harvest', 'challenge', 'answer_challenge', 'fight'];
 const CHAT_EVERY_MS = Number(process.env.CHAT_EVERY_S ?? 60) * 1000;
 const MEMORY = Number(process.env.LLM_MEMORY ?? 6); // past actions shown to the model each turn
 
 type Obs = {
-  you: { id: string; name: string; role: string; base?: { from: Vec; to: Vec; flag: Vec; next_strip_price: Record<string, number> } | null; standing_in?: string | null; farm?: string[]; pos: Vec; health: number; food: number; water: number; energy: number; dead: boolean; inventory: Record<string, number>; slots?: string; clues?: string[]; maps?: string[] };
+  you: { id: string; name: string; role: string; duel?: { round: number; your_hearts: number; their_hearts: number; opponent: string; their_last_moves: string[] } | null; challenged_by?: string | null; base?: { from: Vec; to: Vec; flag: Vec; next_strip_price: Record<string, number> } | null; standing_in?: string | null; farm?: string[]; pos: Vec; health: number; food: number; water: number; energy: number; dead: boolean; inventory: Record<string, number>; slots?: string; clues?: string[]; maps?: string[] };
   task: { type: string } | null;
   time: { phase: string };
   resources: string[];
@@ -97,6 +97,9 @@ function toolsFor(o: Obs): ToolDef[] {
   if (me.role !== 'farmer') skip.add('plant');
   if (!me.farm?.length) skip.add('harvest');
   if (!(o.offers?.incoming.length)) ['accept', 'decline'].forEach((t) => skip.add(t));
+  if (me.duel) return toolDefs.filter((t) => t.function.name === 'fight' || t.function.name === 'say_world'); // in the ring, only fighting matters
+  if (!me.duel) skip.add('fight');
+  if (!me.challenged_by) skip.add('answer_challenge');
   return toolDefs.filter((t) => !skip.has(t.function.name));
 }
 const toolDefs: ToolDef[] = tools
@@ -152,6 +155,8 @@ async function decide(o: Obs, memory: string[], chatOk: boolean): Promise<Action
   const state = [
     `You are ${me.name} (${me.id}), a ${me.role}. Lines in world chat starting with "${me.name}:" are your own; never reply to yourself or trade with yourself.`,
     `Your base: ${me.base ? `from (${me.base.from.join(', ')}) to (${me.base.to.join(', ')}), flag (${me.base.flag.join(', ')}); next strip costs ${JSON.stringify(me.base.next_strip_price)} gold` : 'none'}. Standing in: ${me.standing_in ?? 'open land'}.${me.farm?.length ? ` Farm: ${me.farm.join('; ')}.` : ''}`,
+    ...(me.duel ? [`YOU ARE IN A DUEL with ${me.duel.opponent}, round ${me.duel.round}: your hearts ${me.duel.your_hearts}, theirs ${me.duel.their_hearts}; their last moves ${me.duel.their_last_moves.join(', ') || 'none'}. Queue moves with fight: block beats slash, lunge beats block, slash beats lunge.`] : []),
+    ...(me.challenged_by ? [`You are challenged by ${me.challenged_by}. Accept to duel for your land, or reject and pay up to 50 gold.`] : []),
     `Position ${me.pos.join(', ')}. health ${me.health}, food ${me.food}, water ${me.water}, energy ${me.energy}. It is ${o.time.phase}.`,
     `Bag (${me.slots ?? '?'} slots): ${JSON.stringify(me.inventory)}`,
     ...(me.clues?.length || me.maps?.length ? [`Clues and maps: ${[...(me.clues ?? []), ...(me.maps ?? [])].join('; ')}. search only works within 1 tile of a clue's spot: move_to it first, in hops of at most 100 tiles.`] : []),

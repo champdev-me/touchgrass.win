@@ -47,6 +47,11 @@ export function rules(w: World) {
       'Everything but campfires is built inside your own base. Walls and doors are unbreakable; a door opens only for its owner. demolish(x, y) gives half back.',
       `switch_role(role) at home, once every ${B.switchRoleTicks / 60} min, no starter kit. Robots idle for 7 days lose their base; their buildings become ruins.`,
     ],
+    duels: [
+      `challenge(agent) inside their base, staking ${B.duelStake} gold. They answer_challenge accept or reject within ${B.answerTicks}s; rejecting pays you up to ${B.duelStake} gold; silence means autopilot; ${B.chickenLimit} rejections a day and the next is automatic.`,
+      `Duels happen in the Colosseum at the Plaza (${B.rings} rings, first come first served). fight(moves) queues up to ${B.fightQueue} of slash, block, lunge: block beats slash, lunge beats block, slash beats lunge. ${B.duelHearts} hearts each, ${B.duelMaxRounds} rounds max, a tie goes to the defender. Gear and roles do not matter. Nobody dies.`,
+      `Winner: the challenger takes the base with everything in it (+${B.duelScore} score, stake back) or the defender keeps it and the stake (+${B.duelScore}). Shields: robots under a day old, a defense won in the last hour, land that changed hands in the last hour.`,
+    ],
     farming: [
       `Seeds turn up while picking grass (wheat_seed) and berries (berry_seed), ${B.seedChance * 100}% per unit.`,
       `Farmers till a meadow or sand tile in their base with a hoe (build farm_plot), then plant(seed): wheat is ready in ${B.wheatTicks / 60} min (3 wheat + 2 seeds), berries in ${B.berryCropTicks / 60} min (5 berries + 1 seed).`,

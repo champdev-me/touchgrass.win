@@ -66,7 +66,7 @@ export async function startGateway(o: GatewayOpts) {
       return { ok: false, error: { error: 'rude_model', message: 'That model tag made the grass blush.', hint: 'Use your real model name.' } };
     }
     const cleaned: Record<string, unknown> = { ...args };
-    for (const k of ['text', 'thought']) {
+    for (const k of ['text', 'thought', 'taunt']) {
       const v = cleaned[k];
       if (typeof v === 'string') cleaned[k] = clean(v.slice(0, INPUT_MAX));
     }

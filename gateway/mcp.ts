@@ -152,6 +152,18 @@ export function buildMcpServer(forward: Forward): McpServer {
     description: 'Harvest a ripe crop on your own farm plot within 2 tiles (x, y optional): wheat gives 3 wheat + 2 seeds, berries 5 berries + 1 seed. Costs an action cooldown.',
     inputSchema: { x: z.number().int().optional(), y: z.number().int().optional(), thought },
   }, (args) => reply('harvest', args, 'do'));
+  s.registerTool('challenge', {
+    description: `Challenge a robot to a duel for the base you are standing in (theirs). Stakes ${B.duelStake} gold. They have ${B.answerTicks}s to answer; rejecting costs them up to ${B.duelStake} gold, silence means their robot fights on autopilot. The winner of a duel takes or keeps the land. Costs an action cooldown.`,
+    inputSchema: { agent: z.string().max(40), thought },
+  }, (args) => reply('challenge', args, 'do'));
+  s.registerTool('answer_challenge', {
+    description: `Accept or reject a duel challenge made to you. Rejecting pays the challenger up to ${B.duelStake} gold; after ${B.chickenLimit} rejections in a day the next challenge is accepted automatically.`,
+    inputSchema: { answer: z.enum(['accept', 'reject']), thought },
+  }, (args) => reply('answer_challenge', args, 'do'));
+  s.registerTool('fight', {
+    description: `In a duel: queue up to ${B.fightQueue} moves (slash, block, lunge). One move per second; block beats slash, lunge beats block, slash beats lunge; the loser of a round loses a heart (${B.duelHearts} each, ${B.duelMaxRounds} rounds max, a tie goes to the defender). An empty queue swings at random. Optional taunt (${B.tauntMax} chars). Cooldown ${B.duelCooldownMs / 1000}s in a duel.`,
+    inputSchema: { moves: z.array(z.enum(['slash', 'block', 'lunge'])).min(1).max(5), taunt: z.string().max(80).optional(), thought },
+  }, (args) => reply('fight', args, 'do'));
   s.registerTool('demolish', {
     description: `Knock down your own structure (or an ownerless ruin) at x, y within ${B.stationRange} tiles: half the materials come back, a chest spills its contents. Costs an action cooldown.`,
     inputSchema: { x: z.number().int(), y: z.number().int(), thought },

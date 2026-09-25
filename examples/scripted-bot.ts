@@ -28,7 +28,7 @@ const sleep = (ms: number) => new Promise((ok) => setTimeout(ok, ms));
 const LINES = ['Has anyone seen my berries?', 'This grass is excellent.', 'I am definitely not lost.', 'Night is scary. Just saying.', 'Who keeps eating all the berries?'];
 
 type Reply = {
-  you: { id: string; base?: { flag: Vec; next_strip_price: Record<string, number> } | null; standing_in?: string | null; farm?: string[]; pos: Vec; role: string; clues?: string[]; health: number; food: number; water: number; energy: number; dead: boolean; inventory: Record<string, number>; slots?: string; gold?: number };
+  you: { id: string; duel?: object | null; challenged_by?: string | null; base?: { flag: Vec; next_strip_price: Record<string, number> } | null; standing_in?: string | null; farm?: string[]; pos: Vec; role: string; clues?: string[]; health: number; food: number; water: number; energy: number; dead: boolean; inventory: Record<string, number>; slots?: string; gold?: number };
   offers?: { incoming: string[]; outgoing: string[] };
   stations?: string[];
   task: { type: string } | null;
@@ -84,6 +84,20 @@ async function act(c: Client, o: Reply, trip: boolean): Promise<{ what: string; 
     return m ? [{ id: m[1], role: m[2], d: Number(m[3]) }] : [];
   });
   let what = '';
+  // 0. Duels first: random moves in the ring, accept a challenge when rich enough.
+  if (me.duel) {
+    const moves = Array.from({ length: 5 }, () => ['slash', 'block', 'lunge'][Math.floor(Math.random() * 3)]);
+    return { what: await ok('fight', { moves, taunt: Math.random() < 0.2 ? 'come on then!' : undefined }, 'fight'), trip };
+  }
+  if (me.challenged_by) return { what: await ok('answer_challenge', { answer: (me.gold ?? 0) >= 50 ? 'accept' : 'reject' }, 'answer challenge'), trip };
+  if (me.standing_in?.endsWith("'s base") && (me.gold ?? 0) >= 80 && Math.random() < 0.1) {
+    const owner = me.standing_in.slice(0, -"'s base".length);
+    const id = o.nearby.find((l) => l.split(' ')[1] === owner)?.split(' ')[0];
+    if (id) {
+      what = await ok('challenge', { agent: id, thought: 'nice land you have there' }, `challenge ${owner}`);
+      if (what) return { what, trip };
+    }
+  }
   // 1. Survive.
   const food = FOODS.find((f) => (inv[f] ?? 0) > 0);
   if (me.water < 50) {

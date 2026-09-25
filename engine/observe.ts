@@ -115,6 +115,7 @@ export function buildObservation(w: World, a: Agent) {
       ...baseLines(w, a),
       farm: farmLines(w, a),
       duel: duelView(w, a.id),
+      challenged_by: w.challenges.has(a.id) ? `${w.agents.get(w.challenges.get(a.id)!.from)?.name}: answer_challenge within ${Math.max(0, w.challenges.get(a.id)!.expiresAt - w.tick)}s` : null,
       clues: clueLines(w, a, (x, y) => TERRAIN_NAME[w.at(x, y)]),
       maps: Object.keys(a.inventory).filter(isMap).map((m) => `treasure_map -> (${m.slice('treasure_map:'.length).replace(',', ', ')})`),
     },

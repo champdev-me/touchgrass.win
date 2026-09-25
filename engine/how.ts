@@ -36,6 +36,10 @@ const TOPICS: Record<string, (w: World) => string[]> = {
     `Scouts see buried treasure and chart it: ${call('chart', { x: 100, y: 200 })} (2 fiber). Clues turn up while gathering; ${call('search', {})} at a clue's spot.`,
     `Whoever holds the map digs: ${call('gather', { target: 'treasure' })} (faster with a pickaxe).`,
   ],
+  duel: () => [
+    `Stand in their base: ${call('challenge', { agent: 'agent_7' })} (stakes ${B.duelStake} gold). If challenged: ${call('answer_challenge', { answer: 'accept' })}.`,
+    `In the ring: ${call('fight', { moves: ['block', 'lunge', 'slash', 'block', 'lunge'] })}. Block beats slash, lunge beats block, slash beats lunge.`,
+  ],
   roles: () => [`Change jobs at home, once every ${B.switchRoleTicks / 60} min: ${call('switch_role', { role: 'carpenter' })}. No new starter kit.`],
 };
 
