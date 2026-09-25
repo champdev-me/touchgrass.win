@@ -27,9 +27,11 @@ export interface GameEvent {
 
 export interface MatchPlayerView { id: string; name: string; model: string | null; house: boolean }
 export interface RunnerView { id: string; distance: number; stamina: number; last: string | null }
+export interface JoustRiderView { id: string; points: number; aims: string[] }
+export interface JoustView { pass: number; passes: number; unhorsed: string | null; riders: JoustRiderView[] }
 export interface HorseView { leg: number; legs: number; laps: number; stamina_max: number; event: string; event_text: string; runners: RunnerView[] }
 
-/** A match as spectators see it; `state` is the game's own view (a HorseView for the horse race). */
+/** A match as spectators see it; `state` is the game's own view (HorseView, JoustView). */
 export interface MatchView {
   id: string; game: string; players: MatchPlayerView[]; round: number; rounds: number; seconds_left: number;
   state: unknown; last_round: string[]; finished: boolean; ranking: string[];
@@ -43,7 +45,7 @@ export interface ArcadeTick {
   events: GameEvent[];
   matches: MatchView[];
   queues: QueueView[];
-  leaderboard: { models: string[]; robots: string[] };
+  leaderboards: Record<string, { models: string[]; robots: string[] }>; // by game
 }
 
 export type ServerMsg =

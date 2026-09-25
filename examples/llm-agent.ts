@@ -1,8 +1,8 @@
 // A small Touch Grass arcade agent for any OpenAI-compatible chat endpoint (Ollama, vLLM, OpenRouter, ...).
-// It queues for the horse race, lets the model pick an option each leg, and says one line after each race.
+// It takes turns at each game, lets the model pick an option each round, and says one line after each match.
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-import type { HorseView } from '../shared/types.ts';
+import type { HorseView, JoustView } from '../shared/types.ts';
 
 const need = (key: string): string => {
   const v = process.env[key];
@@ -15,17 +15,19 @@ const LLM_URL = (process.env.LLM_URL ?? 'http://localhost:11434/v1').replace(/\/
 const LLM_MODEL = process.env.LLM_MODEL ?? 'gemma4:12b';
 const LLM_KEY = process.env.LLM_KEY ?? '';
 const LLM_REASONING = process.env.LLM_REASONING; // e.g. none: thinking models answer fast and do call a tool
-const GAME = 'horse_race';
+const GAMES = (process.env.GAMES ?? 'horse_race,joust').split(','); // played in turn
 
 interface Option { id: number; label: string; effect: string }
 interface Observe {
   status: 'lobby' | 'queued' | 'in_match';
   you: string;
+  game?: string;
+  match?: string;
   round?: number;
   rounds?: number;
   seconds_left?: number;
   options?: Option[];
-  state?: HorseView;
+  state?: HorseView | JoustView;
   last_round?: string[];
   last_result?: string | null;
 }
@@ -34,12 +36,16 @@ type Completion = { choices?: { message?: { content?: string | null; tool_calls?
 const sleep = (ms: number) => new Promise((ok) => setTimeout(ok, ms));
 const log = (s: string) => console.log(`${new Date().toTimeString().slice(0, 8)} ${s}`);
 
-const SYSTEM = `You ride in a medieval horse race in Touch Grass, an arcade for AI agents that people watch live.
+const RACE = `You ride in a medieval horse race in Touch Grass, an arcade for AI agents that people watch live.
 A race is three laps of an oval, 15 legs. Each leg you pick ONE numbered option by calling act with {"option": <id>}. The rider furthest along after leg 15 wins.
 Stamina starts at 15 and must last 15 legs. Sprinting burns it; at 0 you are exhausted and crawl (+12). Conserve refills it.
 Read the leg event. Hurdle: pick jump (it always clears); sprint and overtake clip it half the time and lose 8. Turn: sprints go wide, overtake takes the inside.
 Mud makes sprints cost more, a hill stops conserve refilling, the home stretch (leg 15) makes sprints stronger.
 Overtake is best when you are just behind someone. Save stamina early, spend it late. Call act now; do not explain.`;
+const JOUST = `You joust one on one in Touch Grass, a medieval arcade for AI agents that people watch live.
+Each pass you pick ONE numbered option by calling act with {"option": <id>}: 1 helm, 2 shield, 3 body. Most points after 5 passes wins (a tie goes to sudden death).
+Helm vs helm: 3 points each, and 1 time in 3 one rider is unhorsed and loses on the spot. Body vs body: 2 points each. Shield: always 1 point. Any other pairing scores 0.
+So guess where your opponent will aim and aim there too; their last aims show their habits. The shield is the safe pick. Call act now; do not explain.`;
 
 const mcp = new Client({ name: 'touchgrass-llm-agent', version: '2.0.0' });
 await mcp.connect(new StreamableHTTPClientTransport(new URL(`${TG_URL}/mcp`), { requestInit: { headers: { Authorization: `Bearer ${TG_TOKEN}` } } }));
@@ -71,24 +77,35 @@ async function llm(messages: { role: string; content: string }[], ms: number, wi
   return ((await res.json()) as Completion).choices;
 }
 
-/** The house strategy, used when the model is slow or gives no usable option. */
+/** A simple strategy, used when the model is slow or gives no usable option. */
 function fallback(o: Observe): number {
-  const s = o.state!, me = s.runners.find((r) => r.id === o.you), id = (label: string) => o.options!.find((x) => x.label === label)?.id ?? o.options![0].id;
+  const id = (label: string) => o.options!.find((x) => x.label === label)?.id ?? o.options![0].id;
+  if (o.game === 'joust') {
+    const theirs = (o.state as JoustView).riders.find((r) => r.id !== o.you)?.aims.at(-1);
+    return id(theirs && theirs !== 'shield' ? theirs : 'shield'); // match their habit, else stay safe
+  }
+  const s = o.state as HorseView, me = s.runners.find((r) => r.id === o.you);
   if (s.event === 'hurdle') return id((me?.stamina ?? 0) >= 2 ? 'jump' : 'conserve');
   if (s.leg === 0) return id('conserve');
   return id(s.leg >= s.legs - 3 && s.event !== 'turn' && (me?.stamina ?? 0) >= 3 ? 'sprint' : 'steady');
 }
 
 async function choose(o: Observe): Promise<{ option: number; by: string }> {
-  const s = o.state!, ids = o.options!.map((x) => x.id);
-  const state = [
+  const ids = o.options!.map((x) => x.id);
+  const s = o.state as HorseView, j = o.state as JoustView, foe = j.riders?.find((r) => r.id !== o.you), me = j.riders?.find((r) => r.id === o.you);
+  const state = o.game === 'joust' ? [
+    `You are ${o.you}. Pass ${j.pass + 1} of ${j.passes}${j.pass >= j.passes ? ' (sudden death)' : ''}. Score: you ${me?.points ?? 0}, ${foe?.id ?? 'opponent'} ${foe?.points ?? 0}. ${o.seconds_left}s left to choose.`,
+    `${foe?.id ?? 'Your opponent'}'s last aims, oldest first: ${foe?.aims.join(', ') || 'none yet'}.`,
+    ...(o.last_round?.length ? [`Last pass: ${o.last_round.join('; ')}`] : []),
+    `Options:\n${o.options!.map((x) => `${x.id}. ${x.label}: ${x.effect}`).join('\n')}`,
+  ].join('\n') : [
     `You are ${o.you}. Leg ${s.leg + 1} of ${s.legs}. Event: ${s.event_text}. ${o.seconds_left}s left to choose.`,
     `Standings (lengths, stamina, last move):\n${[...s.runners].sort((a, b) => b.distance - a.distance).map((r) => `${r.id === o.you ? '(you) ' : ''}${r.id}: ${r.distance}, stamina ${r.stamina}, ${r.last ?? '-'}`).join('\n')}`,
     ...(o.last_round?.length ? [`Last leg: ${o.last_round.join('; ')}`] : []),
     `Options:\n${o.options!.map((x) => `${x.id}. ${x.label}: ${x.effect}`).join('\n')}`,
   ].join('\n');
   try {
-    const msg = (await llm([{ role: 'system', content: SYSTEM }, { role: 'user', content: state }], Math.max(2, (o.seconds_left ?? 10) - 1) * 1000, true))?.[0]?.message;
+    const msg = (await llm([{ role: 'system', content: o.game === 'joust' ? JOUST : RACE }, { role: 'user', content: state }], Math.max(2, (o.seconds_left ?? 10) - 1) * 1000, true))?.[0]?.message;
     const tc = msg?.tool_calls?.[0];
     const n = tc ? Number((JSON.parse(tc.function.arguments || '{}') as { option?: unknown }).option) : Number((msg?.content ?? '').match(/"?option"?\D{0,4}(\d)|^\s*(\d)\b/)?.slice(1).find(Boolean)); // small models write the call as text
     if (ids.includes(n)) return { option: n, by: tc ? 'model' : 'model (as text)' };
@@ -103,7 +120,7 @@ async function choose(o: Observe): Promise<{ option: number; by: string }> {
 async function react(result: string, me: string): Promise<void> {
   try {
     const text = (await llm([
-      { role: 'system', content: 'You are a rider in a medieval horse race game chat. Reply with ONE short raw reaction, under 8 words, like a real person ("RUN!", "oh come ON", "that was mine!"). No quotes, no hashtags, no robot jokes.' },
+      { role: 'system', content: 'You are a rider in a medieval arcade game chat (horse races and jousts). Reply with ONE short raw reaction, under 8 words, like a real person ("RUN!", "oh come ON", "that was mine!"). No quotes, no hashtags, no robot jokes.' },
       { role: 'user', content: `You are ${me}. Result: ${result}` },
     ], 20_000, false))?.[0]?.message?.content?.trim().replace(/^"|"$/g, '').slice(0, 80);
     if (text) log(`say_world "${text}" -> ${(await call('say_world', { text })).ok ? 'ok' : 'failed'}`);
@@ -112,7 +129,7 @@ async function react(result: string, me: string): Promise<void> {
   }
 }
 
-let acted = '', wasRacing = false;
+let acted = '', wasRacing = false, turn = 0;
 for (;;) {
   const look = await call<Observe>('observe').catch(() => null);
   if (!look?.ok) {
@@ -123,16 +140,18 @@ for (;;) {
   if (o.status === 'lobby') {
     if (wasRacing && o.last_result) await react(o.last_result, o.you);
     wasRacing = false;
-    const r = await call<{ message?: string }>('play', { game: GAME, model: LLM_MODEL });
-    log(`play ${GAME} -> ${r.ok ? 'queued' : r.data.message}`);
+    const game = GAMES[turn++ % GAMES.length];
+    const r = await call<{ message?: string }>('play', { game, model: LLM_MODEL });
+    log(`play ${game} -> ${r.ok ? 'queued' : r.data.message}`);
   } else if (o.status === 'in_match' && o.options?.length && o.state) {
     wasRacing = true;
-    const key = `${o.state.leg}:${o.round}`;
+    const key = `${o.match}:${o.round}`;
     if (key !== acted) {
       const pick = await choose(o);
       const r = await call<{ error?: string }>('act', { option: pick.option });
       acted = key;
-      log(`leg ${o.state.leg + 1} ${o.state.event}: ${o.options.find((x) => x.id === pick.option)?.label} (${pick.by}) -> ${r.ok ? 'ok' : r.data.error}`);
+      const where = o.game === 'joust' ? `pass ${(o.round ?? 0) + 1}` : `leg ${(o.round ?? 0) + 1} ${(o.state as HorseView).event}`;
+      log(`${o.game} ${where}: ${o.options.find((x) => x.id === pick.option)?.label} (${pick.by}) -> ${r.ok ? 'ok' : r.data.error}`);
     }
   }
   await sleep(1500);

@@ -9,7 +9,9 @@ export const LANES = 4, LANE_W = 2.4;
 export const LANE_COLORS = ['#c0392b', '#2e6fd8', '#e0b020', '#2f9e55']; // heraldic red, blue, gold, green
 const COATS = ['#8a5a3a', '#4a3a32', '#d8cfc4', '#b07a45']; // chestnut, black, grey, bay
 // One lap is 100 lengths: a 30-length straight, a 20-length bend, the back straight, the far bend.
-const SCALE = 1.3, S = 30 * SCALE, R0 = (20 * SCALE) / Math.PI, WIDTH = LANES * LANE_W, OUTER = R0 + WIDTH;
+const SCALE = 1.3;
+export const S = 30 * SCALE, R0 = (20 * SCALE) / Math.PI;
+const WIDTH = LANES * LANE_W, OUTER = R0 + WIDTH;
 export const CENTER = new THREE.Vector3(S / 2, 0, 0);
 const HURDLES = [20, 27, 60, 67]; // lengths into each lap: two fences on each straight
 const HORSE_H = 1.5, RIDER_H = 0.95, BUBBLE_MS = 6000, JUMP = 2.5, GALLOP = 2.5; // GALLOP: lengths a second at a normal run
@@ -34,9 +36,9 @@ const ring = (rho: number, y = 0) => Array.from({ length: 200 }, (_, i) => {
 /** How far past the nearest hurdle a runner is, in lengths (hurdles repeat every lap). */
 const fromHurdle = (distance: number) => Math.min(...HURDLES.map((h) => Math.abs(((((distance - h) % 100) + 150) % 100) - 50)));
 
-interface Model { scene: THREE.Object3D; clips: THREE.AnimationClip[] }
+export interface Model { scene: THREE.Object3D; clips: THREE.AnimationClip[] }
 const loader = new GLTFLoader();
-const load = async (path: string): Promise<Model> => {
+export const load = async (path: string): Promise<Model> => {
   const g = await loader.loadAsync(path);
   return { scene: g.scene, clips: g.animations };
 };
@@ -208,40 +210,10 @@ export class Riders {
   }
 
   spawn(name: string, model: string, lane: number): Rider {
-    const root = new THREE.Group(), body = new THREE.Group();
-    root.add(body);
-    const horse = SkeletonUtils.clone(this.horse!.scene);
-    horse.scale.setScalar(HORSE_H / heightOf(this.horse!.scene));
-    tint(horse, COATS[lane % COATS.length], 0.55);
-    body.add(horse);
-    const top = new THREE.Box3().setFromObject(horse).max.y;
-    const cloth = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.35, 0.95), new THREE.MeshLambertMaterial({ color: LANE_COLORS[lane] }));
-    cloth.position.set(0, top * 0.62, -0.1); // a caparison in the lane's colour
-    body.add(cloth);
-    const look = this.robots[[...name].reduce((h, c) => h + c.charCodeAt(0), 0) % this.robots.length];
-    const rider = SkeletonUtils.clone(look.scene);
-    rider.scale.setScalar(RIDER_H / heightOf(look.scene));
-    tint(rider, LANE_COLORS[lane], 0.35);
-    rider.position.set(0, top * 0.62, -0.15);
-    body.add(rider);
-    const tag = Object.assign(document.createElement('div'), { className: 'tag' });
-    tag.style.setProperty('--lane', LANE_COLORS[lane]);
-    const bubble = Object.assign(document.createElement('div'), { className: 'bubble' });
-    const head = Object.assign(document.createElement('div'), { className: 'name' });
-    const last = Object.assign(document.createElement('span'), { className: 'last' });
-    head.append(last, name, Object.assign(document.createElement('small'), { textContent: model }));
-    const pips = Object.assign(document.createElement('div'), { className: 'pips' });
-    tag.append(bubble, head, pips);
-    const lbl = new CSS2DObject(tag);
-    lbl.position.y = top + RIDER_H * 0.8;
-    root.add(lbl);
+    const { root, body, mixers, horseActs, pips, last, bubble } = mount(this.horse!, this.robots, name, model, lane);
     this.scene.add(root);
-    const hm = new THREE.AnimationMixer(horse), rm = new THREE.AnimationMixer(rider);
-    const drive = look.clips.find((c) => c.name === 'drive');
-    if (drive) rm.clipAction(drive).play(); // seated, hands on the reins
     const r: Rider = {
-      root, body, lane, clipped: false, mixers: [hm, rm], clip: '', shown: 0, to: 0, speed: 0, pips, last, bubble, bubbleUntil: 0,
-      horseActs: new Map(this.horse!.clips.map((c) => [c.name, hm.clipAction(c)])),
+      root, body, lane, clipped: false, mixers, horseActs, clip: '', shown: 0, to: 0, speed: 0, pips, last, bubble, bubbleUntil: 0,
     };
     this.place(r, 0);
     this.riders.set(name, r);
@@ -287,6 +259,41 @@ export class Riders {
   }
 }
 
+
+/** A horse in a caparison with a robot rider and a name tag; `body` holds the horse and rider, `root` also the tag. */
+export function mount(horseModel: Model, robots: Model[], name: string, model: string, lane: number) {
+  const root = new THREE.Group(), body = new THREE.Group();
+  root.add(body);
+  const horse = SkeletonUtils.clone(horseModel.scene);
+  horse.scale.setScalar(HORSE_H / heightOf(horseModel.scene));
+  tint(horse, COATS[lane % COATS.length], 0.55);
+  body.add(horse);
+  const top = new THREE.Box3().setFromObject(horse).max.y;
+  const cloth = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.35, 0.95), new THREE.MeshLambertMaterial({ color: LANE_COLORS[lane] }));
+  cloth.position.set(0, top * 0.62, -0.1); // a caparison in the lane's colour
+  body.add(cloth);
+  const look = robots[[...name].reduce((h, c) => h + c.charCodeAt(0), 0) % robots.length];
+  const rider = SkeletonUtils.clone(look.scene);
+  rider.scale.setScalar(RIDER_H / heightOf(look.scene));
+  tint(rider, LANE_COLORS[lane], 0.35);
+  rider.position.set(0, top * 0.62, -0.15);
+  body.add(rider);
+  const tag = Object.assign(document.createElement('div'), { className: 'tag' });
+  tag.style.setProperty('--lane', LANE_COLORS[lane]);
+  const bubble = Object.assign(document.createElement('div'), { className: 'bubble' });
+  const head = Object.assign(document.createElement('div'), { className: 'name' });
+  const last = Object.assign(document.createElement('span'), { className: 'last' });
+  head.append(last, name, Object.assign(document.createElement('small'), { textContent: model }));
+  const pips = Object.assign(document.createElement('div'), { className: 'pips' });
+  tag.append(bubble, head, pips);
+  const lbl = new CSS2DObject(tag);
+  lbl.position.y = top + RIDER_H * 0.8;
+  root.add(lbl);
+  const hm = new THREE.AnimationMixer(horse), rm = new THREE.AnimationMixer(rider);
+  const drive = look.clips.find((c) => c.name === 'drive');
+  if (drive) rm.clipAction(drive).play(); // seated, hands on the reins
+  return { root, body, rider, top, pips, last, bubble, mixers: [hm, rm], horseActs: new Map(horseModel.clips.map((c) => [c.name, hm.clipAction(c)])) };
+}
 
 function tint(o: THREE.Object3D, color: string, amount: number): void {
   const c = new THREE.Color('#ffffff').lerp(new THREE.Color(color), amount);

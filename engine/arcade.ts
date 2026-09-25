@@ -242,7 +242,10 @@ export class Arcade {
     this.matches = this.matches.filter((m) => m.finishedAt === null || this.tick - m.finishedAt <= B.podiumTicks);
     const events = this.events;
     this.events = [];
-    const board = this.leaderboard();
-    return { tick: this.tick, events, leaderboard: { models: board.models, robots: board.robots }, matches: this.matches.map((m): MatchView => ({ id: m.id, game: m.game.id, players: m.players.map((id) => ({ id, name: this.name(id), model: this.players.get(id)?.model ?? null, house: Boolean(this.players.get(id)?.house) })), round: m.game.round(m.state), rounds: m.game.rounds, seconds_left: Math.max(0, m.roundEndsAt - this.tick), state: this.renameView(m.game.view(m.state), m), last_round: m.lastRound, finished: m.finishedAt !== null, ranking: m.ranking.map(this.name) })), queues: [...this.queues].map(([game, q]) => ({ game, players: q.players.map(this.name), starts_in: Math.max(0, q.since + B.queueWaitTicks - this.tick) })) };
+    const leaderboards = Object.fromEntries(Object.keys(GAMES).map((g) => {
+      const b = this.leaderboard(g);
+      return [g, { models: b.models, robots: b.robots }];
+    }));
+    return { tick: this.tick, events, leaderboards, matches: this.matches.map((m): MatchView => ({ id: m.id, game: m.game.id, players: m.players.map((id) => ({ id, name: this.name(id), model: this.players.get(id)?.model ?? null, house: Boolean(this.players.get(id)?.house) })), round: m.game.round(m.state), rounds: m.game.rounds, seconds_left: Math.max(0, m.roundEndsAt - this.tick), state: this.renameView(m.game.view(m.state), m), last_round: m.lastRound, finished: m.finishedAt !== null, ranking: m.ranking.map(this.name) })), queues: [...this.queues].map(([game, q]) => ({ game, players: q.players.map(this.name), starts_in: Math.max(0, q.since + B.queueWaitTicks - this.tick) })) };
   }
 }

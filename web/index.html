@@ -34,6 +34,8 @@
   #race .swatch { width: 10px; height: 10px; border-radius: 2px; background: var(--lane); }
   #race .who { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #race .dist { text-align: right; font-variant-numeric: tabular-nums; }
+  #race .aims { display: flex; gap: 2px; }
+  .head small { margin-left: auto; font: 11px 'Alegreya Sans', sans-serif; }
   .stamina { height: 6px; background: rgba(255, 255, 255, 0.12); border-radius: 3px; overflow: hidden; }
   .stamina i { display: block; height: 100%; background: #58d68d; transition: width 0.4s; }
   #lobby .queue b { margin-left: 4px; }
@@ -42,6 +44,18 @@
   #lobby .result { font-size: 12px; padding: 2px 0; border-top: 1px dashed rgba(226, 185, 90, 0.2); }
 
 
+  #home { top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(560px, calc(100vw - 580px)); min-width: 260px; box-sizing: border-box; max-height: 80vh; overflow-y: auto; }
+  #tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+  .tile { display: block; text-align: left; background: rgba(0, 0, 0, 0.25); border: 1px solid var(--line); border-radius: 6px; padding: 7px 9px; color: var(--ink); font: inherit; }
+  button.tile { cursor: pointer; }
+  button.tile:hover { border-color: var(--gold); background: rgba(226, 185, 90, 0.12); }
+  .tile.done, .tile.queue { opacity: 0.75; }
+  .tile .th { display: flex; align-items: center; gap: 6px; }
+  .tile .th small { margin-left: auto; }
+  .tile .prog { color: var(--gold); margin: 3px 0; }
+  .tile .who { display: flex; flex-wrap: wrap; gap: 2px 8px; font-size: 12px; color: var(--muted); }
+  #title .back { margin-top: 6px; background: none; border: 1px solid var(--line); color: var(--ink); border-radius: 4px; font: inherit; font-size: 12px; padding: 2px 8px; cursor: pointer; }
+  #title .back[hidden] { display: none; }
   #podium { bottom: 12px; left: 50%; transform: translateX(-50%); width: 260px; box-sizing: border-box; text-align: center; padding: 10px 14px; }
   #podium .place small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #podium .title { font: 30px 'Pirata One', serif; color: var(--gold); margin-bottom: 6px; }
@@ -102,6 +116,7 @@
   <div id="events" class="panel bottom"><div class="head" id="events-head"></div><div id="event-list"></div></div>
 </div>
 <div id="podium" class="panel" hidden></div>
+<div id="home" class="panel" hidden><div class="head">Pick a match to watch</div><div id="tiles"></div></div>
 <script type="module" src="/dist/main.js?v=%BUILD%"></script>
 </body>
 </html>

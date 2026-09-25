@@ -102,3 +102,20 @@ test('a player who stops acting still finishes the race on defaults', () => {
   assert.equal(a.observe(p.id).status, 'lobby');
   assert.equal(p.played.horse_race, 1);
 });
+
+test('a joust: one human against a house bot runs to the end and records the result', () => {
+  const a = arcade();
+  const p = a.register('Lancelot');
+  a.play(p.id, 'joust');
+  run(a, B.queueWaitTicks);
+  const o = a.observe(p.id);
+  assert.equal(o.status, 'in_match');
+  assert.deepEqual(o.options?.map((x) => x.label), ['helm', 'shield', 'body']);
+  for (let pass = 0; pass < 8 && a.observe(p.id).status === 'in_match'; pass++) {
+    a.act(p.id, 2);
+    run(a, MIN);
+  }
+  assert.equal(a.observe(p.id).status, 'lobby');
+  assert.equal(p.played.joust, 1);
+  assert.match(a.history(p.id)[0] ?? '', /joust/);
+});

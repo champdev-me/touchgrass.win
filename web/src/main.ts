@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
-import type { MatchView, ServerMsg } from '../../shared/types.ts';
+import type { MatchView, QueueView, ServerMsg } from '../../shared/types.ts';
 import { connect } from './net.ts';
+import { buildTilt, JOUST_FOCUS, Jousters } from './joust.ts';
 import { buildTrack, CENTER, onOval, Riders } from './track.ts';
 import { setupUi } from './ui.ts';
 
@@ -31,18 +32,25 @@ function resize() {
 addEventListener('resize', resize);
 resize();
 
-let matches: MatchView[] = [], shown: string | null = null;
-const ui = setupUi();
+let matches: MatchView[] = [], queues: QueueView[] = [], watching: string | null = null;
+const ui = setupUi((id) => {
+  watching = id;
+  show();
+});
 const riders = new Riders(scene);
 const [sx, sz] = onOval(0, 14), START = new THREE.Vector3(sx, 0, sz); // the finish line, where the camera waits
+const jousters = new Jousters(scene);
 await Promise.all([buildTrack(scene), riders.load()]);
+buildTilt(scene);
 
-// Keep watching the shown match to its podium, then the first live one, else the latest finished.
+// Watch the picked match to the end of its podium, then back to the tiles.
 function show(): void {
-  const m = matches.find((x) => x.id === shown) ?? matches.find((x) => !x.finished) ?? matches.at(-1) ?? null;
-  shown = m?.id ?? null;
-  riders.sync(m);
+  const m = matches.find((x) => x.id === watching) ?? null;
+  if (!m) watching = null;
+  riders.sync(m?.game === 'horse_race' ? m : null);
+  jousters.sync(m?.game === 'joust' ? m : null, riders.horse!, riders.robots);
   ui.race(m);
+  ui.home(watching ? null : matches, queues);
 }
 
 connect((m: ServerMsg) => {
@@ -51,15 +59,21 @@ connect((m: ServerMsg) => {
     return;
   }
   matches = m.matches;
+  queues = m.queues;
   show();
   ui.lobby(m.queues, matches.filter((x) => !x.finished).length);
-  ui.boards(m.leaderboard);
+  const game = matches.find((x) => x.id === watching)?.game ?? 'horse_race';
+  ui.boards(m.leaderboards[game], game);
   ui.events(m.events);
 }, (s) => ui.status(s));
 
 addEventListener('keydown', (e) => {
   if (e.target instanceof HTMLInputElement) return;
   if (e.key.toLowerCase() === 'h') document.body.classList.toggle('clean');
+  if (e.key === 'Escape') {
+    watching = null;
+    show();
+  }
 });
 
 // A camera outside the oval that follows the pack round the bends and pulls back when it spreads out.
@@ -68,12 +82,23 @@ const eye = new THREE.Vector3(CENTER.x, 20, 40), look = CENTER.clone(), want = n
 renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.1), k = 1 - Math.pow(0.1, dt);
   riders.update(dt);
-  const at = riders.positions(), target = at.length ? at.reduce((sum, p) => sum.add(p), new THREE.Vector3()).divideScalar(at.length) : START;
-  const spread = at.length ? Math.max(...at.map((p) => p.distanceTo(target))) : 0, back = Math.min(20, 13 + spread * 0.8);
-  out.subVectors(target, CENTER).setY(0);
-  if (out.lengthSq() < 1) out.set(0, 0, 1);
-  look.lerp(want.copy(target).setY(0.8), k);
-  eye.lerp(want.copy(target).addScaledVector(out.normalize(), back).setY(6 + back * 0.45), k);
+  jousters.update(dt);
+  const game = matches.find((x) => x.id === watching)?.game;
+  if (game === 'joust') {
+    look.lerp(JOUST_FOCUS, k); // side-on to the tilt
+    eye.lerp(want.set(JOUST_FOCUS.x - 2, 7, 15), k);
+  } else if (game) {
+    const at = riders.positions(), target = at.length ? at.reduce((sum, p) => sum.add(p), new THREE.Vector3()).divideScalar(at.length) : START;
+    const spread = at.length ? Math.max(...at.map((p) => p.distanceTo(target))) : 0, back = Math.min(20, 13 + spread * 0.8);
+    out.subVectors(target, CENTER).setY(0);
+    if (out.lengthSq() < 1) out.set(0, 0, 1);
+    look.lerp(want.copy(target).setY(0.8), k);
+    eye.lerp(want.copy(target).addScaledVector(out.normalize(), back).setY(6 + back * 0.45), k);
+  } else {
+    const a = clock.elapsedTime * 0.04; // the tiles are up: circle the grounds slowly
+    look.lerp(CENTER, k);
+    eye.lerp(want.set(CENTER.x + Math.cos(a) * 48, 26, Math.sin(a) * 40), k);
+  }
   camera.position.copy(eye);
   camera.lookAt(look);
   renderer.render(scene, camera);
