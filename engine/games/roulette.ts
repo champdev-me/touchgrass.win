@@ -9,7 +9,7 @@ export interface RouletteState {
 
 const CHAMBERS = 6, MAX_TURNS = 60;
 const alive = (s: RouletteState) => s.order.filter((id) => !s.players.get(id)!.out);
-const odds = (s: RouletteState) => (s.clicks >= CHAMBERS - 1 ? 'certain: the last chamber is the live one' : `1 in ${CHAMBERS - s.clicks}`);
+const odds = (s: RouletteState) => (s.clicks >= CHAMBERS - 1 ? 'certain (100%): the last chamber is the live one' : `1 in ${CHAMBERS - s.clicks} (${Math.round(100 / (CHAMBERS - s.clicks))}%)`); // it climbs with every click
 
 function reload(s: RouletteState, rng: () => number): void {
   s.live = Math.floor(rng() * CHAMBERS);
