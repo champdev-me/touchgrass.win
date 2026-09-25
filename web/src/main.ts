@@ -36,6 +36,8 @@ addEventListener('resize', resize);
 resize();
 
 let matches: MatchView[] = [], queues: QueueView[] = [], watching: string | null = null, cheered = '';
+const endedAt = new Map<string, number>(); // when we first saw each match finish
+const PODIUM_DELAY_MS = 3000; // let the last move play out before the winners
 const ui = setupUi((id) => {
   watching = id;
   show();
@@ -56,8 +58,10 @@ function show(): void {
   jousters.sync(m?.game === 'joust' ? m : null, riders.horse!, riders.robots);
   tavern.sync(m?.game === 'tavern' ? m : null, riders.robots);
   roulette.sync(m?.game === 'roulette' ? m : null, riders.robots);
-  ui.race(m);
-  if (m?.finished && cheered !== m.id) {
+  if (m?.finished && !endedAt.has(m.id)) endedAt.set(m.id, performance.now());
+  const done = Boolean(m?.finished && performance.now() - endedAt.get(m.id)! >= PODIUM_DELAY_MS);
+  ui.race(m && { ...m, finished: done });
+  if (m && done && cheered !== m.id) {
     cheered = m.id;
     sfx.fanfare();
   }

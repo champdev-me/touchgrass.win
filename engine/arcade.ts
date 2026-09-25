@@ -20,7 +20,7 @@ export interface Match {
 export interface MatchRecord { id: string; game: string; tick: number; at: number; ranking: string[]; names: string[] }
 
 const HOUSE_NAMES = ['Bot Dobbin', 'Bot Clover', 'Bot Biscuit', 'Bot Thunder', 'Bot Pickles', 'Bot Noodle', 'Bot Rocket', 'Bot Maple'];
-const ROUND_TICKS = B.roundMs / B.tickMs, MIN_TICKS = B.minRoundMs / B.tickMs;
+const roundTicks = (g: Game<unknown>) => (g.roundMs ?? B.roundMs) / B.tickMs, minTicks = (g: Game<unknown>) => (g.minRoundMs ?? B.minRoundMs) / B.tickMs;
 
 export class Arcade {
   players = new Map<string, Player>();
@@ -209,7 +209,7 @@ export class Arcade {
       taken.add(h);
       players.push(h);
     }
-    const m: Match = { id: `match_${this.nextMatch++}`, game: g, state: g.start(players, this.rng), players, choices: new Map(), roundEndsAt: this.tick + ROUND_TICKS, lastRound: [], finishedAt: null, ranking: [], talk: [], lastTalk: new Map() };
+    const m: Match = { id: `match_${this.nextMatch++}`, game: g, state: g.start(players, this.rng), players, choices: new Map(), roundEndsAt: this.tick + roundTicks(g), lastRound: [], finishedAt: null, ranking: [], talk: [], lastTalk: new Map() };
     this.matches.push(m);
     this.news(`${GAME_EMOJI[gameId] ?? '🎮'} A ${g.name.toLowerCase()} starts: ${players.map(this.name).join(', ')}!`);
   }
@@ -225,7 +225,7 @@ export class Arcade {
     const lines = m.game.resolve(m.state, m.choices, this.rng).map((l) => this.named(l, m));
     m.lastRound = [...lines, ...late.map((id) => `${this.name(id)} was too slow: default move`)];
     m.choices = new Map();
-    m.roundEndsAt = this.tick + ROUND_TICKS;
+    m.roundEndsAt = this.tick + roundTicks(m.game);
     if (m.game.finished(m.state)) this.finish(m);
   }
 
@@ -261,7 +261,7 @@ export class Arcade {
     for (const m of this.matches) {
       if (m.finishedAt !== null) continue;
       const humans = this.actors(m).filter((id) => !this.players.get(id)?.house); // none: a house bot's turn resolves at the minimum
-      const early = this.tick >= m.roundEndsAt - ROUND_TICKS + MIN_TICKS && humans.every((id) => m.choices.has(id));
+      const early = this.tick >= m.roundEndsAt - roundTicks(m.game) + minTicks(m.game) && humans.every((id) => m.choices.has(id));
       if (this.tick >= m.roundEndsAt || early) this.resolve(m);
     }
     this.matches = this.matches.filter((m) => m.finishedAt === null || this.tick - m.finishedAt <= B.podiumTicks);

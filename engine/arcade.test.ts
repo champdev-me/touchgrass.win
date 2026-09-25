@@ -161,3 +161,15 @@ test('table talk: act can carry a line, talk works any time; everyone at the tab
   assert.equal(view.talk.at(-1)?.text, 'she is lying');
   assert.equal(code(() => a.talk(a.register('Eve').id, 'hi')), 'not_in_match');
 });
+
+test('games can set a slower pace: a roulette turn never resolves before its own minimum', () => {
+  const a = arcade();
+  const ps = ['Ann', 'Bob', 'Cid', 'Dee'].map((n) => a.register(n));
+  for (const p of ps) a.play(p.id, 'roulette');
+  run(a, 1);
+  a.act(ps[0].id, 1);
+  run(a, MIN);
+  assert.equal(a.observe(ps[0].id).round, 0); // the race's minimum is not enough here
+  run(a, 9000 / B.tickMs - MIN);
+  assert.equal(a.observe(ps[0].id).round, 1);
+});

@@ -38,6 +38,8 @@ export const roulette: Game<RouletteState> = {
   minPlayers: 4,
   maxPlayers: 4,
   rounds: 20,
+  roundMs: 15_000,
+  minRoundMs: 9_000, // time to spin the gun round, raise it and sweat before the trigger
   rules: [
     `A ${CHAMBERS}-chamber revolver with one live round goes round the table. On your turn:`,
     '1 pull the trigger: the odds climb with every click (1 in 6, 1 in 5, ... the sixth chamber is certain). Survive and you gain a nerve point.',

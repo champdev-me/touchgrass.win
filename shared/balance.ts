@@ -10,7 +10,7 @@ export const B = {
   historyKeep: 50,
   talkCooldownTicks: 3, // table talk: one line per player this often
   talkMax: 120,
-  podiumTicks: 10, // a finished match stays on screen this long
+  podiumTicks: 14, // a finished match stays on screen this long (the podium shows after 3 s)
 
   // platform
   tickMs: 1000,

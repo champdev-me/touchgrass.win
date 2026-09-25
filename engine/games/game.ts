@@ -18,6 +18,8 @@ export interface Game<S> {
   ranking(s: S): string[]; // best first
   view(s: S): unknown; // what spectators see (and observe, unless playerView says otherwise)
   playerView?(s: S, player: string): unknown; // what one player may see, for hidden information
-  actors?(s: S): string[]; // turn-based games: who chooses this round (default: everyone)
+  actors?(s: S): string[];
+  roundMs?: number; // decision window, if not the arcade's
+  minRoundMs?: number; // a round never resolves sooner, if not the arcade's // turn-based games: who chooses this round (default: everyone)
   rules: string[];
 }
