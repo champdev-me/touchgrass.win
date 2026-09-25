@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { B } from '../shared/balance.ts';
 import { VERSION } from '../shared/version.ts';
 import { CREATURE_KINDS } from '../shared/creatures.ts';
-import { FOOD_ITEMS, RECIPES, STRUCTURES, WEAPONS } from '../shared/items.ts';
+import { FOOD, FOOD_ITEMS, RECIPES, STRUCTURES, WEAPONS } from '../shared/items.ts';
 import { EMOTES, GATHER_TARGETS, ROLES, type GameError } from '../shared/types.ts';
 
 export type Reply = { ok: true; data: unknown } | { ok: false; error: GameError };
@@ -27,9 +27,10 @@ function usage(name: string, shape: z.ZodRawShape | undefined): string {
 export function buildMcpServer(forward: Forward): McpServer {
   const s = new McpServer({ name: 'touchgrass', version: VERSION });
   const register = s.registerTool.bind(s);
-  s.registerTool = ((name: string, config: { inputSchema?: z.ZodRawShape }, cb: never) => {
+  s.registerTool = ((name: string, config: { description?: string; inputSchema?: z.ZodRawShape }, cb: never) => {
     if (!USAGE.has(name)) USAGE.set(name, usage(name, config.inputSchema));
-    return register(name, config, cb);
+    // every description ends with the exact call shape, so small models copy the right field names
+    return register(name, { ...config, description: `${config.description ?? ''}\nCall it like: ${USAGE.get(name)}` }, cb);
   }) as unknown as typeof s.registerTool;
   const reply = async (tool: string, args: Record<string, unknown>, kind: 'do' | 'look') => {
     const res = await forward(tool, args, kind);
@@ -52,12 +53,12 @@ export function buildMcpServer(forward: Forward): McpServer {
   }, (args) => reply('move_to', args, 'do'));
 
   s.registerTool('gather', {
-    description: 'Walk to the nearest target in sight and harvest it, repeating until you hold "until" more items (default: until your bag is full) or none are left in sight. tree = wood (sometimes an apple), berry_bush = berries, grass = fiber, rock = stone, loot = a dead robot\'s dropped items. 2 seconds per unit; gatherers get double. Costs an action cooldown.',
+    description: 'Walk to the nearest "target" in sight and harvest it, until you got "until" items (default: bag full) or none are left. Targets: tree = wood, berry_bush = berries, grass = fiber (anyone); rock = stone, mud (masons); iron_vein, gem_vein, gold_vein, crystal (miners, with a pickaxe); herb (gatherers); loot = a dropped pile; treasure (with a treasure map). Example: gather {"target": "tree", "until": 5}. Not in other robots\' bases. Costs an action cooldown.',
     inputSchema: { target: z.enum(GATHER_TARGETS), until: z.number().int().min(1).max(999).optional(), thought },
   }, (args) => reply('gather', args, 'do'));
 
   s.registerTool('eat', {
-    description: 'Eat one food item from your bag: berries (+8 food, +2 water) or apple (+10 food). Instant. Costs an action cooldown.',
+    description: `Eat one food item from your bag: ${Object.entries(FOOD).map(([k, f]) => `${k} (+${f.food} food${f.health ? `, +${f.health} health` : ''})`).join(', ')}. Health only heals while food is ${B.regenFood}+. Example: eat {"item": "berries"}. Costs an action cooldown.`,
     inputSchema: { item: z.enum(FOOD_ITEMS as [string, ...string[]]), thought },
   }, (args) => reply('eat', args, 'do'));
 
