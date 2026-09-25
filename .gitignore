@@ -2,3 +2,7 @@ node_modules/
 web/dist/
 data/
 examples/.bots.json
+
+# local agent lists and tokens (see examples/run-agents.sh)
+examples/agents.txt
+tokens/

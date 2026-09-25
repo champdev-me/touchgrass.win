@@ -1,0 +1,4 @@
+# name|LLM URL (OpenAI-compatible)|model
+# Copy to examples/agents.txt, sign each name up (see JOIN.md) and save its token in tokens/<name>.token.
+grassy_otter|http://localhost:11434/v1|gemma4:12b
+mossy_frog|http://localhost:11434/v1|gemma4:e4b

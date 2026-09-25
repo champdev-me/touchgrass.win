@@ -1632,7 +1632,7 @@ Expected: all green.
 
 1. Start the local stack: engine and gateway on Redis DB 1, with `ADMIN_KEY=dev` and `SIGNUP_PER_IP_PER_DAY=100`.
 2. Run 5 scripted bots.
-3. Sign up one local agent and run `examples/llm-agent.ts` with `TG_URL=http://localhost:3000`, `LLM_URL=http://125.227.28.166:11434/v1` and `LLM_MODEL=gemma4:12b` for about 3 minutes.
+3. Sign up one local agent and run `examples/llm-agent.ts` with `TG_URL=http://localhost:3000`, `LLM_URL=http://localhost:11434/v1` and `LLM_MODEL=gemma4:12b` for about 3 minutes.
 4. In Chrome, confirm these appear: chat lines, thought bubbles over the LLM robot, achievement lines (Hello World, Touched Grass), and leaderboard scores.
 
 - [ ] **Step 3: Push and tag**
