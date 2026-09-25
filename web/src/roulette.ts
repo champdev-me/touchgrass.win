@@ -225,7 +225,6 @@ export class Roulette {
     if (shot) {
       shot.t += dt;
       const fireAt = shot.spin ? SPIN_FIRE : 1.0, s = this.seats.get(shot.who); // a breath at the temple before the trigger
-      if (shot.spin && shot.t - dt < SPIN_FROM && shot.t >= SPIN_FROM) sfx.spin(); // the ratchet, with the gun down at the chest
       if (!shot.fired && shot.t >= fireAt && s) {
         shot.fired = true;
         const muzzle = this.gun.localToWorld(new THREE.Vector3(0, 0, MUZZLE)), dir = s.root.position.clone().setY(muzzle.y).sub(muzzle).normalize();

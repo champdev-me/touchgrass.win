@@ -80,11 +80,6 @@ export const sfx = {
     hiss(t, 0.03, 0.7, 4000, 'highpass');
     tone(t, 0.04, 0.3, 1800, 900, 'square');
   },
-  spin(): void {
-    const t = now();
-    if (t < 0) return;
-    for (let i = 0; i < 14; i++) hiss(t + i * 0.06 * (1 + i / 14), 0.02, 0.35, 3500, 'highpass'); // the ratchet slows
-  },
   twirl(seconds = 1.3, loud = 1): void {
     const t = now();
     if (t < 0) return;
