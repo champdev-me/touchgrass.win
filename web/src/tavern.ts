@@ -41,24 +41,58 @@ function die(v: number): THREE.Mesh {
   return new THREE.Mesh(dieGeo, [side(1), side(4), FACES[v - 1], FACES[(6 - v) % 6], side(2), side(3)]);
 }
 
-/** The deck, table and stools, built once. */
-export function buildTavern(scene: THREE.Scene): void {
+export const seatAngle = (i: number) => (i / 4) * Math.PI * 2 + Math.PI / 4;
+export const TABLE_TOP = TABLE_H + 0.06;
+
+/** A deck, table and four stools around `at`, built once. */
+export function buildTavern(scene: THREE.Scene, at = TAVERN): void {
   const wood = new THREE.MeshLambertMaterial({ color: '#8a5a3a' }), dark = new THREE.MeshLambertMaterial({ color: '#5a3a22' });
   const deck = new THREE.Mesh(new THREE.BoxGeometry(11, 0.2, 9), wood);
-  deck.position.copy(TAVERN).setY(0.1);
+  deck.position.copy(at).setY(0.1);
   const table = new THREE.Mesh(new THREE.CylinderGeometry(1.25, 1.25, 0.12, 24), dark);
-  table.position.copy(TAVERN).setY(TABLE_H);
+  table.position.copy(at).setY(TABLE_H);
   const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.3, TABLE_H, 10), dark);
-  leg.position.copy(TAVERN).setY(TABLE_H / 2);
+  leg.position.copy(at).setY(TABLE_H / 2);
   scene.add(deck, table, leg);
   for (let i = 0; i < 4; i++) {
-    const a = (i / 4) * Math.PI * 2 + Math.PI / 4, stool = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.45, 12), wood);
-    stool.position.set(TAVERN.x + Math.sin(a) * SEAT_R, 0.42, TAVERN.z + Math.cos(a) * SEAT_R);
+    const a = seatAngle(i), stool = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.45, 12), wood);
+    stool.position.set(at.x + Math.sin(a) * SEAT_R, 0.42, at.z + Math.cos(a) * SEAT_R);
     scene.add(stool);
   }
   const lamp = new THREE.PointLight('#ffb35a', 6, 9);
-  lamp.position.copy(TAVERN).setY(2.6);
+  lamp.position.copy(at).setY(2.6);
   scene.add(lamp);
+}
+
+/** A robot seated at seat `i` of the table at `at`, facing it, with a name tag and a speech bubble. */
+export function seatRobot(scene: THREE.Scene, robots: Model[], name: string, model: string, i: number, at: THREE.Vector3) {
+  const a = seatAngle(i), look = robots[[...name].reduce((h, c) => h + c.charCodeAt(0), 0) % robots.length];
+  const root = new THREE.Group(), body = SkeletonUtils.clone(look.scene);
+  const h = new THREE.Box3().setFromObject(look.scene).getSize(new THREE.Vector3()).y;
+  body.scale.setScalar(1.15 / h);
+  body.traverse((o) => {
+    if (!(o instanceof THREE.Mesh)) return;
+    const mat = (o.material as THREE.MeshStandardMaterial).clone();
+    mat.metalness = 0;
+    mat.color.lerp(new THREE.Color(LANE_COLORS[i]), 0.35);
+    o.material = mat;
+  });
+  root.position.set(at.x + Math.sin(a) * SEAT_R, 0.62, at.z + Math.cos(a) * SEAT_R);
+  root.rotation.y = a + Math.PI; // facing the table
+  root.add(body);
+  const mixer = new THREE.AnimationMixer(body), seated = look.clips.find((c) => c.name === 'drive');
+  if (seated) mixer.clipAction(seated).play(); // the seated pose, hands on the table
+  const tag = Object.assign(document.createElement('div'), { className: 'tag' });
+  tag.style.setProperty('--lane', LANE_COLORS[i]);
+  const bubble = Object.assign(document.createElement('div'), { className: 'bubble' });
+  const head = Object.assign(document.createElement('div'), { className: 'name' });
+  head.append(name, Object.assign(document.createElement('small'), { textContent: model }));
+  tag.append(bubble, head);
+  const lbl = new CSS2DObject(tag);
+  lbl.position.y = 1.55;
+  root.add(lbl);
+  scene.add(root);
+  return { root, body, mixer, tag, bubble };
 }
 
 /** Four robots at the table: their dice (spectators see them all), talk bubbles, the bid sign, the reveal. */
@@ -135,36 +169,12 @@ export class Tavern {
   }
 
   spawn(name: string, m: MatchView, robots: Model[], i: number): Sitter {
-    const a = (i / 4) * Math.PI * 2 + Math.PI / 4, look = robots[[...name].reduce((h, c) => h + c.charCodeAt(0), 0) % robots.length];
-    const root = new THREE.Group(), body = SkeletonUtils.clone(look.scene);
-    const h = new THREE.Box3().setFromObject(look.scene).getSize(new THREE.Vector3()).y;
-    body.scale.setScalar(1.15 / h);
-    body.traverse((o) => {
-      if (!(o instanceof THREE.Mesh)) return;
-      const mat = (o.material as THREE.MeshStandardMaterial).clone();
-      mat.metalness = 0;
-      mat.color.lerp(new THREE.Color(LANE_COLORS[i]), 0.35);
-      o.material = mat;
-    });
-    root.position.set(TAVERN.x + Math.sin(a) * SEAT_R, 0.62, TAVERN.z + Math.cos(a) * SEAT_R);
-    root.rotation.y = a + Math.PI; // facing the table
-    root.add(body);
-    const mixer = new THREE.AnimationMixer(body), seated = look.clips.find((c) => c.name === 'drive');
-    if (seated) mixer.clipAction(seated).play(); // the seated pose, hands on the table
+    const p = m.players.find((x) => x.name === name), a = seatAngle(i);
+    const { root, body, mixer, tag, bubble } = seatRobot(this.scene, robots, name, p?.house ? 'house' : p?.model ?? '', i, TAVERN);
     const dice = new THREE.Group(); // on the table in front of the seat
-    dice.position.set(TAVERN.x + Math.sin(a) * 0.8, TABLE_H + 0.06, TAVERN.z + Math.cos(a) * 0.8);
+    dice.position.set(TAVERN.x + Math.sin(a) * 0.8, TABLE_TOP, TAVERN.z + Math.cos(a) * 0.8);
     dice.rotation.y = a;
-    this.scene.add(root, dice);
-    const tag = Object.assign(document.createElement('div'), { className: 'tag' });
-    tag.style.setProperty('--lane', LANE_COLORS[i]);
-    const bubble = Object.assign(document.createElement('div'), { className: 'bubble' });
-    const p = m.players.find((x) => x.name === name);
-    const head = Object.assign(document.createElement('div'), { className: 'name' });
-    head.append(name, Object.assign(document.createElement('small'), { textContent: p?.house ? 'house' : p?.model ?? '' }));
-    tag.append(bubble, head);
-    const lbl = new CSS2DObject(tag);
-    lbl.position.y = 1.55;
-    root.add(lbl);
+    this.scene.add(dice);
     const s: Sitter = { root, body, mixer, dice, tag, bubble, bubbleUntil: 0, lastDice: '' };
     this.sitters.set(name, s);
     return s;

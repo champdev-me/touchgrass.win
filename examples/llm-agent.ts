@@ -15,7 +15,7 @@ const LLM_URL = (process.env.LLM_URL ?? 'http://localhost:11434/v1').replace(/\/
 const LLM_MODEL = process.env.LLM_MODEL ?? 'gemma4:12b';
 const LLM_KEY = process.env.LLM_KEY ?? '';
 const LLM_REASONING = process.env.LLM_REASONING; // e.g. none: thinking models answer fast and do call a tool
-const GAMES = (process.env.GAMES ?? 'horse_race,joust,tavern').split(','); // played in turn
+const GAMES = (process.env.GAMES ?? 'horse_race,joust,tavern,roulette').split(','); // played in turn
 
 interface Option { id: number; label: string; effect: string }
 interface Observe {
@@ -27,12 +27,13 @@ interface Observe {
   rounds?: number;
   seconds_left?: number;
   options?: Option[];
-  state?: HorseView | JoustView | TavernView;
+  state?: HorseView | JoustView | TavernView | RouletteView;
   last_round?: string[];
   turn?: string[];
   talk?: { name: string; text: string }[];
   last_result?: string | null;
 }
+interface RouletteView { turn: string; odds: string; clicks: number; players: { id: string; chips: number; nerve: number; out: boolean }[] }
 interface TavernView { turn: string; bid: { count: number; face: number; by: string } | null; dice_on_table: number; seats: { id: string; dice: number[] | null; dice_left: number; out: boolean }[] }
 type Completion = { choices?: { message?: { content?: string | null; tool_calls?: { function: { name: string; arguments: string } }[] } }[] };
 
@@ -54,7 +55,12 @@ On your turn call act with {"option": <id>, "say": "<one short line>"}. A bid cl
 Or call liar on the last bid: all dice are shown; too few of that face and the bidder loses a die, otherwise you do. No dice left: you are thrown out. Last one seated wins.
 Your own dice are certain; each other die shows a given face 1 time in 6. A bid far above what is likely is probably a lie: call it. Bluffing is allowed and part of the fun.
 Your "say" line is heard by the table and every viewer: bluff, accuse, taunt, like a real tavern gambler. Under 12 words. Call act now; do not explain.`;
-const PROMPTS: Record<string, string> = { horse_race: RACE, joust: JOUST, tavern: TAVERN };
+const ROULETTE = `You sit at a table playing Russian roulette with robots (Touch Grass, a medieval-ish arcade watched live; a cartoon, nobody really gets hurt).
+A 6-chamber revolver with one live round goes round the table. On your turn call act with {"option": <id>, "say": "<one short line>"}:
+pull the trigger (the bang chance climbs with every click: 1 in 6, 1 in 5 ... the sixth is certain; survive and gain nerve),
+spin and pull (back to 1 in 6, no nerve), or pass the gun (costs one of your 2 chips; the next player faces the same odds). Bang: you are out. Last one seated wins.
+Your "say" line is heard by the table and viewers: bravado, nerves, taunts. Under 12 words. Call act now; do not explain.`;
+const PROMPTS: Record<string, string> = { horse_race: RACE, joust: JOUST, tavern: TAVERN, roulette: ROULETTE };
 
 const mcp = new Client({ name: 'touchgrass-llm-agent', version: '2.0.0' });
 await mcp.connect(new StreamableHTTPClientTransport(new URL(`${TG_URL}/mcp`), { requestInit: { headers: { Authorization: `Bearer ${TG_TOKEN}` } } }));
@@ -93,6 +99,10 @@ const faceOf = (label: string) => WORDS.findIndex((w) => label.endsWith(` ${w}`)
 /** A simple strategy, used when the model is slow or gives no usable option. */
 function fallback(o: Observe): number {
   const id = (label: string) => o.options!.find((x) => x.label === label)?.id ?? o.options![0].id;
+  if (o.game === 'roulette') {
+    const v = o.state as RouletteView, chips = v.players.find((p) => p.id === o.you)?.chips ?? 0;
+    return id(6 - v.clicks <= 2 && chips > 0 ? 'pass the gun' : 6 - v.clicks <= 4 ? 'spin and pull' : 'pull the trigger');
+  }
   if (o.game === 'tavern') {
     const v = o.state as TavernView, mine = v.seats.find((x) => x.id === o.you)?.dice ?? [], others = v.dice_on_table - mine.length;
     const expect = (f: number) => mine.filter((d) => d === f).length + others / 6;
@@ -115,7 +125,14 @@ async function choose(o: Observe): Promise<{ option: number; say?: string; by: s
   const s = o.state as HorseView, j = o.state as JoustView, foe = j.riders?.find((r) => r.id !== o.you), me = j.riders?.find((r) => r.id === o.you);
   const t = o.state as TavernView, mine = t.seats?.find((x) => x.id === o.you);
   const talk = o.talk?.length ? [`Talk at the table: ${o.talk.map((x) => `${x.name}: "${x.text}"`).join(' | ')}`] : [];
-  const state = o.game === 'tavern' ? [
+  const g = o.state as RouletteView;
+  const state = o.game === 'roulette' ? [
+    `You are ${o.you} and you hold the gun. Clicks since the last spin: ${g.clicks}; pulling now: ${g.odds}.`,
+    `Players: ${g.players.map((p) => `${p.id}${p.id === o.you ? ' (you)' : ''} ${p.out ? 'OUT' : `${p.chips} chips, nerve ${p.nerve}`}`).join(', ')}.`,
+    ...talk,
+    ...(o.last_round?.length ? [`Last turn: ${o.last_round.join('; ')}`] : []),
+    `${o.seconds_left}s left. Options:\n${o.options!.map((x) => `${x.id}. ${x.label}: ${x.effect}`).join('\n')}`,
+  ].join('\n') : o.game === 'tavern' ? [
     `You are ${o.you}. Your dice: ${mine?.dice?.join(', ') ?? '?'}. Dice on the table: ${t.dice_on_table} (yours ${mine?.dice_left ?? 0}, hidden ${t.dice_on_table - (mine?.dice_left ?? 0)}).`,
     `Players: ${t.seats.map((x) => `${x.id}${x.id === o.you ? ' (you)' : ''} ${x.out ? 'OUT' : `${x.dice_left} dice`}`).join(', ')}.`,
     t.bid ? `Current bid: ${t.bid.by} claims at least ${t.bid.count} dice showing ${t.bid.face}.` : 'No bid yet: you open.',
@@ -162,11 +179,14 @@ async function react(result: string, me: string): Promise<void> {
 
 /** A quick line at the tavern table when it is someone else's turn. */
 async function reactAtTable(o: Observe): Promise<void> {
-  const t = o.state as TavernView, mine = t.seats.find((x) => x.id === o.you)?.dice;
+  const t = o.state as TavernView, mine = t.seats?.find((x) => x.id === o.you)?.dice, g = o.state as RouletteView;
+  const scene = o.game === 'roulette'
+    ? `You are ${o.you}. ${g.turn} holds the gun at ${g.odds}. Last turn: ${o.last_round?.join('; ') ?? '-'}.`
+    : `You are ${o.you}, your dice ${mine?.join(', ')}. ${t.bid ? `${t.bid.by} claims at least ${t.bid.count} dice showing ${t.bid.face}.` : ''}`;
   try {
     const text = (await llm([
-      { role: 'system', content: 'You sit at a liar\'s dice table in a medieval tavern. Reply with ONE short line you say out loud to the table, under 10 words: doubt a bid, bluff about your dice, needle someone. No quotes, no narration.' },
-      { role: 'user', content: `You are ${o.you}, your dice ${mine?.join(', ')}. ${t.bid ? `${t.bid.by} claims at least ${t.bid.count} dice showing ${t.bid.face}.` : ''} Table talk: ${o.talk?.map((x) => `${x.name}: "${x.text}"`).join(' | ')}` },
+      { role: 'system', content: o.game === 'roulette' ? 'You sit at a Russian roulette table with robots (a cartoon game). Reply with ONE short line you say out loud, under 10 words: taunt, nerves, gallows humour. No quotes, no narration.' : 'You sit at a liar\'s dice table in a medieval tavern. Reply with ONE short line you say out loud to the table, under 10 words: doubt a bid, bluff about your dice, needle someone. No quotes, no narration.' },
+      { role: 'user', content: `${scene} Table talk: ${o.talk?.map((x) => `${x.name}: "${x.text}"`).join(' | ')}` },
     ], 8000, false))?.[0]?.message?.content?.trim().replace(/^"|"$/g, '').slice(0, 100);
     if (text) log(`talk "${text}" -> ${(await call('talk', { text })).ok ? 'ok' : 'failed'}`);
   } catch (e) {
@@ -188,7 +208,7 @@ for (;;) {
     const game = GAMES[turn++ % GAMES.length];
     const r = await call<{ message?: string }>('play', { game, model: LLM_MODEL });
     log(`play ${game} -> ${r.ok ? 'queued' : r.data.message}`);
-  } else if (o.status === 'in_match' && o.game === 'tavern' && !o.options?.length) {
+  } else if (o.status === 'in_match' && (o.game === 'tavern' || o.game === 'roulette') && !o.options?.length) {
     wasRacing = true; // not our turn: sometimes react to the table
     const last = o.talk?.at(-1);
     if (last && last.name !== o.you && `${o.match}:${last.text}` !== heard && Math.random() < 0.35) {
@@ -202,7 +222,7 @@ for (;;) {
       const pick = await choose(o);
       const r = await call<{ error?: string }>('act', { option: pick.option, ...(pick.say ? { say: pick.say.slice(0, 120) } : {}) });
       acted = key;
-      const where = o.game === 'joust' ? `pass ${(o.round ?? 0) + 1}` : o.game === 'tavern' ? `turn ${(o.round ?? 0) + 1}` : `leg ${(o.round ?? 0) + 1} ${(o.state as HorseView).event}`;
+      const where = o.game === 'joust' ? `pass ${(o.round ?? 0) + 1}` : o.game === 'tavern' || o.game === 'roulette' ? `turn ${(o.round ?? 0) + 1}` : `leg ${(o.round ?? 0) + 1} ${(o.state as HorseView).event}`;
       log(`${o.game} ${where}: ${o.options.find((x) => x.id === pick.option)?.label}${pick.say ? ` "${pick.say}"` : ''} (${pick.by}) -> ${r.ok ? 'ok' : r.data.error}`);
     }
   }

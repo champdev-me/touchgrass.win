@@ -3,6 +3,7 @@ import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
 import type { MatchView, QueueView, ServerMsg } from '../../shared/types.ts';
 import { connect } from './net.ts';
 import { buildTilt, HALF, JOUST_FOCUS, Jousters } from './joust.ts';
+import { buildRoulette, Roulette, ROULETTE } from './roulette.ts';
 import { buildTavern, Tavern, TAVERN } from './tavern.ts';
 import { buildTrack, CENTER, onOval, Riders } from './track.ts';
 import { setupUi } from './ui.ts';
@@ -40,10 +41,11 @@ const ui = setupUi((id) => {
 });
 const riders = new Riders(scene);
 const [sx, sz] = onOval(0, 14), START = new THREE.Vector3(sx, 0, sz); // the finish line, where the camera waits
-const jousters = new Jousters(scene), tavern = new Tavern(scene);
+const jousters = new Jousters(scene), tavern = new Tavern(scene), roulette = new Roulette(scene);
 await Promise.all([buildTrack(scene), riders.load()]);
 buildTilt(scene);
 buildTavern(scene);
+buildRoulette(scene);
 
 // Watch the picked match to the end of its podium, then back to the tiles.
 function show(): void {
@@ -52,6 +54,7 @@ function show(): void {
   riders.sync(m?.game === 'horse_race' ? m : null);
   jousters.sync(m?.game === 'joust' ? m : null, riders.horse!, riders.robots);
   tavern.sync(m?.game === 'tavern' ? m : null, riders.robots);
+  roulette.sync(m?.game === 'roulette' ? m : null, riders.robots);
   ui.race(m);
   ui.home(watching ? null : matches, queues);
 }
@@ -87,10 +90,12 @@ renderer.setAnimationLoop(() => {
   riders.update(dt);
   jousters.update(dt);
   tavern.update(dt);
+  roulette.update(dt);
   const game = matches.find((x) => x.id === watching)?.game;
-  if (game === 'tavern') {
-    look.lerp(want.copy(TAVERN).setY(0.9), k); // at the table, a little above
-    eye.lerp(want.set(TAVERN.x, 5.2, TAVERN.z + 7.5), k);
+  if (game === 'tavern' || game === 'roulette') {
+    const at = game === 'tavern' ? TAVERN : ROULETTE;
+    look.lerp(want.copy(at).setY(0.9), k); // at the table, a little above
+    eye.lerp(want.set(at.x, 5.2, at.z + 7.5), k);
   } else if (game === 'joust') {
     // Side-on, far enough back that both ends of the tilt fit between the panel columns.
     const free = Math.max(0.3, 1 - (2 * 290) / innerWidth), tanH = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * camera.aspect;

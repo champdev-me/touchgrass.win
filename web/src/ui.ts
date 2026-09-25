@@ -1,12 +1,13 @@
 import type { ArcadeTick, GameEvent, HorseView, JoustView, MatchView, QueueView } from '../../shared/types.ts';
 
+interface RouletteView { turn: string; odds: string; players: { id: string; chips: number; nerve: number; out: boolean }[] }
 interface TavernView { turn: string; bid: { count: number; face: number; by: string } | null; dice_on_table: number; seats: { id: string; dice_left: number; out: boolean }[] }
 import { icon } from './icons.ts';
 import { bidText } from './tavern.ts';
 import { LANE_COLORS } from './track.ts';
 
 const el = (tag: string, cls = '', text = '') => Object.assign(document.createElement(tag), { className: cls, textContent: text });
-const GAMES: Record<string, { name: string; icon: string; seats: number }> = { horse_race: { name: 'Horse race', icon: 'horse', seats: 4 }, joust: { name: 'Joust', icon: 'joust', seats: 2 }, tavern: { name: "Liar's tavern", icon: 'dice', seats: 4 } };
+const GAMES: Record<string, { name: string; icon: string; seats: number }> = { horse_race: { name: 'Horse race', icon: 'horse', seats: 4 }, joust: { name: 'Joust', icon: 'joust', seats: 2 }, tavern: { name: "Liar's tavern", icon: 'dice', seats: 4 }, roulette: { name: 'Russian roulette', icon: 'revolver', seats: 4 } };
 const PLACES = ['1st', '2nd', '3rd'];
 
 export function setupUi(onWatch: (id: string | null) => void) {
@@ -21,6 +22,10 @@ export function setupUi(onWatch: (id: string | null) => void) {
   back.onclick = () => onWatch(null);
   $('title').append(back);
   const progress = (m: MatchView): string => {
+    if (m.game === 'roulette') {
+      const v = m.state as RouletteView;
+      return `${v.turn} holds the gun · ${v.odds} · ${v.players.filter((p) => !p.out).length} left`;
+    }
     if (m.game === 'tavern') {
       const v = m.state as TavernView;
       return `${v.bid ? `${v.bid.by}: ${bidText(v.bid)}` : `${v.turn} opens`} · ${v.dice_on_table} dice`;
@@ -67,6 +72,21 @@ export function setupUi(onWatch: (id: string | null) => void) {
       });
       $('race').replaceChildren(line, ...rows);
   };
+  const roulette = (m: MatchView) => {
+    const v = m.state as RouletteView;
+    const line = el('div', 'line');
+    line.append(icon('revolver'), el('b', '', m.finished ? 'Smoke clears' : `${v.turn} · ${v.odds}`), ...(m.finished ? [] : [el('b', 'secs', `${m.seconds_left}s`)]));
+    const rows = v.players.map((p, i) => {
+      const row = el('div', 'runner');
+      row.style.setProperty('--lane', LANE_COLORS[i]);
+      const chips = el('span', 'aims');
+      chips.append(...Array.from({ length: p.chips }, () => icon('chip', `${p.chips} chips: passes left`)));
+      row.append(el('span', 'swatch'), el('span', p.out ? 'who out' : 'who', p.id), el('b', 'dist', p.out ? 'out' : String(p.nerve)), chips, !m.finished && v.turn === p.id ? icon('revolver', 'holds the gun') : el('span'));
+      row.title = `nerve ${p.nerve}: triggers pulled and survived`;
+      return row;
+    });
+    $('race').replaceChildren(line, ...rows);
+  };
   const tavern = (m: MatchView) => {
     const v = m.state as TavernView;
     const line = el('div', 'line');
@@ -111,6 +131,7 @@ export function setupUi(onWatch: (id: string | null) => void) {
       if (!m) return;
       if (m.game === 'joust') joust(m);
       else if (m.game === 'tavern') tavern(m);
+      else if (m.game === 'roulette') roulette(m);
       else horse(m);
       if (m.finished) {
         $('podium').replaceChildren(el('div', 'title', 'The winners'), ...m.ranking.slice(0, 3).map((name, i) => {
