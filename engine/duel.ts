@@ -1,5 +1,6 @@
 import { B } from '../shared/balance.ts';
-import type { Agent, Vec } from '../shared/types.ts';
+import { ringAt } from '../shared/geo.ts';
+import type { Agent, DuelView } from '../shared/types.ts';
 import { basesOf, placeBase } from './bases.ts';
 import { addScore } from './score.ts';
 import { walkable } from './terrain.ts';
@@ -21,7 +22,6 @@ export interface Duel {
 
 export const inDuel = (w: World, id: string): Duel | undefined => w.duels.find((d) => d.a === id || d.b === id);
 const busy = (w: World, id: string) => Boolean(inDuel(w, id)) || [...w.challenges.values()].some((c) => c.from === id || c.to === id);
-const ringAt = (w: World, ring: number): Vec => [w.plaza[0] + (ring % 2 ? 6 : -6), w.plaza[1] + (ring < 2 ? -6 : 6)];
 
 export function challenge(w: World, id: string, target: string) {
   const a = w.alive(id), t = w.agents.get(target);
@@ -155,7 +155,7 @@ export function stepDuels(w: World): void {
     if (free === undefined) break; // first come, first served
     d.ring = free;
     used.add(free);
-    const [cx, cy] = ringAt(w, free), a = w.agents.get(d.a)!, b = w.agents.get(d.b)!;
+    const [cx, cy] = ringAt(w.plaza, free), a = w.agents.get(d.a)!, b = w.agents.get(d.b)!;
     [a.x, a.y, b.x, b.y] = [cx - 1, cy, cx + 2, cy];
     w.dirty.add(a.id).add(b.id);
   }
@@ -170,6 +170,14 @@ export function stepDuels(w: World): void {
     d.last[1] = [...d.last[1], mb].slice(-5);
     if (d.hearts[0] <= 0 || d.hearts[1] <= 0 || d.round >= B.duelMaxRounds) finish(w, d);
   }
+}
+
+/** What spectators see of every duel. */
+export function duelViews(w: World): DuelView[] {
+  return w.duels.map((d) => ({
+    ring: d.ring, a: d.a, b: d.b, an: w.agents.get(d.a)?.name ?? '?', bn: w.agents.get(d.b)?.name ?? '?',
+    ah: d.hearts[0], bh: d.hearts[1], round: d.round, la: d.last[0].at(-1) ?? null, lb: d.last[1].at(-1) ?? null,
+  }));
 }
 
 /** observe for a duelling robot. */

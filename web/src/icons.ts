@@ -32,6 +32,11 @@ const P: Record<string, string> = {
   hoe: 's:M3 14 11 4M9 3h5v2.5',
   base: 'M3 15V2h1v1h8l-2 3 2 3H4v6z',
   scout: 'M8 3.5C4.4 3.5 1.8 6.3 1 8c.8 1.7 3.4 4.5 7 4.5s6.2-2.8 7-4.5c-.8-1.7-3.4-4.5-7-4.5zm0 1.8a2.7 2.7 0 1 1 0 5.4 2.7 2.7 0 0 1 0-5.4z',
+  // duels
+  slash: 's:M3 13 13 3M10 3h3v3',
+  block: 'M8 1.5 14 4v4.5c0 3.2-2.6 5.6-6 6-3.4-.4-6-2.8-6-6V4z',
+  lunge: 's:M1.5 8h11M9 4.5 12.5 8 9 11.5M14.5 5v6',
+  heart: 'M8 14.5 1.6 8.3A3.7 3.7 0 0 1 8 3.6a3.7 3.7 0 0 1 6.4 4.7z',
   // trading and treasure
   trade: 's:M2 5h11l-3-3M14 11H3l3 3',
   map: 'M1.5 3.5 5.5 2l5 1.5 4-1.5v10.5l-4 1.5-5-1.5-4 1.5zM5.5 3.3v9.4M10.5 4.8v9.4',
@@ -81,7 +86,7 @@ export const COLORS: Record<string, string> = {
   waterskin: '#c49a6c', backpack: '#9b6b3d', cooked_meat: '#c0583f', grass_salad: '#8be36b', marshmallow: '#f4efe6', roasted_marshmallow: '#e0b074', miner: '#c0c6cc',
   dead: '#d9d9d9', away: '#9fb59a', wood: '#b07a45', berries: '#e0355b', stone: '#a7a39c', fiber: '#8be36b', meat: '#e8766a',
   hide: '#c49a6c', apple: '#e84a3c', club: '#9b6b3d', battery: '#58d68d', crystal: '#7fd8ff', mason: '#c8643c',
-  trade: '#ffd166', carpenter: '#b07a45', farmer: '#8be36b', wheat: '#e6c34a', wheat_seed: '#c9a44a', berry_seed: '#e0355b', bread: '#e0b074', hoe: '#a7a39c', base: '#ffffff', map: '#e8d9b0', clue: '#e8d9b0', gem: '#d04fd8', gem_sword: '#d04fd8', lucky_charm: '#58d68d', brick: '#b5563a', mud: '#6b4a2b', herb: '#3fae5a', bandage: '#f4efe6', chest: '#b07a45', kiln: '#b5563a',
+  trade: '#ffd166', slash: '#ff8a5a', block: '#8ab4ff', lunge: '#ffd166', heart: '#ff5a5a', carpenter: '#b07a45', farmer: '#8be36b', wheat: '#e6c34a', wheat_seed: '#c9a44a', berry_seed: '#e0355b', bread: '#e0b074', hoe: '#a7a39c', base: '#ffffff', map: '#e8d9b0', clue: '#e8d9b0', gem: '#d04fd8', gem_sword: '#d04fd8', lucky_charm: '#58d68d', brick: '#b5563a', mud: '#6b4a2b', herb: '#3fae5a', bandage: '#f4efe6', chest: '#b07a45', kiln: '#b5563a',
 };
 
 const NS = 'http://www.w3.org/2000/svg';

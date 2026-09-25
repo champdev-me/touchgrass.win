@@ -11,3 +11,6 @@ export function compass(dx: number, dy: number): string {
 export function dist(a: Vec, b: Vec): number {
   return Math.max(Math.abs(a[0] - b[0]), Math.abs(a[1] - b[1]));
 }
+
+/** Centre of Colosseum ring 0-3, around the Plaza centre. */
+export const ringAt = ([px, py]: Vec, ring: number): Vec => [px + (ring % 2 ? 6 : -6), py + (ring < 2 ? -6 : 6)];

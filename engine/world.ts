@@ -16,7 +16,7 @@ import { NODE_DEF, chunkOf, fullAmount, wrongRole, type ResourceNode } from './n
 import { buildObservation } from './observe.ts';
 import { expireOffers, type Offer } from './trade.ts';
 import { spawnTreasures, type Clue } from './treasure.ts';
-import { inDuel, stepDuels, type Challenge, type Duel } from './duel.ts';
+import { duelViews, inDuel, stepDuels, type Challenge, type Duel } from './duel.ts';
 import { baseOf, lockCheck, placeBase, releaseIdle } from './bases.ts';
 import { findPath } from './path.ts';
 import { addScore } from './score.ts';
@@ -341,6 +341,11 @@ export class World {
     const t = a.task;
     if (t?.type === 'gather' && !t.path.length) return this.xy(t.node);
     if (t?.type === 'attack') return this.targetPos(t.target);
+    const d = inDuel(this, a.id);
+    if (d?.ring != null) {
+      const o = this.agents.get(d.a === a.id ? d.b : d.a);
+      return o ? [o.x, o.y] : null;
+    }
     return null;
   }
 
@@ -413,7 +418,7 @@ export class World {
     const nodes = this.nodeChanges;
     this.events = [];
     this.nodeChanges = [];
-    return { tick: this.tick, agents: this.views(), events, nodes, loot: [...this.loot.keys()].map((i) => this.xy(i)), creatures: this.creatureViews(), structures: this.structureViews(), bases: [...this.bases.values()].map((b) => [b.x0, b.y0, b.x1, b.y1, this.agents.get(b.owner)?.color ?? '#ffffff']) };
+    return { tick: this.tick, agents: this.views(), events, nodes, loot: [...this.loot.keys()].map((i) => this.xy(i)), creatures: this.creatureViews(), structures: this.structureViews(), bases: [...this.bases.values()].map((b) => [b.x0, b.y0, b.x1, b.y1, this.agents.get(b.owner)?.color ?? '#ffffff']), duels: duelViews(this) };
   }
 
   stepAgent(a: Agent, dayTick: number): void {
@@ -641,7 +646,7 @@ export class World {
         id: a.id, name: a.name, color: a.color, role: a.role, model: a.model, x: a.x, y: a.y,
         moving: a.task?.type === 'move_to' || (a.task?.type === 'gather' && a.task.path.length > 0),
         health: Math.round(a.health), food: Math.round(a.food), water: Math.round(a.water), energy: Math.round(a.energy),
-        dead: a.dead, action: a.dead ? 'dead' : (a.task?.type ?? 'idle'), online: a.online,
+        dead: a.dead, action: a.dead ? 'dead' : inDuel(this, a.id)?.ring != null ? 'attack' : (a.task?.type ?? 'idle'), online: a.online,
         bubble: a.bubble && a.bubble.until >= this.tick ? { kind: a.bubble.kind, text: a.bubble.text } : null,
         emote: a.emote && a.emote.until >= this.tick ? a.emote.name : null,
         badge: a.badge && a.badge.until >= this.tick ? a.badge.emoji : null,

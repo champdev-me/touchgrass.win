@@ -1,4 +1,4 @@
-import type { AgentView, GameEvent } from '../../shared/types.ts';
+import type { AgentView, DuelView, GameEvent } from '../../shared/types.ts';
 import { icon } from './icons.ts';
 
 type StatKey = 'health' | 'food' | 'water' | 'energy';
@@ -155,6 +155,32 @@ export function setupUi(onFollow: (id: string) => void, onCam: (mode: CamMode) =
       } catch {
         // storage blocked: admin controls stay hidden
       }
+    },
+    duels: (list: DuelView[]) => {
+      const box = $('duels');
+      box.hidden = !list.length;
+      const hearts = (n: number) => {
+        const row = el('span', 'hearts');
+        for (let i = 0; i < 10; i++) {
+          const h = icon('heart', `${n} hearts`);
+          if (i >= n) h.classList.add('lost');
+          row.append(h);
+        }
+        return row;
+      };
+      const move = (m: string | null) => {
+        const s = el('span', 'move');
+        if (m) s.append(icon(m, m));
+        return s;
+      };
+      box.replaceChildren(...list.map((d) => {
+        const row = el('div', 'duel');
+        if (d.ring === null) row.append(el('span', 'round', `${d.an} vs ${d.bn}: waiting for a ring`));
+        else row.append(el('b', '', d.an), hearts(d.ah), move(d.la), el('span', 'round', `R${d.round}`), move(d.lb), hearts(d.bh), el('b', '', d.bn));
+        row.title = 'watch this duel';
+        row.onclick = () => onFollow(d.a);
+        return row;
+      }));
     },
     events: (events: GameEvent[], reset = false) => {
       if (reset) lines.length = 0;

@@ -185,7 +185,11 @@ export interface TickDelta {
   creatures: CreatureView[];
   structures: StructureView[];
   bases: [number, number, number, number, string][]; // x0, y0, x1, y1, owner colour
+  duels: DuelView[];
 }
+
+/** A duel as spectators see it: names, hearts and the last round's moves. */
+export interface DuelView { ring: number | null; a: string; b: string; an: string; bn: string; ah: number; bh: number; round: number; la: string | null; lb: string | null }
 
 export type ServerMsg =
   | { type: 'hello'; mapSize: number; chunkSize: number; plaza: Vec; tick: number; recent: GameEvent[] }

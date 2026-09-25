@@ -8,6 +8,7 @@ import { CREATURES } from '../../shared/creatures.ts';
 import { connect } from './net.ts';
 import { Creatures } from './creatures.ts';
 import { Bases } from './bases.ts';
+import { Colosseum } from './colosseum.ts';
 import { Structures } from './structures.ts';
 import { LootView } from './loot.ts';
 import { loadProps } from './props.ts';
@@ -69,6 +70,7 @@ const robots = new Robots(scene, (x, y) => chunks.heightAt(x, y), B.tickMs, (x, 
 const creatures = new Creatures(scene, (x, y) => chunks.heightAt(x, y), B.tickMs);
 const structures = new Structures(scene, (x, y) => chunks.heightAt(x, y));
 const bases = new Bases(scene, (x, y) => chunks.heightAt(x, y));
+const colosseum = new Colosseum(scene, (x, y) => chunks.heightAt(x, y));
 const [models] = await Promise.all([loadProps(), robots.load(), creatures.load(), structures.load()]);
 const chunks = new ChunkView(scene, models, (list) => send({ type: 'chunks', list }));
 const loot = new LootView(scene, (x, y) => chunks.heightAt(x, y));
@@ -115,6 +117,8 @@ send = connect((m: ServerMsg) => {
     creatures.sync(m.creatures);
     structures.sync(m.structures);
     bases.sync(m.bases ?? []);
+    colosseum.build([B.mapSize / 2, B.mapSize / 2], chunks.tileAt(B.mapSize / 2, B.mapSize / 2) !== 0);
+    ui.duels(m.duels ?? []);
     ui.agents(m.agents);
     ui.events(m.events);
     for (const e of m.events) {
