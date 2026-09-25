@@ -123,3 +123,14 @@ test("strangers cannot gather, build or store in someone else's base; observe sa
   assert.equal(w.observe(a.id).you.base?.next_strip_price.e, 5);
   assert.equal(code(() => w.gather(a.id, 'tree')), 'ok');
 });
+
+test("visitors may still pick up loot piles in someone else's base", () => {
+  const w = open();
+  const a = homed(w, 'Ann');
+  const b = baseOf(w, a.id)!;
+  const s = homed(w, 'Visitor');
+  [s.x, s.y] = [b.x0, b.y0];
+  s.inventory = {};
+  w.dropLoot(w.index(b.x0 + 1, b.y0), { wood: 2 });
+  assert.equal(code(() => w.gather(s.id, 'loot')), 'ok');
+});

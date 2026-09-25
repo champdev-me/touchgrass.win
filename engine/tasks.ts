@@ -44,7 +44,7 @@ export function findTarget(w: World, a: Agent, target: GatherTarget): { index: n
     for (let x = a.x - r; x <= a.x + r; x++) {
       if (x < 0 || y < 0 || x >= w.size || y >= w.size) continue;
       const i = w.index(x, y), home = w.baseAt(x, y);
-      if (home && home.owner !== a.id) continue; // other robots' bases are off limits
+      if (home && home.owner !== a.id && target !== 'loot') continue; // other robots' bases are off limits, except loot piles
       if (available(w, i, target)) found.push({ index: i, d: dist([x, y], [a.x, a.y]) });
     }
   }
