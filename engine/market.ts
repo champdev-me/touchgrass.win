@@ -42,7 +42,7 @@ export function buy(w: World, id: string, listing: string, count?: number) {
   }
   w.listingsDirty = true;
   w.dirty.add(b.id);
-  w.emit('market', `📈 ${s?.name ?? 'someone'} sold ${n} ${l.item} to ${b.name} for ${cost} gold.`, b, s);
+  w.emit('market', `📈 ${s?.name ?? 'someone'} sold ${n} ${l.item} to ${b.name} for ${cost} gold.`, b, s, [l.item, n, cost]);
   w.touch(b);
   return { bought: `${n} ${l.item}`, paid: cost };
 }
@@ -58,6 +58,17 @@ export function cancelSale(w: World, id: string, listing: string) {
   w.dirty.add(a.id);
   w.touch(a);
   return { cancelled: l.id };
+}
+
+/** For spectators: the cheapest ask per item and how many are on sale at that price. */
+export function asks(w: World): [string, number, number][] {
+  const best = new Map<string, [number, number]>();
+  for (const l of w.listings.values()) {
+    const b = best.get(l.item);
+    if (!b || l.price < b[0]) best.set(l.item, [l.price, l.count]);
+    else if (l.price === b[0]) b[1] += l.count;
+  }
+  return [...best].map(([item, [price, count]]) => [item, price, count]);
 }
 
 /** The order book: cheapest first, optionally for one item. */

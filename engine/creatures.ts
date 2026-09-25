@@ -120,7 +120,7 @@ function kick(w: World, c: Creature, a: Agent): void {
   for (let i = 0; i < B.fleeRadius && dist([a.x, a.y], [c.x, c.y]) > B.attackReach; i++) toward(w, c, [a.x, a.y]);
   if (dist([a.x, a.y], [c.x, c.y]) > B.attackReach) return;
   const def = CREATURES[c.kind];
-  if (w.tick - w.lastKickNews >= B.kickNewsTicks) {
+  if (c.kind !== 'duck' && w.tick - w.lastKickNews >= B.kickNewsTicks) { // ducks peck too often to be news
     w.lastKickNews = w.tick;
     w.emit('kick', say(`kick:${c.kind}`, a.name, w.rng), a);
   }

@@ -27,6 +27,8 @@ export function setupUi(onFollow: (id: string) => void, onCam: (mode: CamMode) =
   const list = $('agent-list');
   const feed = $('event-list');
   const lines: GameEvent[] = [];
+  const prices = new Map<string, { last: number; prev: number; volume: number }>(); // per item, per unit
+  const sales: string[] = [];
   const focusBox = $('focus');
   const who = el('div', 'who'), whoRole = el('span', 'role'), whoName = el('span'), whoSub = el('span', 'sub');
   who.append(whoRole, whoName, whoSub);
@@ -182,9 +184,31 @@ export function setupUi(onFollow: (id: string) => void, onCam: (mode: CamMode) =
         return row;
       }));
     },
+    market: (asks: [string, number, number][], events: GameEvent[]) => {
+      for (const e of events) {
+        if (!e.sale) continue;
+        const [item, count, gold] = e.sale, per = gold / count, p = prices.get(item);
+        prices.set(item, { last: per, prev: p?.last ?? per, volume: (p?.volume ?? 0) + count });
+        sales.unshift(e.text.replace(/^📈 /, ''));
+      }
+      sales.splice(8);
+      const items = new Set([...prices.keys(), ...asks.map(([i]) => i)]);
+      $('market').hidden = !items.size;
+      if (!items.size) return;
+      $('market-head').replaceChildren(icon('market', 'world market: last price, change, cheapest ask'));
+      const ask = new Map(asks.map(([i, p, n]) => [i, [p, n] as const]));
+      $('market-rows').replaceChildren(...[...items].sort().map((item) => {
+        const row = el('div', 'row'), p = prices.get(item), a = ask.get(item);
+        const trend = !p || p.last === p.prev ? el('span') : icon(p.last > p.prev ? 'up' : 'down', p.last > p.prev ? 'price up' : 'price down');
+        row.append(icon(item, item), el('span', '', item.replaceAll('_', ' ')), el('span', 'num', p ? p.last.toFixed(p.last % 1 ? 1 : 0) : '-'), trend, el('span', 'ask', a ? `${a[0]} x${a[1]}` : '-'));
+        row.title = p ? `last ${p.last} gold each, ${p.volume} sold` : 'nothing sold yet';
+        return row;
+      }));
+      $('market-sales').replaceChildren(...sales.map((t) => el('div', '', t)));
+    },
     events: (events: GameEvent[], reset = false) => {
       if (reset) lines.length = 0;
-      const fresh = events.filter((e) => e.type !== 'move');
+      const fresh = events.filter((e) => e.type !== 'move' && e.type !== 'market'); // the market has its own panel
       if (!fresh.length && !reset) return;
       lines.push(...fresh);
       lines.splice(0, Math.max(0, lines.length - 40));

@@ -16,7 +16,7 @@ import { NODE_DEF, chunkOf, fullAmount, wrongRole, type ResourceNode } from './n
 import { buildObservation } from './observe.ts';
 import { expireOffers, type Offer } from './trade.ts';
 import { spawnTreasures, type Clue } from './treasure.ts';
-import type { Listing } from './market.ts';
+import { asks, type Listing } from './market.ts';
 import { duelViews, inDuel, stepDuels, type Challenge, type Duel } from './duel.ts';
 import { baseOf, lockCheck, placeBase, releaseIdle } from './bases.ts';
 import { findPath } from './path.ts';
@@ -422,7 +422,7 @@ export class World {
     const nodes = this.nodeChanges;
     this.events = [];
     this.nodeChanges = [];
-    return { tick: this.tick, agents: this.views(), events, nodes, loot: [...this.loot.keys()].map((i) => this.xy(i)), creatures: this.creatureViews(), structures: this.structureViews(), bases: [...this.bases.values()].map((b) => [b.x0, b.y0, b.x1, b.y1, this.agents.get(b.owner)?.color ?? '#ffffff']), duels: duelViews(this) };
+    return { tick: this.tick, agents: this.views(), events, nodes, loot: [...this.loot.keys()].map((i) => this.xy(i)), creatures: this.creatureViews(), structures: this.structureViews(), bases: [...this.bases.values()].map((b) => [b.x0, b.y0, b.x1, b.y1, this.agents.get(b.owner)?.color ?? '#ffffff']), duels: duelViews(this), asks: asks(this) };
   }
 
   stepAgent(a: Agent, dayTick: number): void {
@@ -706,8 +706,8 @@ export class World {
     this.dirty.add(a.id);
   }
 
-  emit(type: string, text: string, a?: Agent, other?: Agent): void {
-    this.events.push({ tick: this.tick, type, text, agent: a?.id, x: a?.x, y: a?.y, ...(other ? { other: other.id } : {}) });
+  emit(type: string, text: string, a?: Agent, other?: Agent, sale?: [string, number, number]): void {
+    this.events.push({ tick: this.tick, type, text, agent: a?.id, x: a?.x, y: a?.y, ...(other ? { other: other.id } : {}), ...(sale ? { sale } : {}) });
     if (type !== 'move') this.log(text);
   }
 

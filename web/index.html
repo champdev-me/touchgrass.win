@@ -51,6 +51,14 @@
   #cam[hidden] { display: none; }
   #duels { top: 10px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; gap: 3px; font-size: 11px; }
   #duels[hidden] { display: none; }
+  #market { top: calc(42vh + 24px); right: 10px; width: 250px; font-size: 11px; max-height: 40vh; overflow-y: auto; }
+  #market[hidden] { display: none; }
+  #market .row { display: grid; grid-template-columns: 18px 1fr 44px 14px 64px; align-items: center; gap: 4px; padding: 1px 0; }
+  #market .row .ico { width: 14px; height: 14px; }
+  #market .num { text-align: right; font-variant-numeric: tabular-nums; }
+  #market .ask { opacity: 0.7; text-align: right; }
+  #market-sales { margin-top: 4px; border-top: 1px solid var(--line); padding-top: 3px; opacity: 0.85; }
+  #market-sales div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #duels .duel { display: flex; align-items: center; gap: 6px; cursor: pointer; }
   #duels .hearts { display: flex; gap: 1px; }
   #duels .hearts .ico { width: 9px; height: 9px; }
@@ -103,6 +111,7 @@
 <div id="events" class="panel"><div class="head" id="events-head"></div><div id="event-list"></div></div>
 <div id="cam" class="panel" hidden></div>
 <div id="duels" class="panel" hidden></div>
+<div id="market" class="panel" hidden><div class="head" id="market-head"></div><div id="market-rows"></div><div id="market-sales"></div></div>
 <details id="signup" class="panel">
   <summary id="signup-head">Send your AI outside</summary>
   <form id="signup-form"><input name="name" placeholder="agent name" minlength="3" maxlength="24" required> <button>Get token</button></form>

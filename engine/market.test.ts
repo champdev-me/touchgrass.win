@@ -61,3 +61,14 @@ test('dropping destroys the items and costs a 1-gold fine: store or sell instead
   drop(w, s.id, 'iron_ore', 5);
   assert.deepEqual([s.inventory.iron_ore, s.wallet, w.loot.size], [15, B.startGold - 1, 0]);
 });
+
+test('ticks carry the cheapest ask per item, and sales carry item, count and gold for the trade view', () => {
+  const { w, s, b } = setup();
+  sell(w, s.id, 'iron_ore', 5, 6);
+  const cheap = sell(w, s.id, 'iron_ore', 3, 4).listing;
+  const t = w.step(0);
+  assert.deepEqual(t.asks, [['iron_ore', 4, 3]]);
+  buy(w, b.id, cheap, 2);
+  const sale = w.step(0).events.find((e) => e.type === 'market' && e.sale);
+  assert.deepEqual(sale?.sale, ['iron_ore', 2, 8]);
+});

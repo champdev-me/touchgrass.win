@@ -172,6 +172,7 @@ export interface GameEvent {
   agent?: string;
   name?: string; // speaker, on 'chat' events
   other?: string; // the second robot, on 'trade' events
+  sale?: [string, number, number]; // item, count, gold, on market sales
   x?: number;
   y?: number;
 }
@@ -186,6 +187,7 @@ export interface TickDelta {
   structures: StructureView[];
   bases: [number, number, number, number, string][]; // x0, y0, x1, y1, owner colour
   duels: DuelView[];
+  asks: [string, number, number][]; // market: item, cheapest price, how many at that price
 }
 
 /** A duel as spectators see it: names, hearts and the last round's moves. */

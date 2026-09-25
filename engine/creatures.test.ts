@@ -226,3 +226,13 @@ test('cows and chickens run when hit', () => {
     w.creatures.delete(c.id);
   }
 });
+
+test('duck pecks stay out of world chat; the pecked robot still hears about it', () => {
+  const w = world(() => 0.01);
+  const a = joined(w, 'Pecked', [20, 20]);
+  spawnCreature(w, 'duck', [21, 20]);
+  const d = w.step(0);
+  assert.ok(a.health < 100);
+  assert.equal(d.events.filter((e) => e.type === 'kick').length, 0);
+  assert.ok(w.observe(a.id).inbox.some((l) => l.includes('Duck')));
+});

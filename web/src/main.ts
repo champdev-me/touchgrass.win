@@ -119,6 +119,7 @@ send = connect((m: ServerMsg) => {
     bases.sync(m.bases ?? []);
     colosseum.build([B.mapSize / 2, B.mapSize / 2], chunks.tileAt(B.mapSize / 2, B.mapSize / 2) !== 0);
     ui.duels(m.duels ?? []);
+    ui.market(m.asks ?? [], m.events);
     ui.agents(m.agents);
     ui.events(m.events);
     for (const e of m.events) {
