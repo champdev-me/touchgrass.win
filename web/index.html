@@ -24,22 +24,15 @@
   #title h1 { margin: 0; font: 26px/1 'Pirata One', serif; color: var(--gold); letter-spacing: 0.5px; }
   #title h1 .ver { font: 11px 'Alegreya Sans', sans-serif; color: var(--muted); }
   #status { color: var(--muted); font-size: 11px; }
-  #lobby { top: 74px; left: 12px; width: 240px; }
+  #race { display: flex; align-items: center; gap: 5px; margin-top: 4px; font-size: 13px; }
+  #race[hidden] { display: none; }
+  #race .secs { margin-left: auto; color: var(--gold); font-variant-numeric: tabular-nums; }
+  #lobby { top: 100px; left: 12px; width: 240px; }
   #lobby .queue b { margin-left: 4px; }
   #lobby .soon { display: block; color: var(--gold); margin-left: 21px; }
   #lobby .names { color: var(--muted); margin-left: 21px; font-size: 12px; }
   #lobby .result { font-size: 12px; padding: 2px 0; border-top: 1px dashed rgba(226, 185, 90, 0.2); }
 
-  #race { top: 12px; left: 50%; transform: translateX(-50%); min-width: 380px; }
-  #race .banner { display: flex; align-items: center; gap: 6px; font-size: 14px; padding-bottom: 5px; margin-bottom: 4px; border-bottom: 1px solid var(--line); }
-  #race .banner .evt { color: var(--muted); }
-  #race .banner .secs { margin-left: auto; min-width: 26px; text-align: right; color: var(--gold); font-variant-numeric: tabular-nums; }
-  #race .runner { display: grid; grid-template-columns: 10px minmax(90px, 1fr) minmax(60px, auto) 34px 64px 16px; align-items: center; gap: 7px; padding: 1px 0; }
-  #race .swatch { width: 10px; height: 10px; border-radius: 2px; background: var(--lane); }
-  #race .who { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  #race .dist { text-align: right; font-variant-numeric: tabular-nums; }
-  .stamina { height: 6px; background: rgba(255, 255, 255, 0.12); border-radius: 3px; overflow: hidden; }
-  .stamina i { display: block; height: 100%; background: #58d68d; transition: width 0.4s; }
 
   #podium { bottom: 14px; left: 50%; transform: translateX(-50%); min-width: 260px; text-align: center; padding: 10px 18px; }
   #podium .title { font: 30px 'Pirata One', serif; color: var(--gold); margin-bottom: 6px; }
@@ -79,17 +72,15 @@
   .post { font: 16px 'Pirata One', serif; color: #fff; text-shadow: 0 1px 3px #000; }
 
   @media (max-width: 760px) {
-    #race { top: auto; bottom: 64px; min-width: 0; width: calc(100vw - 48px); }
-    #lobby, #boards { display: none; }
+      #lobby, #boards { display: none; }
     #events { bottom: auto; top: 74px; max-height: 20vh; }
   }
 </style>
 </head>
 <body>
 <div id="view"></div>
-<div id="title" class="panel"><h1>Touch Grass <small class="ver">v%VERSION%</small></h1><div id="status">connecting…</div></div>
+<div id="title" class="panel"><h1>Touch Grass <small class="ver">v%VERSION%</small></h1><div id="status">connecting…</div><div id="race" hidden></div></div>
 <div id="lobby" class="panel"><div class="head">The lists</div><div id="lobby-list"></div></div>
-<div id="race" class="panel" hidden></div>
 <div id="podium" class="panel" hidden></div>
 <div id="boards" class="panel"><div class="head" id="models-head"></div><div class="list" id="models-list"></div><div class="head" id="robots-head"></div><div class="list" id="robots-list"></div></div>
 <div id="events" class="panel"><div class="head" id="events-head"></div><div id="event-list"></div></div>
