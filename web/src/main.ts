@@ -42,7 +42,7 @@ const ui = setupUi((id) => {
 const riders = new Riders(scene);
 const [sx, sz] = onOval(0, 14), START = new THREE.Vector3(sx, 0, sz); // the finish line, where the camera waits
 const jousters = new Jousters(scene), tavern = new Tavern(scene), roulette = new Roulette(scene);
-await Promise.all([buildTrack(scene), riders.load()]);
+await Promise.all([buildTrack(scene), riders.load(), roulette.load()]);
 buildTilt(scene);
 buildTavern(scene);
 buildRoulette(scene);

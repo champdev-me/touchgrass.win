@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import type { MatchView } from '../../shared/types.ts';
 import { buildTavern, seatAngle, seatRobot, TABLE_TOP, TAVERN } from './tavern.ts';
-import { type Model, newTalk } from './track.ts';
+import { load, type Model, newTalk } from './track.ts';
 
 // A second table next to the tavern's.
 export const ROULETTE = TAVERN.clone().add(new THREE.Vector3(13, 0, 0));
@@ -18,41 +18,19 @@ export function buildRoulette(scene: THREE.Scene): void {
   buildTavern(scene, ROULETTE);
 }
 
-/** A cartoon revolver lying on its side on the table; +z is the muzzle. The drum (six chambers) is named for spinning. */
-function revolver(): THREE.Group {
-  const metal = new THREE.MeshLambertMaterial({ color: '#4a4c55' }), steel = new THREE.MeshLambertMaterial({ color: '#8d909a' });
-  const wood = new THREE.MeshLambertMaterial({ color: '#7a4a28' }), hole = new THREE.MeshBasicMaterial({ color: '#121214' });
-  const part = (geo: THREE.BufferGeometry, mat: THREE.Material, x: number, y: number, z: number, rx = 0) => {
-    const m = new THREE.Mesh(geo, mat);
-    m.position.set(x, y, z);
-    m.rotation.x = rx;
-    return m;
-  };
-  const upright = new THREE.Group(); // built standing, muzzle +z, then laid on its side
-  const barrel = new THREE.CylinderGeometry(0.045, 0.05, 0.62, 12).rotateX(Math.PI / 2);
-  upright.add(
-    part(new THREE.BoxGeometry(0.11, 0.2, 0.36), metal, 0, 0, 0), // frame
-    part(barrel, metal, 0, 0.05, 0.47),
-    part(new THREE.BoxGeometry(0.05, 0.035, 0.62), metal, 0, 0.1, 0.47), // rib along the barrel
-    part(new THREE.BoxGeometry(0.02, 0.05, 0.03), metal, 0, 0.14, 0.76), // front sight
-    part(new THREE.BoxGeometry(0.04, 0.09, 0.06), metal, 0, 0.15, -0.17, -0.4), // hammer
-    part(new THREE.BoxGeometry(0.1, 0.34, 0.15), wood, 0, -0.22, -0.22, -0.4), // grip, sloping back
-    part(new THREE.TorusGeometry(0.07, 0.013, 6, 12, Math.PI), metal, 0, -0.1, 0.02, Math.PI), // trigger guard
-  );
-  const drum = new THREE.Group();
-  drum.name = 'drum';
-  drum.position.set(0, 0.02, 0.06);
-  drum.add(new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.2, 18).rotateX(Math.PI / 2), steel));
-  for (let k = 0; k < 6; k++) {
-    const a = (k / 6) * Math.PI * 2, chamber = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.205, 8).rotateX(Math.PI / 2), hole);
-    chamber.position.set(Math.cos(a) * 0.075, Math.sin(a) * 0.075, 0);
-    drum.add(chamber);
-  }
-  upright.add(drum);
-  upright.rotation.z = Math.PI / 2; // on its side
-  upright.scale.setScalar(1.4);
-  const g = new THREE.Group();
-  g.add(upright);
+/** The revolver (Quaternius, CC0) laid on its side; +z is the muzzle, about MUZZLE units from the pivot. */
+const MUZZLE = 0.5;
+async function revolver(): Promise<THREE.Group> {
+  const model = (await load('/assets/props/revolver.glb')).scene; // barrel along +x, grip down, thin along z
+  const box = new THREE.Box3().setFromObject(model);
+  model.position.sub(box.getCenter(new THREE.Vector3()));
+  const lay = new THREE.Group(), face = new THREE.Group(), g = new THREE.Group();
+  lay.add(model);
+  lay.rotation.x = Math.PI / 2; // on its side
+  face.add(lay);
+  face.rotation.y = -Math.PI / 2; // barrel toward +z
+  face.scale.setScalar(0.5);
+  g.add(face);
   return g;
 }
 
@@ -63,12 +41,11 @@ export class Roulette {
   order: string[] = [];
   match = '';
   round = -1;
-  gun = revolver();
+  gun = new THREE.Group(); // filled by load()
   aim = 0; // the gun's angle; it turns toward the holder
   holder = '';
   shot: Shot | null = null;
-  twirl: { from: number; to: number; t: number } | null = null; // the gun spinning on the table to its next holder
-  drumSpin = 0; // seconds of fast cylinder spin left
+  twirl: { from: number; to: number; t: number; s: number } | null = null; // the gun spinning on the table to its next holder
   puffs: Puff[] = [];
   sign: CSS2DObject;
   signUntil = 0;
@@ -82,6 +59,10 @@ export class Roulette {
     this.sign.position.copy(ROULETTE).setY(3.1);
     this.sign.visible = false;
     scene.add(this.gun, this.sign);
+  }
+
+  async load(): Promise<void> {
+    this.gun.add(await revolver());
   }
 
   sync(m: MatchView | null, robots: Model[]): void {
@@ -104,14 +85,15 @@ export class Roulette {
     if (m.round !== this.round && v.last) {
       this.round = m.round; // a new turn resolved: play it (the fall and the BANG wait for the shot)
       if (v.last.move !== 'pass') this.shot = { who: v.last.who, bang: v.last.bang, spin: v.last.move === 'spin', t: 0, fired: false };
-      if (v.last.move === 'spin') this.drumSpin = SPIN_S;
+      if (v.last.move === 'spin') this.twirl = { from: this.aim, to: this.aim + Math.PI * 4, t: 0, s: SPIN_S }; // spun twice, back on the holder
       const s = this.seats.get(v.last.who);
       if (s && v.last.move === 'pass') this.say(s, 'passes the gun', now);
     }
     v.players.forEach((p) => {
       const s = this.seats.get(p.id)!;
       s.tag.classList.toggle('turn', !m.finished && v.turn === p.id);
-      s.tag.classList.toggle('out', p.out && this.shot?.who !== p.id);
+      const waiting = this.shot?.who === p.id && !this.shot.fired; // their shot has not gone off yet
+      s.tag.classList.toggle('out', p.out && !waiting);
       if (p.out && this.shot?.who !== p.id) s.fallen = 1; // already down
     });
     for (const t of newTalk(m.talk, this.talkSeen).lines) {
@@ -123,7 +105,7 @@ export class Roulette {
       const next = this.order.indexOf(v.turn);
       if (this.holder && next >= 0) {
         const diff = Math.atan2(Math.sin(seatAngle(next) - this.aim), Math.cos(seatAngle(next) - this.aim));
-        this.twirl = { from: this.aim, to: this.aim + diff + Math.PI * 2 * (diff > 0 ? 1 : -1), t: 0 }; // one full spin, then it points at them
+        this.twirl = { from: this.aim, to: this.aim + diff + Math.PI * 2 * (diff > 0 ? 1 : -1), t: 0, s: 1.3 }; // one full spin, then it points at them
       } else if (next >= 0) this.aim = seatAngle(next);
       this.holder = v.turn;
     }
@@ -166,17 +148,12 @@ export class Roulette {
   update(dt: number): void {
     const now = performance.now();
     if (this.twirl) {
-      this.twirl.t = Math.min(1, this.twirl.t + dt / 1.3);
+      this.twirl.t = Math.min(1, this.twirl.t + dt / this.twirl.s);
       const e = 1 - (1 - this.twirl.t) ** 3; // fast, then slowing onto the next holder
       this.aim = this.twirl.from + (this.twirl.to - this.twirl.from) * e;
       if (this.twirl.t >= 1) this.twirl = null;
     }
     this.gun.rotation.set(0, this.aim, 0);
-    const drum = this.gun.getObjectByName('drum')!;
-    if (this.drumSpin > 0) {
-      this.drumSpin -= dt;
-      drum.rotation.z += dt * 22 * Math.max(0.15, this.drumSpin / SPIN_S); // the cylinder whirs and slows
-    }
     const shot = this.shot;
     if (shot) {
       shot.t += dt;
@@ -184,9 +161,8 @@ export class Roulette {
       if (!shot.fired && shot.t >= fireAt && s) {
         shot.fired = true;
         const dir = s.root.position.clone().sub(ROULETTE).setY(0).normalize();
-        drum.rotation.z = Math.round(drum.rotation.z / (Math.PI / 3)) * (Math.PI / 3) + Math.PI / 3; // the hammer turns the next chamber
         if (shot.bang) {
-          this.burst(this.gun.position.clone().addScaledVector(dir, 1.1).setY(TABLE_TOP + 0.15), dir);
+          this.burst(this.gun.position.clone().addScaledVector(dir, MUZZLE).setY(TABLE_TOP + 0.1), dir);
           this.sign.element.textContent = `BANG! ${shot.who} is out`;
           this.sign.element.classList.add('liar');
           this.signUntil = now + 4500;
