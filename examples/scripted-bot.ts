@@ -7,26 +7,28 @@ import { username } from './names.ts';
 const BASE = process.env.TG_URL ?? 'http://localhost:3000';
 const COUNT = Number(process.env.BOTS ?? 10);
 const FILE = process.env.BOTS_FILE ?? 'examples/.bots.json';
-const ROLES = ['miner', 'mason', 'smith', 'hunter', 'gatherer', 'scout'];
+const ROLES = ['miner', 'mason', 'smith', 'carpenter', 'farmer', 'hunter', 'gatherer', 'scout'];
 const PLAZA: Vec = [512, 512]; // the trading square
 const ANIMALS = ['rabbit', 'deer', 'boar', 'cow', 'chicken'];
 const FOODS = ['cooked_meat', 'berries', 'apple', 'meat'];
 // Gold per unit this bot asks or pays; maps and clues are priced by prefix.
-const PRICE: Record<string, number> = { iron_ore: 3, gem: 10, crystal: 8, stone: 1, brick: 2, mud: 1, meat: 2, cooked_meat: 4, hide: 3, wood: 1, fiber: 1, herb: 2, bandage: 4, stone_pickaxe: 15, stone_axe: 12, iron_pickaxe: 40, map: 20, clue: 8 };
+const PRICE: Record<string, number> = { bread: 5, wheat: 1, iron_ore: 3, gem: 10, crystal: 8, stone: 1, brick: 2, mud: 1, meat: 2, cooked_meat: 4, hide: 3, wood: 1, fiber: 1, herb: 2, bandage: 4, stone_pickaxe: 15, stone_axe: 12, iron_pickaxe: 40, map: 20, clue: 8 };
 const SELLS: Record<string, string[]> = {
   miner: ['iron_ore', 'gem', 'crystal'], mason: ['stone', 'brick'], smith: ['stone_pickaxe', 'stone_axe', 'iron_pickaxe'],
   hunter: ['cooked_meat', 'meat', 'hide'], gatherer: ['wood', 'fiber', 'herb', 'bandage'], scout: ['map', 'clue'],
+  carpenter: [], farmer: ['bread', 'wheat'],
 };
 const WANTS: Record<string, string[]> = {
   miner: ['stone_pickaxe', 'iron_pickaxe', 'cooked_meat', 'map'], mason: ['wood'], smith: ['iron_ore', 'stone', 'gem', 'hide', 'wood', 'fiber'],
   hunter: ['stone', 'wood'], gatherer: ['cooked_meat'], scout: ['clue', 'fiber'],
+  carpenter: ['wood', 'fiber', 'stone'], farmer: ['wood', 'stone'],
 };
 const kindOf = (item: string) => (item.startsWith('treasure_map:') ? 'map' : item.startsWith('clue:') ? 'clue' : item);
 const sleep = (ms: number) => new Promise((ok) => setTimeout(ok, ms));
 const LINES = ['Has anyone seen my berries?', 'This grass is excellent.', 'I am definitely not lost.', 'Night is scary. Just saying.', 'Who keeps eating all the berries?'];
 
 type Reply = {
-  you: { id: string; pos: Vec; role: string; clues?: string[]; health: number; food: number; water: number; energy: number; dead: boolean; inventory: Record<string, number>; slots?: string; gold?: number };
+  you: { id: string; base?: { flag: Vec; next_strip_price: Record<string, number> } | null; standing_in?: string | null; farm?: string[]; pos: Vec; role: string; clues?: string[]; health: number; food: number; water: number; energy: number; dead: boolean; inventory: Record<string, number>; slots?: string; gold?: number };
   offers?: { incoming: string[]; outgoing: string[] };
   stations?: string[];
   task: { type: string } | null;
@@ -146,6 +148,23 @@ async function act(c: Client, o: Reply, trip: boolean): Promise<{ what: string; 
     if (!station('workbench') && (inv.wood ?? 0) >= 6 && (inv.stone ?? 0) >= 2) what = await ok('build', { structure: 'workbench', thought: 'my workshop' }, 'build workbench');
     else if (station('workbench') && (inv.wood ?? 0) >= 3 && (inv.stone ?? 0) >= 2 && (inv.fiber ?? 0) >= 2) what = await ok('craft', { item: 'stone_pickaxe', thought: 'pickaxes sell' }, 'craft pickaxe');
     else what = await gatherAny(['tree', 'grass']);
+  } else if (role === 'carpenter') {
+    const home = me.standing_in === 'your base';
+    if (home && !(o.stations ?? []).some((l) => l.startsWith('bed')) && (inv.wood ?? 0) >= 10 && (inv.fiber ?? 0) >= 10) what = await ok('build', { structure: 'bed', thought: 'a bed of my own' }, 'build bed');
+    else if (home && (inv.wood ?? 0) >= 4 && Math.random() < 0.3) what = await ok('build', { structure: 'wood_wall', thought: 'a little fence' }, 'build wall');
+    else if (me.base && !home && (inv.wood ?? 0) >= 10 && (inv.fiber ?? 0) >= 10) what = await ok('move_to', { x: me.base.flag[0], y: me.base.flag[1], thought: 'heading home' }, 'go home');
+    else what = await gatherAny((inv.wood ?? 0) < 20 ? ['tree', 'grass'] : ['grass', 'tree']);
+  } else if (role === 'farmer') {
+    const home = me.standing_in === 'your base', ripe = (me.farm ?? []).some((l) => l.endsWith(': ready'));
+    const seed = (inv.wheat_seed ?? 0) > 0 ? 'wheat_seed' : (inv.berry_seed ?? 0) > 0 ? 'berry_seed' : null;
+    const empty = (me.farm ?? []).some((l) => l.startsWith('empty plot'));
+    if (ripe && home) what = await ok('harvest', { thought: 'harvest time' }, 'harvest');
+    else if ((inv.wheat ?? 0) >= 3 && station('campfire')) what = await ok('craft', { item: 'bread', thought: 'fresh bread' }, 'bake bread');
+    else if (home && seed && empty) what = await ok('plant', { seed, thought: 'into the ground' }, `plant ${seed}`);
+    else if (home && seed && (inv.hoe ?? 0) > 0 && (me.farm ?? []).length < 6) what = await ok('build', { structure: 'farm_plot', thought: 'more soil' }, 'till a plot');
+    else if (home && (inv.wheat ?? 0) >= 3 && (inv.wood ?? 0) >= 5 && (inv.stone ?? 0) >= 3) what = await ok('build', { structure: 'campfire', thought: 'an oven, sort of' }, 'build campfire');
+    else if (me.base && !home && (seed || ripe)) what = await ok('move_to', { x: me.base.flag[0], y: me.base.flag[1], thought: 'back to the farm' }, 'go home');
+    else what = await gatherAny(['grass', 'berry_bush', 'tree']);
   } else if (role === 'hunter') {
     const prey = o.nearby.find((l) => l.startsWith('mob_') && ANIMALS.some((a) => l.includes(` ${a} `)));
     if ((inv.meat ?? 0) > 0 && station('campfire')) what = await ok('craft', { item: 'cooked_meat', count: inv.meat, thought: 'barbecue' }, 'cook meat');
@@ -165,6 +184,12 @@ async function act(c: Client, o: Reply, trip: boolean): Promise<{ what: string; 
       const [x, y] = me.pos;
       what = await ok('move_to', { x: clamp(x + Math.round((Math.random() - 0.5) * 120)), y: clamp(y + Math.round((Math.random() - 0.5) * 120)), thought: 'what is over there?' }, 'scout ahead');
     } else what = await gatherAny(['grass', 'tree']);
+  }
+  // Spare gold buys land, one strip at a time, standing at home.
+  const cheapest = me.base ? Math.min(...Object.values(me.base.next_strip_price)) : Infinity;
+  if (!what && me.standing_in === 'your base' && (me.gold ?? 0) >= 30 && cheapest <= (me.gold ?? 0) / 3) {
+    const side = Object.entries(me.base!.next_strip_price).sort((p, q) => p[1] - q[1])[0][0];
+    what = await ok('buy_land', { direction: side, thought: 'more land' }, `buy strip ${side}`);
   }
   if (!what && (inv.wood ?? 0) >= 5 && !inv.club && !inv.stone_spear) what = await ok('craft', { item: 'club', thought: 'a stick, but angrier' }, 'craft club');
   if (!what) {
