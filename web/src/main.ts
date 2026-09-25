@@ -104,6 +104,7 @@ send = connect((m: ServerMsg) => {
   if (m.type === 'hello') {
     chunks.reset();
     ui.events(m.recent, true);
+    ui.market([], m.recent); // prices from recent sales, before the first tick
     lastTick = m.tick;
     lastTickAt = performance.now();
   } else if (m.type === 'chunk') {
