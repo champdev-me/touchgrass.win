@@ -162,7 +162,10 @@ export class Robots {
     const badge = document.createElement('span');
     const name = document.createElement('div');
     name.className = 'name';
-    name.append(badge, v.model ? `${v.name} · ${v.model}` : v.name);
+    const job = document.createElement('span');
+    job.className = 'job';
+    if (v.role) job.append(icon(v.role, v.role));
+    name.append(badge, job, v.model ? `${v.name} · ${v.model}` : v.name);
     const barRow = document.createElement('div');
     barRow.className = 'bars';
     const bars = ['hp', 'food', 'water', 'energy'].map((cls) => {

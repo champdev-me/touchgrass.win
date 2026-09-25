@@ -266,6 +266,17 @@ for (;;) {
     await sleep(2000); // busy: keep doing it
     continue;
   }
+  if (o.you.role !== ROLE && !o.you.duel) {
+    // told to play another job: walk home (in hops) and switch
+    const flag = o.you.base?.flag;
+    const step: Action = o.you.standing_in === 'your base' || !flag
+      ? { name: 'switch_role', args: { role: ROLE }, why: `becoming a ${ROLE}` }
+      : { name: 'move_to', args: { x: o.you.pos[0] + Math.max(-100, Math.min(100, flag[0] - o.you.pos[0])), y: o.you.pos[1] + Math.max(-100, Math.min(100, flag[1] - o.you.pos[1])) }, why: `heading home to become a ${ROLE}` };
+    const r = await call(step.name, { ...step.args, thought: step.why });
+    log(`${step.name} ${JSON.stringify(step.args)} -> ${r.ok ? 'ok' : String(r.data.error)} | ${step.why}`);
+    await sleep(2000);
+    continue;
+  }
   let act = (await decide(o, memory, Date.now() - lastChat >= CHAT_EVERY_MS)) ?? fallback(o);
   if (act.name === 'say_world' && Date.now() - lastChat < CHAT_EVERY_MS) act = fallback(o);
   if (act.name === 'gather' && act.args.until === undefined) act.args.until = 8; // "until the bag is full" keeps it silent for ages

@@ -69,10 +69,8 @@ export function setupUi(onFollow: (id: string) => void, onCam: (mode: CamMode) =
   const render = () => {
     list.replaceChildren(...[...lastViews].sort((p, q) => q.score - p.score).map((v) => {
       const b = document.createElement('button');
-      const dot = document.createElement('span');
-      dot.textContent = '● ';
-      dot.style.color = v.color;
-      b.append(dot, `${v.badge ? `${v.badge} ` : ''}${v.name}`, el('b', 'pts', String(v.score)));
+      const job = v.role ? icon(v.role, v.role) : el('span'); // what they do, not a colour
+      b.append(job, `${v.badge ? `${v.badge} ` : ''}${v.name}`, el('b', 'pts', String(v.score)));
       b.className = `${v.id === following ? 'on' : ''} ${v.online ? '' : 'away'}`.trim();
       b.onclick = () => onFollow(v.id);
       return b;
@@ -114,7 +112,7 @@ export function setupUi(onFollow: (id: string) => void, onCam: (mode: CamMode) =
     },
     agents: (views: AgentView[]) => {
       lastViews = views;
-      const key = `${views.map((v) => `${v.id}:${v.online ? 1 : 0}:${v.score}:${v.badge}`).join()}|${following}`;
+      const key = `${views.map((v) => `${v.id}:${v.role}:${v.online ? 1 : 0}:${v.score}:${v.badge}`).join()}|${following}`;
       if (key !== lastKey) {
         lastKey = key;
         render();
