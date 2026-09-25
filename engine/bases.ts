@@ -11,10 +11,10 @@ export function isLand(w: World, x: number, y: number): boolean {
   return walkable(t) && t !== T.SHALLOW && t !== T.PLAZA;
 }
 
-/** Every tile is land and no other base comes within a tile. */
-export function fits(w: World, x0: number, y0: number, x1: number, y1: number, except = ''): boolean {
+/** Every tile is land and no other base comes within `gap` tiles (1 for strips, more for new bases). */
+export function fits(w: World, x0: number, y0: number, x1: number, y1: number, except = '', gap = 1): boolean {
   for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (!isLand(w, x, y)) return false;
-  for (const [key, b] of w.bases) if (key !== except && b.x0 - 1 <= x1 && x0 <= b.x1 + 1 && b.y0 - 1 <= y1 && y0 <= b.y1 + 1) return false;
+  for (const [key, b] of w.bases) if (key !== except && b.x0 - gap <= x1 && x0 <= b.x1 + gap && b.y0 - gap <= y1 && y0 <= b.y1 + gap) return false;
   return true;
 }
 
@@ -42,7 +42,7 @@ export function placeBase(w: World, a: Agent): Base | null {
   const h = Math.floor(B.baseSize / 2);
   for (const { c: [cx, cy] } of tries) {
     if (!anchors.length && (dist([cx, cy], w.plaza) < lo || dist([cx, cy], w.plaza) > hi)) continue;
-    if (!fits(w, cx - h, cy - h, cx + h, cy + h)) continue;
+    if (!fits(w, cx - h, cy - h, cx + h, cy + h, '', B.basePlacementGap + 1)) continue;
     const base: Base = { id: `base_${w.nextBaseId++}`, owner: a.id, x0: cx - h, y0: cy - h, x1: cx + h, y1: cy + h, flag: [cx, cy] };
     w.bases.set(base.id, base);
     w.basesDirty = true;

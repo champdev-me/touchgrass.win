@@ -1,6 +1,7 @@
 import { test } from 'bun:test';
 import assert from 'node:assert/strict';
 import { dist } from '../shared/geo.ts';
+import { B } from '../shared/balance.ts';
 import { TERRAIN as T, type Base, type Role } from '../shared/types.ts';
 import { baseOf, basesOf, buyLand, isLand, stripPrice } from './bases.ts';
 import { build } from './craft.ts';
@@ -18,7 +19,6 @@ const tilesOf = (b: Base) => {
   for (let y = b.y0; y <= b.y1; y++) for (let x = b.x0; x <= b.x1; x++) out.push([x, y]);
   return out;
 };
-const touches = (p: Base, q: Base) => p.x0 - 1 <= q.x1 && q.x0 <= p.x1 + 1 && p.y0 - 1 <= q.y1 && q.y0 <= p.y1 + 1;
 
 test('the first base sits 20-40 tiles from the Plaza; the robot moves to its flag', () => {
   const w = lakeWorld();
@@ -47,7 +47,8 @@ test('later bases: all land, never touching, each within 100 tiles of an earlier
     flags.push(b!.flag);
   }
   const all = [...w.bases.values()];
-  for (let i = 0; i < all.length; i++) for (let j = i + 1; j < all.length; j++) assert.ok(!touches(all[i], all[j]), `bases ${i} and ${j} touch`);
+  const gap = (p: Base, q: Base) => Math.max(q.x0 - p.x1, p.x0 - q.x1, q.y0 - p.y1, p.y0 - q.y1) - 1; // free tiles between them
+  for (let i = 0; i < all.length; i++) for (let j = i + 1; j < all.length; j++) assert.ok(gap(all[i], all[j]) >= B.basePlacementGap, `bases ${i} and ${j} are only ${gap(all[i], all[j])} tiles apart`);
 });
 
 test('no room anywhere: the robot joins without a base', () => {

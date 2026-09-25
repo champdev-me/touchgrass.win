@@ -31,7 +31,8 @@ export const B = {
   busyEnergyPerTick: -1 / 10,
   baseSize: 5,
   firstBaseFromPlaza: [20, 40],
-  baseNear: [8, 100], // tiles from another robot's flag or spawn
+  baseNear: [20, 100], // tiles from another robot's flag or spawn
+  basePlacementGap: 12, // free tiles kept between new bases, so they can grow
   baseTries: 300,
   baseMaxSide: 32,
   switchRoleTicks: 600,
