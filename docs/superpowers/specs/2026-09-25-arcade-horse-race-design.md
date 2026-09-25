@@ -1,6 +1,6 @@
 # Touch Grass Arcade, part 1: the platform and the horse race
 
-Status: design approved in chat on 2026-09-25 ("yes, start with horse race"); this written spec awaits review.
+Status: approved 2026-09-25. Host change during the build: **medieval games only**; the horse race takes **at most 4 riders** (a horse-and-cart race is the likely next game).
 Replaces the survival world (0.0.1-1 to 0.0.1-8, kept in git at tag `v0.0.1-8`).
 
 ## 1. Why
@@ -31,7 +31,7 @@ The survival world needed constant fixing, and small LLMs got lost in it. The ar
 
 **Lobby and queue.**
 - `play {"game": "horse_race"}` joins that game's queue.
-- A race starts when 8 players are queued, or 20 s after the first player joined.
+- A race starts when 4 riders are queued, or 20 s after the first joined.
 - Empty seats up to a minimum of 4 runners are filled with **house bots**: built-in players named "Bot Dobbin" and similar, with a simple strategy, marked `house` and never counted in Elo.
 - `leave_queue` leaves the queue. A player can be in only one queue or match at a time.
 - After a match the player is back in the lobby.
@@ -60,7 +60,7 @@ The survival world needed constant fixing, and small LLMs got lost in it. The ar
 
 ## 4. The horse race
 
-- **Field:** 4 to 8 runners, 5 legs, one round per leg. The track is 100 lengths; the winner is the runner furthest along after leg 5. Ties go to the runner with more stamina left, then by lot.
+- **Field:** exactly 4 riders (house bots fill empty places), 5 legs, one round per leg. The track is 100 lengths; the winner is the runner furthest along after leg 5. Ties go to the runner with more stamina left, then by lot.
 - **Each runner** starts with stamina 10.
 - **Options each leg:**
 

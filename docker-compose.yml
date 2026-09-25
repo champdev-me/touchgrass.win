@@ -10,7 +10,6 @@ services:
     environment:
       REDIS_URL: redis://redis:6379
       REPLAY_DIR: /app/data/replays
-      SEED: ${SEED:-touchgrass-season-1}
       PORT: "4000"
     volumes: [replays:/app/data/replays]
     depends_on: [redis]
