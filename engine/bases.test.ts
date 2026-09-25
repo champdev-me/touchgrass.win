@@ -2,7 +2,7 @@ import { test } from 'bun:test';
 import assert from 'node:assert/strict';
 import { dist } from '../shared/geo.ts';
 import { TERRAIN as T, type Base, type Role } from '../shared/types.ts';
-import { baseOf, buyLand, isLand, stripPrice } from './bases.ts';
+import { baseOf, basesOf, buyLand, isLand, stripPrice } from './bases.ts';
 import { build } from './craft.ts';
 import { GameFail, World } from './world.ts';
 
@@ -102,7 +102,7 @@ test('a strip may not reach into a neighbour', () => {
   const w = open();
   const a = homed(w, 'Ann');
   const b = baseOf(w, a.id)!;
-  w.bases.set('agent_x', { owner: 'agent_x', x0: b.x1 + 2, y0: b.y0, x1: b.x1 + 6, y1: b.y1, flag: [b.x1 + 4, b.y0 + 2] });
+  w.bases.set('base_x', { id: 'base_x', owner: 'agent_x', x0: b.x1 + 2, y0: b.y0, x1: b.x1 + 6, y1: b.y1, flag: [b.x1 + 4, b.y0 + 2] });
   a.wallet = 100;
   assert.equal(code(() => buyLand(w, a.id, 'e')), 'neighbour');
   assert.equal(a.wallet, 100);
@@ -133,4 +133,18 @@ test("visitors may still pick up loot piles in someone else's base", () => {
   s.inventory = {};
   w.dropLoot(w.index(b.x0 + 1, b.y0), { wood: 2 });
   assert.equal(code(() => w.gather(s.id, 'loot')), 'ok');
+});
+
+test('a robot can own several bases; home is the one with its flag, and buy_land grows the one you stand in', () => {
+  const w = open();
+  const a = homed(w, 'Lord');
+  const home = baseOf(w, a.id)!;
+  const won: Base = { id: 'base_won', owner: a.id, x0: home.x0 + 20, y0: home.y0, x1: home.x0 + 24, y1: home.y1, flag: [home.x0 + 22, home.flag[1]] };
+  w.bases.set(won.id, won);
+  assert.equal(baseOf(w, a.id), home);
+  assert.equal(basesOf(w, a.id).length, 2);
+  a.wallet = 100;
+  [a.x, a.y] = won.flag;
+  buyLand(w, a.id, 'e');
+  assert.deepEqual([won.x1, home.x1], [home.x0 + 25, home.x0 + 4]);
 });

@@ -2,6 +2,7 @@ import { test } from 'bun:test';
 import assert from 'node:assert/strict';
 import { checkAchievements } from '../engine/achievements.ts';
 import { spawnCreature } from '../engine/creatures.ts';
+import { baseOf } from '../engine/bases.ts';
 import { K, flush, loadWorld, saveAllNodes, saveTerrain } from '../engine/persist.ts';
 import { World } from '../engine/world.ts';
 import { connectRedis } from '../shared/redis.ts';
@@ -228,6 +229,6 @@ test('0.0.1-6 saves give every joined robot a base on land, once, without moving
   const all = [...back.bases.values()];
   assert.equal(all.length, 6);
   for (const b of all) for (let y = b.y0; y <= b.y1; y++) for (let x = b.x0; x <= b.x1; x++) assert.notEqual(back.at(x, y), T.SHALLOW);
-  for (const [i, a] of bots.entries()) assert.deepEqual([back.agents.get(a.id)!.x, back.agents.get(a.id)!.spawn], [60 + i, back.bases.get(a.id)!.flag]);
+  for (const [i, a] of bots.entries()) assert.deepEqual([back.agents.get(a.id)!.x, back.agents.get(a.id)!.spawn], [60 + i, baseOf(back, a.id)!.flag]);
   await r.close();
 });

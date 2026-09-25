@@ -14,10 +14,10 @@ function robot(w: World, at: Vec, bag: Record<string, number> = {}, role: Role =
   [a.x, a.y] = at;
   a.inventory = bag;
   // a roomy test base around the robot, unless it would overlap a neighbour's
-  const mine = { owner: a.id, x0: at[0] - 6, y0: at[1] - 6, x1: at[0] + 6, y1: at[1] + 6, flag: at };
-  const clash = [...w.bases.values()].some((b) => b.owner !== a.id && b.x0 <= mine.x1 && mine.x0 <= b.x1 && b.y0 <= mine.y1 && mine.y0 <= b.y1);
-  if (clash) w.bases.delete(a.id);
-  else w.bases.set(a.id, mine);
+  for (const [key, b] of w.bases) if (b.owner === a.id) w.bases.delete(key);
+  const mine = { id: `test_${a.id}`, owner: a.id, x0: at[0] - 6, y0: at[1] - 6, x1: at[0] + 6, y1: at[1] + 6, flag: at };
+  const clash = [...w.bases.values()].some((b) => b.x0 <= mine.x1 && mine.x0 <= b.x1 && b.y0 <= mine.y1 && mine.y0 <= b.y1);
+  if (!clash) w.bases.set(mine.id, mine);
   return a;
 }
 const failCode = (fn: () => unknown) => {

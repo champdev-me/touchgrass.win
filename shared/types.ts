@@ -142,7 +142,7 @@ export interface Creature {
 }
 
 /** A robot's base: inclusive tile bounds and the flag on its centre. */
-export interface Base { owner: string; x0: number; y0: number; x1: number; y1: number; flag: Vec }
+export interface Base { id: string; owner: string; x0: number; y0: number; x1: number; y1: number; flag: Vec; shieldUntil?: number }
 
 export interface Structure {
   kind: StructureKind;

@@ -16,7 +16,7 @@ import { NODE_DEF, chunkOf, fullAmount, wrongRole, type ResourceNode } from './n
 import { buildObservation } from './observe.ts';
 import { expireOffers, type Offer } from './trade.ts';
 import { spawnTreasures, type Clue } from './treasure.ts';
-import { lockCheck, placeBase, releaseIdle } from './bases.ts';
+import { baseOf, lockCheck, placeBase, releaseIdle } from './bases.ts';
 import { findPath } from './path.ts';
 import { addScore } from './score.ts';
 import { findTarget, runTask } from './tasks.ts';
@@ -64,7 +64,8 @@ export class World {
   nodeChanges: [number, number][] = [];
   loot = new Map<number, LootPile>();
   offers = new Map<string, Offer>(); // memory only: a restart clears open offers
-  bases = new Map<string, Base>(); // owner id -> base
+  bases = new Map<string, Base>(); // base id -> base; a robot may own several
+  nextBaseId = 1;
   basesDirty = false;
   treasures = new Map<number, { loot: number }>(); // tile -> buried treasure; scouts only, never broadcast
   treasuresDirty = false;
@@ -165,7 +166,7 @@ export class World {
       a.joined = true;
       a.role = role;
       this.giveKit(a);
-      if (!this.bases.has(a.id)) placeBase(this, a);
+      if (!baseOf(this, a.id)) placeBase(this, a);
       a.spawnedAt = this.tick;
       a.online = true;
       a.lastSeenAt = now;

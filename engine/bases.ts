@@ -14,16 +14,22 @@ export function isLand(w: World, x: number, y: number): boolean {
 /** Every tile is land and no other base comes within a tile. */
 export function fits(w: World, x0: number, y0: number, x1: number, y1: number, except = ''): boolean {
   for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (!isLand(w, x, y)) return false;
-  for (const [owner, b] of w.bases) if (owner !== except && b.x0 - 1 <= x1 && x0 <= b.x1 + 1 && b.y0 - 1 <= y1 && y0 <= b.y1 + 1) return false;
+  for (const [key, b] of w.bases) if (key !== except && b.x0 - 1 <= x1 && x0 <= b.x1 + 1 && b.y0 - 1 <= y1 && y0 <= b.y1 + 1) return false;
   return true;
 }
 
-export const baseOf = (w: World, id: string): Base | null => w.bases.get(id) ?? null;
+export const basesOf = (w: World, owner: string): Base[] => [...w.bases.values()].filter((b) => b.owner === owner);
+
+/** A robot's home: the base whose flag is its spawn, else its first base. */
+export function baseOf(w: World, owner: string): Base | null {
+  const mine = basesOf(w, owner), spawn = w.agents.get(owner)?.spawn;
+  return mine.find((b) => spawn && b.flag[0] === spawn[0] && b.flag[1] === spawn[1]) ?? mine[0] ?? null;
+}
 
 /** A 5x5 base near other robots (or near the Plaza for the first one); moves spawn and robot to the flag. */
 export function placeBase(w: World, a: Agent): Base | null {
   const anchors: Vec[] = [];
-  for (const o of w.agents.values()) if (o.id !== a.id && o.joined) anchors.push(w.bases.get(o.id)?.flag ?? o.spawn);
+  for (const o of w.agents.values()) if (o.id !== a.id && o.joined) anchors.push(baseOf(w, o.id)?.flag ?? o.spawn);
   const [lo, hi] = anchors.length ? B.baseNear : B.firstBaseFromPlaza;
   const tries: { c: Vec; r: number }[] = [];
   for (let i = 0; i < B.baseTries; i++) {
@@ -37,8 +43,8 @@ export function placeBase(w: World, a: Agent): Base | null {
   for (const { c: [cx, cy] } of tries) {
     if (!anchors.length && (dist([cx, cy], w.plaza) < lo || dist([cx, cy], w.plaza) > hi)) continue;
     if (!fits(w, cx - h, cy - h, cx + h, cy + h)) continue;
-    const base: Base = { owner: a.id, x0: cx - h, y0: cy - h, x1: cx + h, y1: cy + h, flag: [cx, cy] };
-    w.bases.set(a.id, base);
+    const base: Base = { id: `base_${w.nextBaseId++}`, owner: a.id, x0: cx - h, y0: cy - h, x1: cx + h, y1: cy + h, flag: [cx, cy] };
+    w.bases.set(base.id, base);
     w.basesDirty = true;
     a.spawn = [cx, cy];
     [a.x, a.y] = [cx, cy];
@@ -49,7 +55,6 @@ export function placeBase(w: World, a: Agent): Base | null {
 }
 
 export type Side = 'n' | 'e' | 's' | 'w';
-const inside = (b: Base, x: number, y: number) => x >= b.x0 && x <= b.x1 && y >= b.y0 && y <= b.y1;
 const areaOf = (b: Base) => (b.x1 - b.x0 + 1) * (b.y1 - b.y0 + 1);
 
 /** Gold for the next 1-tile strip on a side: its length times the tile price. */
@@ -67,8 +72,8 @@ function strip(b: Base, side: Side): [number, number, number, number] {
 }
 
 export function buyLand(w: World, id: string, side: Side) {
-  const a = w.alive(id), b = w.bases.get(a.id);
-  if (!b || !inside(b, a.x, a.y)) throw new GameFail('not_home', 'You can only grow your base while standing in it.', 'Walk home first: observe shows your base.');
+  const a = w.alive(id), b = w.baseAt(a.x, a.y);
+  if (!b || b.owner !== a.id) throw new GameFail('not_home', 'You can only grow your base while standing in it.', 'Walk home first: observe shows your base.');
   const [x0, y0, x1, y1] = strip(b, side);
   const nx0 = Math.min(b.x0, x0), ny0 = Math.min(b.y0, y0), nx1 = Math.max(b.x1, x1), ny1 = Math.max(b.y1, y1);
   if (nx1 - nx0 + 1 > B.baseMaxSide || ny1 - ny0 + 1 > B.baseMaxSide) throw new GameFail('too_big', `A base is at most ${B.baseMaxSide} tiles a side.`, 'Grow another side.');
@@ -77,7 +82,7 @@ export function buyLand(w: World, id: string, side: Side) {
     const water = x >= 0 && y >= 0 && x < w.size && y < w.size && (w.at(x, y) === T.SHALLOW || w.at(x, y) === T.DEEP);
     throw new GameFail(water ? 'water' : 'bad_land', water ? 'That side is water. Land means land.' : 'That side is the Plaza or the edge of the world.', 'Grow another side.');
   }
-  if (!fits(w, x0, y0, x1, y1, a.id)) throw new GameFail('neighbour', 'That strip would touch a neighbour. Bases keep a 1-tile gap.', 'Grow another side.');
+  if (!fits(w, x0, y0, x1, y1, b.id)) throw new GameFail('neighbour', 'That strip would touch a neighbour. Bases keep a 1-tile gap.', 'Grow another side.');
   const price = stripPrice(b, side);
   if (a.wallet < price) throw new GameFail('not_enough_gold', `That strip costs ${price} gold; you have ${a.wallet}.`, 'Sell something first.');
   a.wallet -= price;
@@ -99,7 +104,7 @@ export function lockCheck(w: World, a: Agent, x: number, y: number): void {
 
 /** What observe tells a robot about bases. */
 export function baseLines(w: World, a: Agent) {
-  const b = w.bases.get(a.id), here = w.baseAt(a.x, a.y);
+  const b = baseOf(w, a.id), here = w.baseAt(a.x, a.y);
   return {
     base: b ? { from: [b.x0, b.y0] as Vec, to: [b.x1, b.y1] as Vec, flag: b.flag, area: areaOf(b), next_strip_price: { n: stripPrice(b, 'n'), e: stripPrice(b, 'e'), s: stripPrice(b, 's'), w: stripPrice(b, 'w') } } : null,
     standing_in: !here ? null : here.owner === a.id ? 'your base' : `${w.agents.get(here.owner)?.name ?? 'someone'}'s base`,
@@ -123,10 +128,10 @@ export function switchRole(w: World, id: string, role: string) {
 
 /** Robots with no action for a week lose their base; what they built becomes ruins. */
 export function releaseIdle(w: World, now: number): void {
-  for (const [owner] of w.bases) {
-    const a = w.agents.get(owner);
+  for (const [key, base] of w.bases) {
+    const owner = base.owner, a = w.agents.get(owner);
     if (a && now - a.lastActionAt <= B.idleReleaseMs) continue;
-    w.bases.delete(owner);
+    w.bases.delete(key);
     w.basesDirty = true;
     for (const s of w.structures.values()) if (s.owner === owner) s.owner = '';
     w.structuresDirty = true;

@@ -4,7 +4,7 @@ import { CHAT_STREAM, recentChat, type Redis } from '../shared/redis.ts';
 import { TERRAIN as T } from '../shared/types.ts';
 import type { Agent, Base, Creature, NodeKind, PackedNode, Structure, Vec } from '../shared/types.ts';
 import type { Clue } from './treasure.ts';
-import { placeBase } from './bases.ts';
+import { baseOf, placeBase } from './bases.ts';
 import { normalizeAgent } from './agent.ts';
 import { NODE_RULES, chunkOf, fullAmount, generateNodes, nodeKindAt, packChunk, unpackChunk } from './nodes.ts';
 import { TERRAIN_RULES, chunkBytes, generateLand, levelsOf, walkable, writeChunk } from './terrain.ts';
@@ -192,10 +192,16 @@ export async function loadWorld(r: Redis, seed = 'touchgrass-season-1'): Promise
     }
   }
   const bs = await r.get(K.bases);
-  if (bs) for (const b of JSON.parse(bs) as Base[]) w.bases.set(b.owner, b);
+  if (bs) {
+    for (const b of JSON.parse(bs) as Base[]) {
+      b.id ??= `base_${w.nextBaseId}`; // saved before bases had ids
+      w.nextBaseId = Math.max(w.nextBaseId, Number(b.id.slice(5)) + 1);
+      w.bases.set(b.id, b);
+    }
+  }
   if (Number(meta.baseRules ?? 0) < BASE_RULES) {
     // Robots from before bases: each gets one in join order; it respawns there, it is not moved now.
-    for (const a of [...w.agents.values()].filter((o) => o.joined && !w.bases.has(o.id)).sort((p, q) => p.createdAt - q.createdAt)) {
+    for (const a of [...w.agents.values()].filter((o) => o.joined && !baseOf(w, o.id)).sort((p, q) => p.createdAt - q.createdAt)) {
       const at: Vec = [a.x, a.y];
       placeBase(w, a);
       [a.x, a.y] = at;
