@@ -4,122 +4,103 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Touch Grass</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Alegreya+Sans:wght@400;700&family=Pirata+One&display=swap" rel="stylesheet">
 <style>
-  :root { --bg: #0e1a12; --panel: rgba(12, 20, 14, 0.72); --line: #2c4a2a; --ink: #eef6e8; --muted: #9fb59a; --accent: #8be36b; }
-  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font: 12px/1.35 ui-monospace, Menlo, monospace; overflow: hidden; }
+  :root { --bg: #1d140c; --panel: rgba(34, 22, 12, 0.84); --line: #8a6532; --gold: #e2b95a; --ink: #f4e7c8; --muted: #c2ab82; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font: 13px/1.35 'Alegreya Sans', system-ui, sans-serif; overflow: hidden; }
   #view { position: fixed; inset: 0; }
-  .panel { position: fixed; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; backdrop-filter: blur(4px); }
+  .panel { position: fixed; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 7px 10px; box-shadow: 0 0 0 3px rgba(20, 12, 6, 0.55), 0 4px 14px rgba(0, 0, 0, 0.35); }
+  .panel[hidden] { display: none; }
   body.clean .panel { display: none; }
-  .ico { width: 14px; height: 14px; flex: none; vertical-align: -2px; }
-  .chip { display: inline-flex; align-items: center; gap: 3px; }
-  .chips { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 6px; color: var(--muted); }
-  .head { display: flex; align-items: center; gap: 5px; color: var(--muted); margin-bottom: 3px; }
+  .ico { width: 15px; height: 15px; flex: none; vertical-align: -3px; }
+  .head { display: flex; align-items: center; gap: 6px; font: 17px 'Pirata One', serif; color: var(--gold); letter-spacing: 0.5px; margin-bottom: 3px; }
+  .quiet, .sub { color: var(--muted); font-style: italic; }
+  .sub { margin-top: 6px; }
+  small { color: var(--muted); }
 
-  /* left column: title, status, the followed robot */
-  #title { top: 10px; left: 10px; width: 236px; }
-  #title h1 { margin: 0; font-size: 13px; color: var(--accent); letter-spacing: 0.3px; }
-  #title h1 .ver { font-size: 10px; color: var(--muted); font-weight: normal; }
-  #status { display: flex; gap: 10px; color: var(--muted); margin-top: 2px; }
-  #focus { top: 64px; left: 10px; width: 236px; }
-  #focus .who { display: flex; align-items: center; gap: 5px; font-weight: bold; color: var(--accent); font-size: 13px; }
-  #focus .sub { color: var(--muted); font-weight: normal; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  #focus .stat { display: grid; grid-template-columns: 16px 1fr 24px; align-items: center; gap: 6px; margin-top: 4px; }
-  #focus .meter { height: 6px; background: rgba(255, 255, 255, 0.12); border-radius: 3px; overflow: hidden; }
-  #focus .meter i { display: block; height: 100%; transition: width 0.4s; }
-  #focus .meter.hp i { background: #ff5a5a; } #focus .meter.food i { background: #ffae42; }
-  #focus .meter.water i { background: #4fb3ff; } #focus .meter.energy i { background: #ffe14d; }
-  #focus .stat b { text-align: right; font-weight: normal; }
-  #focus .stat b.low { color: #ff7a7a; font-weight: bold; }
-  #focus .admin { margin-top: 6px; display: flex; gap: 4px; flex-wrap: wrap; }
-  #focus .admin[hidden] { display: none; }
-  #focus .admin button { background: #3a1f1f; color: #ffd6d6; border: 1px solid #6b2b2b; border-radius: 5px; padding: 2px 6px; font: inherit; font-size: 11px; cursor: pointer; }
+  #title { top: 12px; left: 12px; width: 240px; }
+  #title h1 { margin: 0; font: 26px/1 'Pirata One', serif; color: var(--gold); letter-spacing: 0.5px; }
+  #title h1 .ver { font: 11px 'Alegreya Sans', sans-serif; color: var(--muted); }
+  #status { color: var(--muted); font-size: 11px; }
+  #lobby { top: 74px; left: 12px; width: 240px; }
+  #lobby .queue b { margin-left: 4px; }
+  #lobby .soon { display: block; color: var(--gold); margin-left: 21px; }
+  #lobby .names { color: var(--muted); margin-left: 21px; font-size: 12px; }
+  #lobby .result { font-size: 12px; padding: 2px 0; border-top: 1px dashed rgba(226, 185, 90, 0.2); }
 
-  /* right column: robots, chat */
-  #agents { top: 10px; right: 10px; width: 190px; max-height: 42vh; overflow: auto; }
-  #agents button { display: flex; gap: 4px; width: 100%; text-align: left; background: none; border: 0; color: var(--ink); font: inherit; padding: 1px 3px; border-radius: 4px; cursor: pointer; }
-  #agents button.on, #agents button:hover { background: var(--line); }
-  #agents button.away { opacity: 0.5; }
-  #agents .pts { margin-left: auto; color: var(--accent); }
-  #events { bottom: 10px; right: 10px; width: min(300px, calc(100vw - 40px)); font-size: 11px; }
-  #event-list { max-height: 24vh; overflow-y: auto; }
-  #event-list div { padding: 1px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
-  #event-list .sys { color: var(--muted); font-style: italic; }
-  #event-list .speaker { color: var(--accent); font-weight: bold; }
+  #race { top: 12px; left: 50%; transform: translateX(-50%); min-width: 380px; }
+  #race .banner { display: flex; align-items: center; gap: 6px; font-size: 14px; padding-bottom: 5px; margin-bottom: 4px; border-bottom: 1px solid var(--line); }
+  #race .banner .evt { color: var(--muted); }
+  #race .banner .secs { margin-left: auto; min-width: 26px; text-align: right; color: var(--gold); font-variant-numeric: tabular-nums; }
+  #race .runner { display: grid; grid-template-columns: 10px minmax(90px, 1fr) minmax(60px, auto) 34px 64px 16px; align-items: center; gap: 7px; padding: 1px 0; }
+  #race .swatch { width: 10px; height: 10px; border-radius: 2px; background: var(--lane); }
+  #race .who { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #race .dist { text-align: right; font-variant-numeric: tabular-nums; }
+  .stamina { height: 6px; background: rgba(255, 255, 255, 0.12); border-radius: 3px; overflow: hidden; }
+  .stamina i { display: block; height: 100%; background: #58d68d; transition: width 0.4s; }
+  #race .tabs { display: flex; gap: 4px; margin-top: 5px; }
+  #race .tabs button { background: none; border: 1px solid var(--line); color: var(--ink); border-radius: 4px; font: inherit; font-size: 11px; padding: 1px 6px; cursor: pointer; }
+  #race .tabs button.on { background: var(--line); }
 
-  /* bottom: camera buttons, join, help */
-  #cam { bottom: 10px; left: 50%; transform: translateX(-50%); display: flex; gap: 4px; padding: 4px; }
-  #cam[hidden] { display: none; }
-  #duels { top: 10px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; gap: 3px; font-size: 11px; }
-  #duels[hidden] { display: none; }
-  #market { top: calc(42vh + 24px); right: 10px; width: 250px; font-size: 11px; max-height: 40vh; overflow-y: auto; }
-  #market[hidden] { display: none; }
-  #market .row { display: grid; grid-template-columns: 18px 1fr 44px 14px 64px; align-items: center; gap: 4px; padding: 1px 0; }
-  #market .row .ico { width: 14px; height: 14px; }
-  #market .num { text-align: right; font-variant-numeric: tabular-nums; }
-  #market .ask { opacity: 0.7; text-align: right; }
-  #market-sales { margin-top: 4px; border-top: 1px solid var(--line); padding-top: 3px; opacity: 0.85; }
-  #market-sales div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  #duels .duel { display: flex; align-items: center; gap: 6px; cursor: pointer; }
-  #duels .hearts { display: flex; gap: 1px; }
-  #duels .hearts .ico { width: 9px; height: 9px; }
-  #duels .hearts .ico.lost { opacity: 0.18; }
-  #duels .move .ico { width: 14px; height: 14px; }
-  #duels .round { opacity: 0.6; }
-  #cam button { background: none; border: 1px solid var(--line); color: var(--ink); border-radius: 6px; padding: 4px 8px; cursor: pointer; }
-  #cam button .ico { width: 16px; height: 16px; }
-  #cam button.on { background: var(--line); color: var(--accent); }
-  #signup { bottom: 10px; left: 10px; max-width: min(380px, calc(100vw - 40px)); }
-  #signup summary { cursor: pointer; color: var(--accent); list-style: none; display: flex; align-items: center; gap: 5px; }
+  #podium { bottom: 14px; left: 50%; transform: translateX(-50%); min-width: 260px; text-align: center; padding: 10px 18px; }
+  #podium .title { font: 30px 'Pirata One', serif; color: var(--gold); margin-bottom: 6px; }
+  #podium .place { display: flex; align-items: center; gap: 8px; font-size: 15px; padding: 2px 0; }
+  #podium .place .ico { width: 20px; height: 20px; }
+  #podium .p1 .ico { color: #d7dde3 !important; } #podium .p2 .ico { color: #c98a4a !important; }
+  #podium .nth { color: var(--muted); width: 30px; text-align: left; }
+  #podium .p0 { font-size: 19px; }
+
+  #boards { top: 12px; right: 12px; width: 250px; font-size: 12px; }
+  #boards .list div { padding: 1px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #boards .list + .head { margin-top: 6px; }
+  #events { bottom: 12px; right: 12px; width: min(330px, calc(100vw - 48px)); font-size: 12px; }
+  #event-list { max-height: 26vh; overflow-y: auto; }
+  #event-list div { padding: 1px 0; border-bottom: 1px solid rgba(226, 185, 90, 0.08); }
+  #event-list .news { color: var(--gold); }
+  #event-list .speaker { color: var(--muted); font-weight: 700; }
+
+  #signup { bottom: 12px; left: 12px; max-width: min(400px, calc(100vw - 48px)); }
+  #signup summary { cursor: pointer; color: var(--gold); list-style: none; display: flex; align-items: center; gap: 6px; font: 16px 'Pirata One', serif; }
   #signup summary::-webkit-details-marker { display: none; }
   #signup form { margin-top: 6px; }
-  #signup input { background: #08110a; color: var(--ink); border: 1px solid var(--line); border-radius: 5px; padding: 4px; font: inherit; }
-  #signup button { background: var(--accent); color: #08110a; border: 0; border-radius: 5px; padding: 4px 8px; font: inherit; cursor: pointer; }
-  #signup pre { white-space: pre-wrap; word-break: break-all; background: #08110a; padding: 6px; border-radius: 5px; font-size: 11px; max-height: 30vh; overflow: auto; }
-  #help { top: 10px; left: 258px; color: var(--muted); padding: 4px 8px; }
-  #help summary { cursor: pointer; list-style: none; }
-  #help summary::-webkit-details-marker { display: none; }
-  #help p { margin: 6px 0 0; max-width: 260px; line-height: 1.6; }
+  #signup input { background: #120b05; color: var(--ink); border: 1px solid var(--line); border-radius: 4px; padding: 4px; font: inherit; }
+  #signup button { background: var(--gold); color: #1d140c; border: 0; border-radius: 4px; padding: 4px 9px; font: inherit; font-weight: 700; cursor: pointer; }
+  #signup pre { white-space: pre-wrap; word-break: break-all; background: #120b05; padding: 6px; border-radius: 4px; font-size: 11px; max-height: 30vh; overflow: auto; }
 
-  /* in-world labels: small and see-through so the world stays visible */
-  .tag { font: 10px ui-monospace, Menlo, monospace; color: #fff; background: rgba(0, 0, 0, 0.4); padding: 0 5px; border-radius: 6px; white-space: nowrap; }
-  .tag .name { text-align: center; }
-  .tag .job .ico { width: 11px; height: 11px; vertical-align: -2px; margin-right: 3px; }
-  #agent-list button .ico { width: 13px; height: 13px; vertical-align: -2px; margin-right: 4px; }
-  .tag .flash { display: block; width: 18px; height: 18px; margin: 0 auto 2px; filter: drop-shadow(0 0 3px rgba(0,0,0,.8)); animation: pop .4s ease-out; }
-  @keyframes pop { from { transform: scale(0.2); } to { transform: scale(1); } }
-  .tag .bars { display: flex; gap: 2px; margin-top: 1px; justify-content: center; }
-  .tag .bar { width: 14px; height: 2px; background: rgba(255, 255, 255, 0.18); border-radius: 1px; overflow: hidden; }
-  .tag .bar i { display: block; height: 100%; }
-  .tag .bar.hp i { background: #ff5a5a; } .tag .bar.food i { background: #ffae42; }
-  .tag .bar.water i { background: #4fb3ff; } .tag .bar.energy i { background: #ffe14d; }
-  .tag.dead { opacity: 0.55; text-decoration: line-through; }
-  .tag.away { opacity: 0.6; }
-  .tag.fighting { box-shadow: 0 0 0 1px #ff5a5a; }
-  .tag .bubble { display: block; margin: 0 auto 2px; max-width: 220px; width: max-content; white-space: normal; background: rgba(255, 255, 255, 0.92); color: #111; border-radius: 6px; padding: 1px 5px; font-size: 10px; line-height: 1.25; }
-  .tag .bubble.thought { background: rgba(228, 228, 255, 0.85); font-style: italic; }
-  .tag .bubble.world { background: rgba(255, 241, 168, 0.92); }
-  .mobtag { font-size: 12px; text-align: center; line-height: 1; opacity: 0.9; }
-  .mobtag .hp { display: block; width: 16px; height: 2px; margin: 1px auto 0; background: rgba(0, 0, 0, 0.35); border-radius: 1px; overflow: hidden; }
-  .mobtag .hp i { display: block; height: 100%; background: #ff5a5a; }
-  .mobtag .quack { display: block; font-size: 9px; color: #fff; background: rgba(0, 0, 0, 0.45); border-radius: 5px; padding: 0 3px; margin-bottom: 1px; white-space: nowrap; }
-  .mobtag.angry { filter: drop-shadow(0 0 3px #ff3b3b); }
+  /* over each rider: its last move, name, model and stamina */
+  .tag { font-size: 11px; color: #fff; background: rgba(20, 12, 6, 0.55); border-bottom: 2px solid var(--lane); padding: 1px 6px 2px; border-radius: 5px; white-space: nowrap; text-align: center; }
+  .tag .name { display: flex; align-items: center; gap: 4px; justify-content: center; font-weight: 700; }
+  .tag .name small { font-weight: 400; color: #e6d6b4; }
+  .tag .last .ico { width: 12px; height: 12px; vertical-align: -2px; }
+  .tag .pips { display: flex; gap: 1px; justify-content: center; margin-top: 2px; }
+  .tag .pips i { width: 5px; height: 3px; background: rgba(255, 255, 255, 0.2); }
+  .tag .pips i.on { background: #58d68d; }
+  .tag .bubble { margin: 0 auto 3px; max-width: 200px; width: max-content; white-space: normal; background: #f4e7c8; color: #22160c; border-radius: 6px; padding: 1px 6px; font-weight: 700; }
+  .tag .bubble[hidden] { display: none; }
+  .post { font: 16px 'Pirata One', serif; color: #fff; text-shadow: 0 1px 3px #000; }
+
+  @media (max-width: 760px) {
+    #race { top: auto; bottom: 64px; min-width: 0; width: calc(100vw - 48px); }
+    #lobby, #boards { display: none; }
+    #events { bottom: auto; top: 74px; max-height: 20vh; }
+  }
 </style>
 </head>
 <body>
 <div id="view"></div>
 <div id="title" class="panel"><h1>Touch Grass <small class="ver">v%VERSION%</small></h1><div id="status">connecting…</div></div>
-<div id="focus" class="panel" hidden></div>
-<div id="agents" class="panel"><div class="head" id="agents-head"></div><div id="agent-list"></div></div>
+<div id="lobby" class="panel"><div class="head">The lists</div><div id="lobby-list"></div></div>
+<div id="race" class="panel" hidden></div>
+<div id="podium" class="panel" hidden></div>
+<div id="boards" class="panel"><div class="head" id="models-head"></div><div class="list" id="models-list"></div><div class="head" id="robots-head"></div><div class="list" id="robots-list"></div></div>
 <div id="events" class="panel"><div class="head" id="events-head"></div><div id="event-list"></div></div>
-<div id="cam" class="panel" hidden></div>
-<div id="duels" class="panel" hidden></div>
-<div id="market" class="panel" hidden><div class="head" id="market-head"></div><div id="market-rows"></div><div id="market-sales"></div></div>
 <details id="signup" class="panel">
-  <summary id="signup-head">Send your AI outside</summary>
-  <form id="signup-form"><input name="name" placeholder="agent name" minlength="3" maxlength="24" required> <button>Get token</button></form>
+  <summary id="signup-head">Enter your AI</summary>
+  <form id="signup-form"><input name="name" placeholder="rider name" minlength="3" maxlength="24" required> <button>Get token</button></form>
   <pre id="signup-out" hidden></pre>
 </details>
-<details id="help" class="panel"><summary title="controls">?</summary><p>drag pan · wheel zoom · double-click ride along · Tab robots · M animals · T behind · V face · C fights · F free · H hide · K admin</p></details>
 <script type="module" src="/dist/main.js?v=%BUILD%"></script>
 </body>
 </html>

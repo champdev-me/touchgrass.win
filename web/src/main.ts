@@ -1,20 +1,8 @@
 import * as THREE from 'three';
-import { MapControls } from 'three/addons/controls/MapControls.js';
 import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
-import { B } from '../../shared/balance.ts';
-import { daylight, timeOf } from '../../shared/time.ts';
-import type { ClientMsg, ServerMsg } from '../../shared/types.ts';
-import { CREATURES } from '../../shared/creatures.ts';
+import type { MatchView, ServerMsg } from '../../shared/types.ts';
 import { connect } from './net.ts';
-import { Creatures } from './creatures.ts';
-import { Bases } from './bases.ts';
-import { Colosseum } from './colosseum.ts';
-import { Structures } from './structures.ts';
-import { LootView } from './loot.ts';
-import { loadProps } from './props.ts';
-import { HEIGHT as ROBOT_HEIGHT, Robots } from './robots.ts';
-import { ChunkView } from './terrain.ts';
-import { WATER_LEVEL } from './tiles.ts';
+import { buildTrack, MID_Z, Riders, xOf } from './track.ts';
 import { setupUi } from './ui.ts';
 
 const host = document.getElementById('view')!;
@@ -26,30 +14,14 @@ labels.domElement.style.cssText = 'position:absolute;inset:0;pointer-events:none
 host.appendChild(labels.domElement);
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color('#9fd3ff');
-scene.fog = new THREE.Fog('#9fd3ff', 70, 180);
-const hemi = new THREE.HemisphereLight('#e4f4ff', '#4a6b3a', 1.3);
-scene.add(hemi);
+scene.background = new THREE.Color('#a9d8f5');
+scene.fog = new THREE.Fog('#a9d8f5', 60, 160);
+scene.add(new THREE.HemisphereLight('#fff4e0', '#5a7a40', 1.4));
 const sun = new THREE.DirectionalLight('#fff1d0', 1.8);
-sun.position.set(-0.4, 1, -0.25);
+sun.position.set(-0.4, 1, 0.6);
 scene.add(sun);
-const SKY_DAY = new THREE.Color('#9fd3ff'), SKY_NIGHT = new THREE.Color('#0b1733');
-const SUN_DAY = new THREE.Color('#fff1d0'), SUN_NIGHT = new THREE.Color('#8fa8ff');
-let lastTick = 0, lastTickAt = performance.now();
-const water = new THREE.Mesh(new THREE.PlaneGeometry(600, 600), new THREE.MeshLambertMaterial({ color: '#2f7fc1', transparent: true, opacity: 0.78 }));
-water.rotation.x = -Math.PI / 2;
-scene.add(water);
 
-const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 400);
-const controls = new MapControls(camera, renderer.domElement);
-controls.enableDamping = true;
-controls.maxPolarAngle = Math.PI * 0.45;
-controls.minDistance = 5;
-controls.maxDistance = 140;
-const mid = B.mapSize / 2;
-controls.target.set(mid, 1, mid);
-camera.position.set(mid - 22, 30, mid + 28);
-
+const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 400);
 function resize() {
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
@@ -59,173 +31,51 @@ function resize() {
 addEventListener('resize', resize);
 resize();
 
-let follow: string | null = null;
-type CamMode = 'top' | 'behind' | 'face';
-let cam: CamMode = 'top'; // follow views: 45° from above, third person, or looking at its face
-const eye = new THREE.Vector3(), look = new THREE.Vector3();
-const FOLLOW_OFFSET = new THREE.Vector3(-6, 7, 6);
-let send: (m: ClientMsg) => void = () => {};
-const ui = setupUi((id) => setFollow(id), (mode) => setCam(mode));
-const robots = new Robots(scene, (x, y) => chunks.heightAt(x, y), B.tickMs, (x, y) => chunks.nodeKindAt(x, y));
-const creatures = new Creatures(scene, (x, y) => chunks.heightAt(x, y), B.tickMs);
-const structures = new Structures(scene, (x, y) => chunks.heightAt(x, y));
-const bases = new Bases(scene, (x, y) => chunks.heightAt(x, y));
-const colosseum = new Colosseum(scene, (x, y) => chunks.heightAt(x, y));
-const [models] = await Promise.all([loadProps(), robots.load(), creatures.load(), structures.load()]);
-const chunks = new ChunkView(scene, models, (list) => send({ type: 'chunks', list }));
-const loot = new LootView(scene, (x, y) => chunks.heightAt(x, y));
+let matches: MatchView[] = [], shown: string | null = null;
+const ui = setupUi((id) => {
+  shown = id;
+  show();
+});
+const riders = new Riders(scene);
+await Promise.all([buildTrack(scene), riders.load()]);
 
-function setCam(mode: CamMode): void {
-  if (mode !== 'top' && !follow && robots.bots.size) setFollow([...robots.bots.keys()][0]);
-  const was = cam;
-  cam = follow ? mode : 'top';
-  controls.enabled = cam === 'top';
-  ui.camera(follow ? cam : null);
-  const bot = follow ? (robots.bots.get(follow) ?? creatures.mobs.get(follow)) : undefined;
-  if (bot && cam === 'top' && was !== 'top') {
-    controls.target.copy(bot.root.position); // back up to the usual view from above
-    camera.position.copy(bot.root.position).add(FOLLOW_OFFSET);
-  }
+// Keep watching the picked match while it lasts, else the first live one, else the latest finished.
+function show(): void {
+  const m = matches.find((x) => x.id === shown) ?? matches.find((x) => !x.finished) ?? matches.at(-1) ?? null;
+  shown = m?.id ?? null;
+  riders.sync(m);
+  ui.race(m, matches);
 }
 
-function setFollow(id: string | null) {
-  follow = id;
-  if (!id) setCam('top');
-  ui.following(id);
-  ui.camera(id ? cam : null);
-  if (!id) ui.focus(null);
-  const bot = id ? (robots.bots.get(id) ?? creatures.mobs.get(id)) : undefined;
-  if (!bot) return;
-  controls.target.copy(bot.root.position); // snap to a close 45° view so the robot fills the stream
-  camera.position.copy(bot.root.position).add(FOLLOW_OFFSET);
-}
-
-send = connect((m: ServerMsg) => {
+connect((m: ServerMsg) => {
   if (m.type === 'hello') {
-    chunks.reset();
     ui.events(m.recent, true);
-    ui.market([], m.recent); // prices from recent sales, before the first tick
-    lastTick = m.tick;
-    lastTickAt = performance.now();
-  } else if (m.type === 'chunk') {
-    chunks.add(m.cx, m.cy, m.data, m.nodes, m.heights);
-  } else {
-    lastTick = m.tick;
-    lastTickAt = performance.now();
-    robots.sync(m.agents);
-    chunks.applyNodes(m.nodes);
-    loot.sync(m.loot);
-    creatures.sync(m.creatures);
-    structures.sync(m.structures);
-    bases.sync(m.bases ?? []);
-    colosseum.build([B.mapSize / 2, B.mapSize / 2], chunks.tileAt(B.mapSize / 2, B.mapSize / 2) !== 0);
-    ui.duels(m.duels ?? []);
-    ui.market(m.asks ?? [], m.events);
-    ui.agents(m.agents);
-    ui.events(m.events);
-    for (const e of m.events) {
-      if (e.type === 'trade') for (const id of [e.agent, e.other]) robots.flash(id, 'trade');
-      if (e.type === 'treasure' && e.x !== undefined && e.y !== undefined) structures.dug(e.x, e.y);
-    }
-    if (follow) ui.focus(m.agents.find((a) => a.id === follow) ?? null);
-    const mob = follow ? creatures.mobs.get(follow)?.view : undefined;
-    if (follow?.startsWith('mob_') && !mob) setFollow(null); // it died or wandered off
-    const t = timeOf(m.tick);
-    ui.world({ day: t.day, night: t.phase === 'night', robots: m.agents.length, creatures: m.creatures.length, following: mob ? { emoji: CREATURES[mob.kind].emoji, name: CREATURES[mob.kind].name, hp: mob.hp, maxHp: mob.maxHp } : undefined });
+    return;
   }
+  matches = m.matches;
+  show();
+  ui.lobby(m.queues, matches.filter((x) => !x.finished).length);
+  ui.boards(m.leaderboard);
+  ui.events(m.events);
 }, (s) => ui.status(s));
 
-// Double-click a robot or animal: follow it from behind. Picks whatever is drawn nearest the click.
-const probe = new THREE.Vector3();
-renderer.domElement.addEventListener('dblclick', (e) => {
-  const rect = renderer.domElement.getBoundingClientRect(), hit = { id: '', d: 48 };
-  const check = (id: string, root: THREE.Object3D, h: number) => {
-    probe.copy(root.position).setY(root.position.y + h * 0.5).project(camera);
-    if (probe.z > 1) return; // behind the camera
-    const d = Math.hypot(((probe.x + 1) / 2) * rect.width + rect.left - e.clientX, ((1 - probe.y) / 2) * rect.height + rect.top - e.clientY);
-    if (d < hit.d) [hit.id, hit.d] = [id, d];
-  };
-  for (const [id, b] of robots.bots) check(id, b.root, ROBOT_HEIGHT);
-  for (const [id, m] of creatures.mobs) check(id, m.root, m.height);
-  if (!hit.id) return;
-  setFollow(hit.id);
-  setCam('behind');
-});
-
-const keys = new Set<string>();
 addEventListener('keydown', (e) => {
   if (e.target instanceof HTMLInputElement) return;
-  const k = e.key.toLowerCase();
-  keys.add(k);
-  if (k === 'f') setFollow(null);
-  if (k === 'h') document.body.classList.toggle('clean');
-  if (k === 'k') ui.promptAdminKey();
-  if (k === 't') setCam(cam === 'behind' ? 'top' : 'behind');
-  if (k === 'v') setCam(cam === 'face' ? 'top' : 'face');
-  if (k === 'm') {
-    const near = [...creatures.mobs.entries()].sort((p, q) => p[1].root.position.distanceTo(controls.target) - q[1].root.position.distanceTo(controls.target)).slice(0, 12).map(([id]) => id);
-    if (near.length) setFollow(near[(near.indexOf(follow ?? '') + 1) % near.length]);
-  }
-  if (k === 'c') {
-    const fighters = [...robots.bots.values()].filter((b) => b.view.fighting).map((b) => b.view.id);
-    if (fighters.length) setFollow(fighters[(fighters.indexOf(follow ?? '') + 1) % fighters.length]);
-  }
-  if (e.key === 'Tab') {
-    e.preventDefault();
-    const ids = [...robots.bots.keys()];
-    if (ids.length) setFollow(ids[(ids.indexOf(follow ?? '') + 1) % ids.length]);
-  }
+  if (e.key.toLowerCase() === 'h') document.body.classList.toggle('clean');
 });
-addEventListener('keyup', (e) => keys.delete(e.key.toLowerCase()));
-addEventListener('blur', () => keys.clear());
 
+// A side-on camera that follows the pack and pulls back when it spreads out.
 const clock = new THREE.Clock();
-const fwd = new THREE.Vector3(), right = new THREE.Vector3(), move = new THREE.Vector3(), before = new THREE.Vector3();
+const eye = new THREE.Vector3(xOf(0), 8, MID_Z + 16), look = new THREE.Vector3(xOf(0), 0.8, MID_Z), want = new THREE.Vector3();
 renderer.setAnimationLoop(() => {
-  const dt = Math.min(clock.getDelta(), 0.1);
-  robots.update(dt);
-  creatures.update(dt);
-  before.copy(controls.target);
-  const bot = follow ? (robots.bots.get(follow) ?? creatures.mobs.get(follow)) : undefined;
-  if (bot && cam !== 'top') {
-    const yaw = bot.root.rotation.y, p = bot.root.position, k = 1 - Math.pow(0.02, dt);
-    const h = 'height' in bot ? bot.height : ROBOT_HEIGHT;
-    fwd.set(Math.sin(yaw), 0, Math.cos(yaw));
-    if (cam === 'behind') {
-      eye.copy(p).addScaledVector(fwd, -4.5).setY(p.y + 2.4);
-      look.copy(p).addScaledVector(fwd, 2.5).setY(p.y + 0.9);
-    } else {
-      eye.copy(p).addScaledVector(fwd, 1.2 + h * 1.6).setY(p.y + h * 0.75); // in front, eye level
-      look.copy(p).setY(p.y + h * 0.6);
-    }
-    eye.y = Math.max(eye.y, chunks.heightAt(Math.floor(eye.x), Math.floor(eye.z)) + 0.6); // never inside a hill
-    camera.position.lerp(eye, k);
-    controls.target.lerp(look, k);
-    camera.lookAt(controls.target);
-  } else if (bot) {
-    controls.target.lerp(bot.root.position, 1 - Math.pow(0.002, dt));
-  } else {
-    fwd.subVectors(controls.target, camera.position).setY(0).normalize();
-    right.crossVectors(fwd, camera.up);
-    move.set(0, 0, 0);
-    if (keys.has('w')) move.add(fwd);
-    if (keys.has('s')) move.sub(fwd);
-    if (keys.has('d')) move.add(right);
-    if (keys.has('a')) move.sub(right);
-    controls.target.addScaledVector(move, dt * 35);
-  }
-  if (cam === 'top') {
-    camera.position.add(move.subVectors(controls.target, before)); // camera keeps its offset from the target
-    controls.update();
-  }
-  water.position.set(controls.target.x, WATER_LEVEL, controls.target.z);
-  chunks.update(controls.target);
-  const light = daylight(lastTick + (performance.now() - lastTickAt) / B.tickMs);
-  hemi.intensity = 0.3 + light;
-  sun.intensity = 0.15 + light * 1.65;
-  sun.color.lerpColors(SUN_NIGHT, SUN_DAY, light);
-  (scene.background as THREE.Color).lerpColors(SKY_NIGHT, SKY_DAY, light);
-  scene.fog!.color.lerpColors(SKY_NIGHT, SKY_DAY, light);
+  const dt = Math.min(clock.getDelta(), 0.1), k = 1 - Math.pow(0.05, dt);
+  riders.update(dt);
+  const [lo, hi] = riders.spread() ?? [xOf(0), xOf(0)];
+  const cx = (lo + hi) / 2 + 2, back = Math.max(13, (hi - lo) * 0.9 + 9);
+  look.lerp(want.set(cx, 0.8, MID_Z), k);
+  eye.lerp(want.set(cx - 4, 4 + back * 0.55, MID_Z + back), k);
+  camera.position.copy(eye);
+  camera.lookAt(look);
   renderer.render(scene, camera);
   labels.render(scene, camera);
 });
