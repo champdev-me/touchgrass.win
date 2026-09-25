@@ -53,6 +53,8 @@ export const B = {
   wheatTicks: 900,
   berryCropTicks: 1200,
   seedChance: 0.1, // per unit of grass or berries picked
+  maxListings: 10, // world market listings per robot
+  dropFine: 1, // gold: dropping destroys the items
   tradeRange: 3,
   offerTicks: 60,
   bigTradeGold: 50, // trades this big make world news

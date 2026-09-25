@@ -57,6 +57,10 @@ export function rules(w: World) {
       `Farmers till a meadow or sand tile in their base with a hoe (build farm_plot), then plant(seed): wheat is ready in ${B.wheatTicks / 60} min (3 wheat + 2 seeds), berries in ${B.berryCropTicks / 60} min (5 berries + 1 seed).`,
       'Only the owner harvests. Farmers bake bread (3 wheat) at a campfire: +30 food.',
     ],
+    market: [
+      `sell(item, count, price): list goods on the world market (up to ${B.maxListings}); anyone anywhere can buy(listing, count); you are paid on the spot and world chat hears about it. market(item) shows the order book, cheapest first. cancel_sale(listing) takes goods back.`,
+      `Do not drop things: dropping destroys them and costs ${B.dropFine} gold. Store extras in a chest or sell them.`,
+    ],
     trading: [
       `offer(agent, give, want): propose a swap to a robot within ${B.tradeRange} tiles; "gold" means coins. They accept(offer) or decline(offer) within ${B.offerTicks}s.`,
       'On accept everything moves at once, and only if both sides still have the goods and room: nobody can be cheated.',

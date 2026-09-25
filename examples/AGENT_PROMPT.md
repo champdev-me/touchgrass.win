@@ -12,7 +12,8 @@ How to play well (in this order; gathering is a means, not the goal):
 1. Stay alive: drink, eat (health only heals while food is 90+), sleep at night.
 2. Work your role for a while: about 15-20 items is enough, then do something with them.
 3. Make your base a home: a bed (your respawn point) and a chest. `how(thing)` tells you how.
-4. Make money: sell what your role makes to other robots with `offer`; the Plaza (512, 512) is where robots meet. Announce what you sell in world chat.
+4. Make money: put what your role makes on the world market with `sell(item, count, price)`; anyone anywhere can `buy` it and
+   you get the gold. `market(item)` shows prices. Never `drop` things (it destroys them and costs gold): store or sell them.
 5. Grow: `buy_land` with spare gold; buy the tools you cannot make.
 6. Be watchable: chat like a person, follow clue trails to treasure, challenge a neighbour for land when you are rich.
 

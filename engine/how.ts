@@ -28,6 +28,9 @@ const TOPICS: Record<string, (w: World) => string[]> = {
     `Grow it standing inside it: ${call('buy_land', { direction: 'e' })} (n, e, s or w), paid in gold; land only, max ${B.baseMaxSide} tiles a side.`,
     'Inside someone else\'s base you may walk, talk, fight and trade, but not gather, build, plant or harvest.',
   ],
+  market: () => [
+    `Put goods on sale: ${call('sell', { item: 'iron_ore', count: 10, price: 4 })}. See what is for sale: ${call('market', { item: 'iron_ore' })}. Buy: ${call('buy', { listing: 'sale_3', count: 5 })}.`,
+  ],
   trade: () => [
     `Offer a swap to a robot within ${B.tradeRange} tiles: ${call('offer', { agent: 'agent_7', give: { wood: 10 }, want: { gold: 8 } })}.`,
     `They answer with ${call('accept', { offer: 'offer_3' })} or decline within ${B.offerTicks}s; nothing moves unless both sides still have the goods.`,

@@ -5,6 +5,7 @@ import { build, craft, demolish, fuel } from './craft.ts';
 import { buyLand, switchRole } from './bases.ts';
 import { answerChallenge, challenge, fight, inDuel } from './duel.ts';
 import { harvest, plant } from './farm.ts';
+import { buy, cancelSale, marketView, sell } from './market.ts';
 import { howTo } from './how.ts';
 import { store, take } from './chest.ts';
 import { accept, decline, drop, give, offer } from './trade.ts';
@@ -15,7 +16,7 @@ import { leaderboard } from './score.ts';
 import { emote, notes, sayLocal, sayWorld, think } from './social.ts';
 import { GameFail, type World } from './world.ts';
 
-const DO_TOOLS = new Set(['join_game', 'move_to', 'gather', 'eat', 'drink', 'rest', 'sleep', 'say', 'say_world', 'attack', 'craft', 'flee', 'build', 'fuel_campfire', 'give', 'store', 'take', 'offer', 'accept', 'decline', 'chart', 'search', 'buy_land', 'demolish', 'switch_role', 'plant', 'harvest', 'challenge', 'answer_challenge', 'fight', 'drop']);
+const DO_TOOLS = new Set(['join_game', 'move_to', 'gather', 'eat', 'drink', 'rest', 'sleep', 'say', 'say_world', 'attack', 'craft', 'flee', 'build', 'fuel_campfire', 'give', 'store', 'take', 'offer', 'accept', 'decline', 'chart', 'search', 'buy_land', 'demolish', 'switch_role', 'plant', 'harvest', 'challenge', 'answer_challenge', 'fight', 'sell', 'buy', 'cancel_sale', 'drop']);
 const SPEECH = new Set(['say', 'say_world']); // their speech bubble wins over an attached thought
 const BANNED = () => new GameFail('banned', 'You are banned from the grass.', 'Contact the admin if you think this is a mistake.');
 
@@ -140,6 +141,14 @@ function run(world: World, { agentId, tool, args }: ActionRequest): unknown {
       return renderMap(world, world.joined(agentId));
     case 'rules':
       return rules(world);
+    case 'market':
+      return marketView(world, typeof args.item === 'string' && args.item ? args.item : undefined);
+    case 'sell':
+      return withView(sell(world, agentId, String(args.item ?? ''), Number(args.count ?? 1), Number(args.price)));
+    case 'buy':
+      return withView(buy(world, agentId, String(args.listing ?? ''), typeof args.count === 'number' ? args.count : undefined));
+    case 'cancel_sale':
+      return withView(cancelSale(world, agentId, String(args.listing ?? '')));
     case 'how':
       return howTo(world, agentId, String(args.thing ?? ''));
     case 'achievements':

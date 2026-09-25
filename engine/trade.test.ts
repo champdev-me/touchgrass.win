@@ -2,7 +2,7 @@ import { test } from 'bun:test';
 import assert from 'node:assert/strict';
 import { B } from '../shared/balance.ts';
 import { TERRAIN as T, type Vec } from '../shared/types.ts';
-import { accept, decline, drop, give, offer } from './trade.ts';
+import { accept, decline, give, offer } from './trade.ts';
 import { GameFail, World } from './world.ts';
 
 function world(): World {
@@ -37,14 +37,6 @@ test('give hands items or gold to a robot within 2 tiles; nothing moves on failu
   assert.equal(failCode(() => give(w, a.id, b.id, 'gold', 99)), 'not_enough_gold');
   assert.equal(failCode(() => give(w, a.id, a.id, 'wood', 1)), 'bad_target');
   assert.ok(w.observe(b.id).inbox.some((l) => l.includes('Giver gave you 3 wood')));
-});
-
-test('drop leaves items in a loot pile underfoot to free bag space', () => {
-  const w = world();
-  const a = robot(w, 'Hoarder', [10, 10], { berries: 240 });
-  drop(w, a.id, 'berries', 200);
-  assert.deepEqual([a.inventory.berries, w.loot.get(w.index(10, 10))?.items.berries], [40, 200]);
-  assert.equal(failCode(() => drop(w, a.id, 'wood', 1)), 'missing_items');
 });
 
 test('offer then accept swaps everything at once, both ways, with gold', () => {

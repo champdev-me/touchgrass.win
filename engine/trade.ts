@@ -27,15 +27,17 @@ export function give(w: World, id: string, to: string, item: string, count = 1) 
   return { gave: `${n} ${item}`, to: b.name };
 }
 
-/** Leave items in a loot pile underfoot; anyone can pick it up until it rots. */
+/** Dropping destroys the items and costs a small fine: store them in a chest or sell them instead. */
 export function drop(w: World, id: string, item: string, count = 1) {
   const a = w.alive(id), n = Math.max(1, Math.floor(count));
   if ((a.inventory[item] ?? 0) < n) throw new GameFail('missing_items', `You do not have ${n} ${item}.`, 'Check your bag.');
   takeItem(a.inventory, item, n);
-  w.dropLoot(w.index(a.x, a.y), { [item]: n });
+  const fine = Math.min(a.wallet, B.dropFine);
+  a.wallet -= fine;
+  w.note(a, `You threw away ${n} ${item} and paid a ${fine} gold littering fine. Next time store it in a chest or sell it on the market.`);
   w.dirty.add(a.id);
   w.touch(a);
-  return { dropped: `${n} ${item}` };
+  return { destroyed: `${n} ${item}`, fine };
 }
 
 export interface Offer { id: string; from: string; to: string; give: Inventory; want: Inventory; expiresAt: number }

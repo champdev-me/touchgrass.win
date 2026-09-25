@@ -120,7 +120,18 @@ async function act(c: Client, o: Reply, trip: boolean): Promise<{ what: string; 
     if (wantsGold >= 0 && wanted && wantsGold <= fair && wantsGold <= (me.gold ?? 0)) return { what: await ok('accept', { offer: m[1], thought: 'fair deal' }, `accept ${m[1]}`), trip };
     return { what: await ok('decline', { offer: m[1], thought: 'no thanks' }, `decline ${m[1]}`), trip };
   }
-  // 3. Sell role goods to a robot within 3 tiles whose role wants them.
+  // 3. The world market: buy what the role needs if it is cheap, list what it makes.
+  if (Math.random() < 0.3) {
+    const book = await call(c, 'market', {});
+    const want = (book.data as unknown as { listings?: string[] }).listings?.find((l) => {
+      const m = l.match(/^sale_\d+: \d+ (\S+) at (\d+) gold/);
+      return m && WANTS[role]?.includes(kindOf(m[1])) && Number(m[2]) <= (PRICE[kindOf(m[1])] ?? 1) && Number(m[2]) * 3 <= (me.gold ?? 0);
+    });
+    if (want) return { what: await ok('buy', { listing: want.split(':')[0], count: 3, thought: 'good price' }, `buy ${want.split(' ')[2]}`), trip };
+  }
+  const surplus = Object.keys(inv).find((i) => SELLS[role]?.includes(kindOf(i)) && !i.includes(':') && inv[i] >= 10);
+  if (surplus) return { what: await ok('sell', { item: surplus, count: inv[surplus] - 5, price: PRICE[kindOf(surplus)] ?? 1, thought: 'to market' }, `list ${surplus}`), trip };
+  // Sell role goods to a robot within 3 tiles whose role wants them.
   const goods = Object.keys(inv).filter((i) => SELLS[role]?.includes(kindOf(i)));
   for (const item of goods) {
     const buyer = robots.find((r) => r.d <= 3 && WANTS[r.role]?.includes(kindOf(item)) && Date.now() - (offeredAt.get(`${me.id}:${r.id}`) ?? 0) > 60_000);
@@ -138,7 +149,7 @@ async function act(c: Client, o: Reply, trip: boolean): Promise<{ what: string; 
     if (own && heavy) return { what: await ok('store', { item: heavy, count: inv[heavy], thought: 'into the chest' }, `store ${heavy}`), trip };
     if (!own && (inv.wood ?? 0) >= 4) return { what: await ok('build', { structure: 'chest', thought: 'I need a chest' }, 'build chest'), trip };
     const junk = Object.entries(inv).filter(([k]) => !goods.includes(k)).sort((p, q) => q[1] - p[1])[0];
-    if (used >= total && junk && junk[1] > 20) return { what: await ok('drop', { item: junk[0], count: junk[1] - 20, thought: 'travelling light' }, `drop ${junk[0]}`), trip };
+    if (used >= total && junk && junk[1] > 20) return { what: await ok('sell', { item: junk[0], count: junk[1] - 20, price: 1, thought: 'clearing out' }, `list ${junk[0]}`), trip };
   }
   // 5. Plenty to sell and nobody around: head for the Plaza, where robots meet.
   const stock = goods.reduce((n, i) => n + inv[i], 0);

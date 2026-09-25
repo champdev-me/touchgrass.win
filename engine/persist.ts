@@ -4,6 +4,7 @@ import { CHAT_STREAM, recentChat, type Redis } from '../shared/redis.ts';
 import { TERRAIN as T } from '../shared/types.ts';
 import type { Agent, Base, Creature, NodeKind, PackedNode, Structure, Vec } from '../shared/types.ts';
 import type { Clue } from './treasure.ts';
+import type { Listing } from './market.ts';
 import { baseOf, placeBase } from './bases.ts';
 import { normalizeAgent } from './agent.ts';
 import { NODE_RULES, chunkOf, fullAmount, generateNodes, nodeKindAt, packChunk, unpackChunk } from './nodes.ts';
@@ -14,7 +15,7 @@ export const BAG_RULES = 2; // 2: small bags
 export const BASE_RULES = 1; // 1: every joined robot gets a base
 export const ECON_RULES = 1; // 1: the Smith retired, robots trade with robots
 
-export const K = { meta: 'meta', terrain: 'terrain', agents: 'agents', nodes: 'nodes', loot: 'loot', firsts: 'firsts', chat: CHAT_STREAM, creatures: 'creatures', heights: 'heights', structures: 'structures', market: 'market', treasures: 'treasures', clues: 'clues', bases: 'bases' } as const;
+export const K = { meta: 'meta', terrain: 'terrain', agents: 'agents', nodes: 'nodes', loot: 'loot', firsts: 'firsts', chat: CHAT_STREAM, creatures: 'creatures', heights: 'heights', structures: 'structures', market: 'market', treasures: 'treasures', clues: 'clues', bases: 'bases', listings: 'listings' } as const;
 
 const chunkKeys = (size: number): string[] => {
   const n = size / B.chunkSize, keys: string[] = [];
@@ -58,6 +59,9 @@ export async function flush(r: Redis, w: World): Promise<void> {
   const firstsWasDirty = w.firstsDirty;
   if (firstsWasDirty && Object.keys(w.firsts).length) m.hSet(K.firsts, w.firsts);
   w.firstsDirty = false;
+  const listingsWereDirty = w.listingsDirty;
+  if (listingsWereDirty) m.set(K.listings, JSON.stringify({ next: w.nextListingId, all: [...w.listings.values()] }));
+  w.listingsDirty = false;
   const basesWereDirty = w.basesDirty;
   if (basesWereDirty) m.set(K.bases, JSON.stringify([...w.bases.values()]));
   w.basesDirty = false;
@@ -84,6 +88,7 @@ export async function flush(r: Redis, w: World): Promise<void> {
     w.creaturesDirty ||= creaturesWereDirty;
     w.structuresDirty ||= structuresWereDirty;
     w.basesDirty ||= basesWereDirty;
+    w.listingsDirty ||= listingsWereDirty;
     w.treasuresDirty ||= treasuresWereDirty;
     throw e;
   }
@@ -191,6 +196,12 @@ export async function loadWorld(r: Redis, seed = 'touchgrass-season-1'): Promise
       if (old === 'medic') a.role = 'gatherer';
       w.dirty.add(a.id);
     }
+  }
+  const ls = await r.get(K.listings);
+  if (ls) {
+    const saved = JSON.parse(ls) as { next: number; all: Listing[] };
+    w.nextListingId = saved.next;
+    for (const l of saved.all) w.listings.set(l.id, l);
   }
   const bs = await r.get(K.bases);
   if (bs) {

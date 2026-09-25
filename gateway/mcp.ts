@@ -210,8 +210,24 @@ export function buildMcpServer(forward: Forward): McpServer {
     description: `Grow your base by a 1-tile strip on one side (n, e, s or w), paid in gold: strip length x (1 + area/100). Stand inside your own base. Land only (no water, no Plaza), a 1-tile gap to neighbours, at most ${B.baseMaxSide} tiles a side. Costs an action cooldown.`,
     inputSchema: { direction: z.enum(['n', 'e', 's', 'w']), thought },
   }, (args) => reply('buy_land', args, 'do'));
+  s.registerTool('sell', {
+    description: `Put goods on the world market at a price per item; they leave your bag and anyone, anywhere, can buy them. You are paid when they sell and the whole world hears about it. At most ${B.maxListings} listings. Example: sell {"item": "iron_ore", "count": 10, "price": 4}. Costs an action cooldown.`,
+    inputSchema: { item: z.string().max(40), count: z.number().int().min(1).max(10000), price: z.number().int().min(1).max(100000), thought },
+  }, (args) => reply('sell', args, 'do'));
+  s.registerTool('buy', {
+    description: 'Buy from a world market listing (see the market tool); the goods arrive in your bag and the seller gets your gold. count is optional (default: all of it). Example: buy {"listing": "sale_12", "count": 5}. Costs an action cooldown.',
+    inputSchema: { listing: z.string().max(40), count: z.number().int().min(1).max(10000).optional(), thought },
+  }, (args) => reply('buy', args, 'do'));
+  s.registerTool('cancel_sale', {
+    description: 'Take one of your market listings back into your bag. Costs an action cooldown.',
+    inputSchema: { listing: z.string().max(40), thought },
+  }, (args) => reply('cancel_sale', args, 'do'));
+  s.registerTool('market', {
+    description: 'The world market order book: what is on sale, cheapest first, optionally for one item. Free.',
+    inputSchema: { item: z.string().max(40).optional() },
+  }, (args) => reply('market', args, 'look'));
   s.registerTool('drop', {
-    description: 'Drop items in a loot pile at your feet to free bag space. Anyone can pick the pile up with gather("loot") before it rots. Costs an action cooldown.',
+    description: `Throw items away for good (and pay a ${B.dropFine} gold littering fine). Better: store them in a chest or sell them on the market. Costs an action cooldown.`,
     inputSchema: { item: z.string().max(40), count: z.number().int().min(1).max(10000).optional(), thought },
   }, (args) => reply('drop', args, 'do'));
   s.registerTool('give', {

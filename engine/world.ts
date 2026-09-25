@@ -16,6 +16,7 @@ import { NODE_DEF, chunkOf, fullAmount, wrongRole, type ResourceNode } from './n
 import { buildObservation } from './observe.ts';
 import { expireOffers, type Offer } from './trade.ts';
 import { spawnTreasures, type Clue } from './treasure.ts';
+import type { Listing } from './market.ts';
 import { duelViews, inDuel, stepDuels, type Challenge, type Duel } from './duel.ts';
 import { baseOf, lockCheck, placeBase, releaseIdle } from './bases.ts';
 import { findPath } from './path.ts';
@@ -66,6 +67,9 @@ export class World {
   loot = new Map<number, LootPile>();
   offers = new Map<string, Offer>(); // memory only: a restart clears open offers
   bases = new Map<string, Base>(); // base id -> base; a robot may own several
+  listings = new Map<string, Listing>(); // the world market
+  nextListingId = 1;
+  listingsDirty = false;
   challenges = new Map<string, Challenge>(); // defender id -> open challenge (memory only)
   duels: Duel[] = []; // seated or waiting, first come first served
   chickens = new Map<string, number[]>(); // robot -> times it rejected a challenge (ms)

@@ -17,7 +17,7 @@ const LLM_MODEL = process.env.LLM_MODEL ?? 'gemma4:12b';
 const LLM_KEY = process.env.LLM_KEY ?? '';
 const LLM_REASONING = process.env.LLM_REASONING; // e.g. none: thinking models answer fast and do call a tool
 const ROLE = process.env.ROLE ?? 'gatherer';
-const ACTIONS = ['move_to', 'gather', 'eat', 'drink', 'rest', 'sleep', 'say_world', 'attack', 'craft', 'flee', 'build', 'offer', 'accept', 'decline', 'give', 'store', 'take', 'chart', 'search', 'drop', 'how', 'buy_land', 'switch_role', 'demolish', 'plant', 'harvest', 'challenge', 'answer_challenge', 'fight'];
+const ACTIONS = ['move_to', 'gather', 'eat', 'drink', 'rest', 'sleep', 'say_world', 'attack', 'craft', 'flee', 'build', 'offer', 'accept', 'decline', 'give', 'store', 'take', 'chart', 'search', 'drop', 'how', 'buy_land', 'switch_role', 'demolish', 'plant', 'harvest', 'challenge', 'answer_challenge', 'fight', 'sell', 'buy', 'cancel_sale', 'market'];
 const CHAT_EVERY_MS = Number(process.env.CHAT_EVERY_S ?? 60) * 1000;
 const MEMORY = Number(process.env.LLM_MEMORY ?? 6); // past actions shown to the model each turn
 
@@ -57,7 +57,7 @@ HOW TO PLAY WELL (in this order, do not get stuck on step 2):
 1. Stay alive: drink below 50 water, eat below 60 food. Health only heals while food is 90+ and water 50+, so eat to full when hurt. Sleep at night or below 15 energy.
 2. Work your role for a while (see "Your role"). Gathering is a means, not the goal: about 15-20 items is enough, then do something with them.
 3. Make your base a home: a bed (your respawn point, carpenters build it) and a chest (anyone, wood 4) inside your base. Store extra goods in the chest.
-4. Make money: sell what your role produces to other robots with offer(agent, give, want gold). The Plaza (512, 512) is where robots meet; say what you sell in world chat.
+4. Make money: put what your role produces on the world market with sell(item, count, price); anyone anywhere can buy it and you get the gold. Check market for prices. Buy what you need with buy. Never drop things (it destroys them and costs gold): store them in your chest or sell them.
 5. Grow: buy_land when you have spare gold; buy tools you cannot make (pickaxe, axe, hoe) from smiths.
 6. Have fun and be watchable: chat, follow clues to treasure, and with 80+ gold challenge a neighbour for their land (how {"thing":"duel"}).
 Every turn there is a "Next goal" line: it is usually the best move. Mix things up; never repeat a failing call.
@@ -127,7 +127,7 @@ function fallback(o: Obs, skip = ''): Action {
   }
   const [used, total] = (me.slots ?? '0/99').split('/').map(Number);
   const junk = Object.entries(me.inventory).sort((p, q) => q[1] - p[1])[0];
-  if (used >= total && junk && junk[1] > 20) options.push({ name: 'drop', args: { item: junk[0], count: junk[1] - 20 }, why: 'bag full, dropping extras' });
+  if (used >= total && junk && junk[1] > 20) options.push({ name: 'sell', args: { item: junk[0], count: junk[1] - 20, price: 2 }, why: 'bag full, selling extras on the market' });
   if (me.water < 50) {
     const spot = find('drink spot');
     if (spot?.includes(', 0 tiles') || spot?.includes(', 1 tiles')) options.push({ name: 'drink', args: {}, why: 'thirsty, water is right here' });
@@ -169,7 +169,7 @@ function nextGoal(o: Obs): string {
   if (me.energy < 15) return 'sleep or rest.';
   if ((o.offers?.incoming.length ?? 0) > 0) return 'answer the offer made to you (accept if fair, else decline).';
   if (me.clues?.length) return `follow your clue: ${me.clues[0]}`;
-  if (goods >= 15) return `you carry ${goods} goods to sell: offer them to a robot within 3 tiles, or walk toward the Plaza (512, 512) and say what you sell in world chat.`;
+  if (goods >= 15) return `you carry ${goods} goods: put some on the world market with sell (check market for prices first), or store them in your chest.`;
   if (!me.bed && n('wood') >= 10 && n('fiber') >= 10) return ROLE === 'carpenter' ? 'go home and build your bed.' : 'you have bed materials: go home, switch_role carpenter, build a bed, switch back later (or pay a carpenter).';
   if (!stations.some((l) => l.startsWith('chest (yours')) && n('wood') >= 4 && home) return 'build a chest in your base and store your extras.';
   const gold = me.gold ?? 0;
