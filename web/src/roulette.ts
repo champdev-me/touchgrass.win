@@ -86,7 +86,10 @@ export class Roulette {
     if (m.round !== this.round && v.last) {
       this.round = m.round; // a new turn resolved: play it (the fall and the BANG wait for the shot)
       if (v.last.move !== 'pass') this.shot = { who: v.last.who, bang: v.last.bang, spin: v.last.move === 'spin', t: 0, fired: false };
-      if (v.last.move === 'spin') sfx.spin();
+      if (v.last.move === 'spin') {
+        sfx.spin();
+        sfx.twirl(SPIN_S);
+      }
       if (v.last.move === 'spin') this.twirl = { from: this.aim, to: this.aim + Math.PI * 4, t: 0, s: SPIN_S }; // spun twice, back on the holder
       const s = this.seats.get(v.last.who);
       if (s && v.last.move === 'pass') this.say(s, 'passes the gun', now);
@@ -110,6 +113,7 @@ export class Roulette {
       if (this.holder && next >= 0) {
         const diff = Math.atan2(Math.sin(seatAngle(next) - this.aim), Math.cos(seatAngle(next) - this.aim));
         this.twirl = { from: this.aim, to: this.aim + diff + Math.PI * 2 * (diff > 0 ? 1 : -1), t: 0, s: 1.3 }; // one full spin, then it points at them
+        sfx.twirl(1.3);
       } else if (next >= 0) this.aim = seatAngle(next);
       this.holder = v.turn;
     }
