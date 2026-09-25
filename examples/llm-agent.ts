@@ -114,6 +114,15 @@ function coordsOf(line: string | undefined): { x: number; y: number } | null {
 }
 
 /** The survival rule the model is asked to follow, used when the model fails. `skip` avoids repeating a failed tool. */
+const SELLS: Record<string, string[]> = { miner: ['iron_ore', 'gem', 'crystal'], mason: ['stone', 'brick', 'mud'], smith: ['stone_pickaxe', 'stone_axe', 'hoe', 'iron'], carpenter: ['wood'], farmer: ['bread', 'wheat'], hunter: ['cooked_meat', 'meat', 'hide'], gatherer: ['wood', 'fiber', 'herb', 'bandage'], scout: ['fiber'] };
+// A fair asking price per item, so role goods reach the market instead of sitting in bags.
+const PRICE: Record<string, number> = { iron_ore: 4, gem: 10, crystal: 8, stone: 2, brick: 3, mud: 1, stone_pickaxe: 15, stone_axe: 12, hoe: 10, iron: 8, wood: 1, bread: 5, wheat: 1, cooked_meat: 4, meat: 2, hide: 3, fiber: 1, herb: 2, bandage: 4 };
+/** The role good the robot holds the most of, if it holds at least 10: [item, count to sell, price]. */
+function surplus(o: Obs): [string, number, number] | null {
+  const top = (SELLS[ROLE] ?? []).map((k): [string, number] => [k, o.you.inventory[k] ?? 0]).sort((p, q) => q[1] - p[1])[0];
+  return top && top[1] >= 10 ? [top[0], top[1] - 3, PRICE[top[0]] ?? 2] : null;
+}
+
 function fallback(o: Obs, skip = ''): Action {
   const me = o.you;
   const find = (prefix: string) => o.resources.find((r) => r.startsWith(prefix));
@@ -139,6 +148,8 @@ function fallback(o: Obs, skip = ''): Action {
   if (me.energy < 15) options.push({ name: o.time.phase === 'night' ? 'sleep' : 'rest', args: {}, why: 'out of energy' });
   if (me.food < 70 && (me.inventory.berries ?? 0) < 10 && find('berry_bush')) options.push({ name: 'gather', args: { target: 'berry_bush', until: 6 }, why: 'stocking up on berries' });
   if (o.time.phase === 'night' && me.energy < 80) options.push({ name: 'sleep', args: {}, why: 'night, sleeping' });
+  const extra = surplus(o); // after staying alive, before more gathering
+  if (extra) options.push({ name: 'sell', args: { item: extra[0], count: extra[1], price: extra[2] }, why: `selling my ${extra[0]} on the market` });
   // Each role only gathers what it uses; a miner with no vein in sight heads for the hills instead of chopping trees.
   const own: Record<string, string[]> = {
     miner: ['gold_vein', 'gem_vein', 'iron_vein', 'crystal'], mason: ['rock', 'mud'], gatherer: ['herb', 'tree', 'grass', 'berry_bush'],
@@ -157,7 +168,6 @@ function fallback(o: Obs, skip = ''): Action {
   return options.find(pick) ?? options[options.length - 1];
 }
 
-const SELLS: Record<string, string[]> = { miner: ['iron_ore', 'gem', 'crystal'], mason: ['stone', 'brick'], smith: ['stone_pickaxe', 'stone_axe', 'hoe', 'iron'], carpenter: ['wood'], farmer: ['bread', 'wheat'], hunter: ['cooked_meat', 'meat', 'hide'], gatherer: ['wood', 'fiber', 'herb', 'bandage'], scout: ['fiber'] };
 
 /** One concrete suggestion for this turn, from the robot's state; small models follow this better than a list of rules. */
 function nextGoal(o: Obs): string {
@@ -169,7 +179,9 @@ function nextGoal(o: Obs): string {
   if (me.energy < 15) return 'sleep or rest.';
   if ((o.offers?.incoming.length ?? 0) > 0) return 'answer the offer made to you (accept if fair, else decline).';
   if (me.clues?.length) return `follow your clue: ${me.clues[0]}`;
-  if (goods >= 15) return `you carry ${goods} goods: put some on the world market with sell (check market for prices first), or store them in your chest.`;
+  const extra = surplus(o);
+  if (extra) return `supply the market: sell {"item": "${extra[0]}", "count": ${extra[1]}, "price": ${extra[2]}} (others need your ${extra[0]}).`;
+  if (goods >= 15) return `you carry ${goods} goods: put some on the world market with sell, or store them in your chest.`;
   if (!me.bed && n('wood') >= 10 && n('fiber') >= 10) return ROLE === 'carpenter' ? 'go home and build your bed.' : 'you have bed materials: go home, switch_role carpenter, build a bed, switch back later (or pay a carpenter).';
   if (!stations.some((l) => l.startsWith('chest (yours')) && n('wood') >= 4 && home) return 'build a chest in your base and store your extras.';
   const gold = me.gold ?? 0;
