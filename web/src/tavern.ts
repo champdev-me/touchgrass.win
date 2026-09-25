@@ -159,9 +159,10 @@ export class Tavern {
     const talk = newTalk(m.talk, this.talkSeen);
     this.talkSeen = talk.seen;
     if (talk.lines.length) sfx.blip();
+    const out = new Set(v.seats.filter((x) => x.out).map((x) => x.id));
     for (const line of talk.lines) {
       const s = this.sitters.get(line.name);
-      if (!s) continue;
+      if (!s || out.has(line.name)) continue; // thrown out: no more table talk
       s.bubble.textContent = `“${line.text}”`;
       s.bubbleUntil = now + BUBBLE_MS;
     }

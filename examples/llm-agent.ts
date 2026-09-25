@@ -209,9 +209,11 @@ for (;;) {
     const r = await call<{ message?: string }>('play', { game, model: LLM_MODEL });
     log(`play ${game} -> ${r.ok ? 'queued' : r.data.message}`);
   } else if (o.status === 'in_match' && (o.game === 'tavern' || o.game === 'roulette') && !o.options?.length) {
-    wasRacing = true; // not our turn: sometimes react to the table
+    wasRacing = true; // not our turn: sometimes react to the table, unless we are out
+    const st = o.state as { players?: { id: string; out: boolean }[]; seats?: { id: string; out: boolean }[] };
+    const outNow = (st.players ?? st.seats ?? []).some((p) => p.id === o.you && p.out);
     const last = o.talk?.at(-1);
-    if (last && last.name !== o.you && `${o.match}:${last.text}` !== heard && Math.random() < 0.35) {
+    if (!outNow && last && last.name !== o.you && `${o.match}:${last.text}` !== heard && Math.random() < 0.35) {
       heard = `${o.match}:${last.text}`;
       await reactAtTable(o);
     }

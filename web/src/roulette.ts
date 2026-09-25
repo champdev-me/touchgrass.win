@@ -11,7 +11,7 @@ const BUBBLE_MS = 5000, SPIN_S = 0.9;
 
 interface Player { id: string; chips: number; nerve: number; out: boolean }
 interface RouletteView { turn: string; clicks: number; odds: string; live_in?: number; last: { who: string; move: string; bang: boolean } | null; players: Player[] }
-interface Seat { root: THREE.Group; body: THREE.Object3D; arm: THREE.Object3D | null; armRest: THREE.Euler | null; mixer: THREE.AnimationMixer; tag: HTMLElement; bubble: HTMLElement; bubbleUntil: number; fallen: number }
+interface Seat { root: THREE.Group; body: THREE.Object3D; arm: THREE.Object3D | null; armLen: number; out: boolean; armRest: THREE.Quaternion | null; mixer: THREE.AnimationMixer; tag: HTMLElement; bubble: HTMLElement; bubbleUntil: number; fallen: number }
 interface Puff { mesh: THREE.Mesh; vel: THREE.Vector3; life: number; age: number; grow: number }
 interface Shot { who: string; bang: boolean; spin: boolean; t: number; fired: boolean }
 
@@ -20,7 +20,7 @@ export function buildRoulette(scene: THREE.Scene): void {
 }
 
 /** The revolver (Quaternius, CC0) laid on its side; +z is the muzzle, about MUZZLE units from the pivot. */
-const MUZZLE = 0.5;
+const MUZZLE = 0.3, TRIGGER = new THREE.Vector3(0, -0.075, -0.09); // gun-local muzzle and trigger
 async function revolver(): Promise<THREE.Group> {
   const model = (await load('/assets/props/revolver.glb')).scene; // barrel along +x, grip down, thin along z
   const box = new THREE.Box3().setFromObject(model);
@@ -31,7 +31,7 @@ async function revolver(): Promise<THREE.Group> {
   lay.rotation.x = Math.PI / 2; // on its side (0: upright, as held)
   face.add(lay);
   face.rotation.y = -Math.PI / 2; // barrel toward +z
-  face.scale.setScalar(0.5);
+  face.scale.setScalar(0.3);
   g.add(face);
   return g;
 }
@@ -55,6 +55,7 @@ export class Roulette {
   hold = 0; // 0 on the table .. 1 raised to the holder's head
   heldBy = '';
   over = false;
+  reach = new THREE.Vector3(); // where the holder's gun arm points, world space
   turn = ''; // whose turn the engine says it is
   odds = '';
   live = false;
@@ -101,6 +102,7 @@ export class Roulette {
     }
     v.players.forEach((p) => {
       const s = this.seats.get(p.id)!;
+      s.out = p.out;
       s.tag.classList.toggle('turn', !m.finished && v.turn === p.id);
       const waiting = this.shot?.who === p.id && !this.shot.fired; // their shot has not gone off yet
       s.tag.classList.toggle('out', p.out && !waiting);
@@ -110,7 +112,7 @@ export class Roulette {
     this.talkSeen = talk.seen;
     for (const t of talk.lines) {
       const s = this.seats.get(t.name);
-      if (s) this.say(s, `“${t.text}”`, now);
+      if (s && !s.out) this.say(s, `“${t.text}”`, now); // the dead stay quiet
     }
     if (talk.lines.length) sfx.blip();
     this.turn = v.turn;
@@ -156,7 +158,10 @@ export class Roulette {
   spawn(name: string, m: MatchView, robots: Model[], i: number): Seat {
     const p = m.players.find((x) => x.name === name);
     const { root, body, mixer, tag, bubble } = seatRobot(this.scene, robots, name, p?.house ? 'house' : p?.model ?? '', i, ROULETTE);
-    const s: Seat = { root, body, arm: body.getObjectByName('arm-right') ?? null, armRest: null, mixer, tag, bubble, bubbleUntil: 0, fallen: 0 };
+    const arm = body.getObjectByName('arm-right') ?? null;
+    root.updateMatrixWorld(true);
+    const armLen = arm ? new THREE.Box3().setFromObject(arm).getSize(new THREE.Vector3()).y * 0.85 : 0.35; // shoulder to palm, measured in the rest pose
+    const s: Seat = { root, body, arm, armLen, out: false, armRest: null, mixer, tag, bubble, bubbleUntil: 0, fallen: 0 };
     this.seats.set(name, s);
     return s;
   }
@@ -176,7 +181,7 @@ export class Roulette {
 
   /** Where the gun is: on the table aimed at `aim`, or raised to the holder's temple (`hold`), trembling while they decide. */
   pose(dt: number, now: number): void {
-    const up = !this.over && (this.shot ? !this.shot.fired : !this.twirl && Boolean(this.holder));
+    const up = this.shot ? !this.shot.fired : !this.over && !this.twirl && Boolean(this.holder); // a shot in progress keeps the gun raised, even the last one
     if (this.hold < 0.02) this.heldBy = this.shot?.who ?? this.holder; // it changes hands only on the table
     this.hold = Math.max(0, Math.min(1, this.hold + (up ? dt / 1.1 : -dt / 0.8)));
     const e = this.hold * this.hold * (3 - 2 * this.hold), s = this.seats.get(this.heldBy), i = this.order.indexOf(this.heldBy);
@@ -189,11 +194,16 @@ export class Roulette {
       return;
     }
     const a = seatAngle(i), facing = new THREE.Vector3(-Math.sin(a), 0, -Math.cos(a)), right = new THREE.Vector3().crossVectors(facing, new THREE.Object3D().up);
-    const head = s.root.position.clone().add(new THREE.Vector3(0, 0.85, 0)), held = head.clone().addScaledVector(right, 0.4).add(new THREE.Vector3(0, 0.04, 0));
-    if (!this.shot) held.add(new THREE.Vector3(Math.sin(now / 170), Math.sin(now / 230), Math.sin(now / 200)).multiplyScalar(0.0015)); // a faint tremble
+    const head = s.root.position.clone().add(new THREE.Vector3(0, 0.85, 0));
+    s.root.updateMatrixWorld(true);
+    const shoulder = s.arm ? s.arm.getWorldPosition(new THREE.Vector3()) : head.clone().addScaledVector(right, 0.25).setY(head.y - 0.25);
+    this.reach.set(0, 0.45, 0).addScaledVector(right, 0.85).addScaledVector(facing, 0.1).normalize(); // out to the side at ear height
+    const hand = shoulder.addScaledVector(this.reach, s.armLen);
+    if (!this.shot) hand.add(new THREE.Vector3(Math.sin(now / 170), Math.sin(now / 230), Math.sin(now / 200)).multiplyScalar(0.0015)); // a faint tremble
     const aimAt = new THREE.Object3D();
-    aimAt.position.copy(held);
+    aimAt.position.copy(hand);
     aimAt.lookAt(head); // muzzle to the temple
+    const held = hand.clone().sub(TRIGGER.clone().applyQuaternion(aimAt.quaternion)); // the trigger sits in the hand
     this.gun.position.lerpVectors(onTable, held, e).add(new THREE.Vector3(0, Math.sin(e * Math.PI) * 0.25, 0));
     this.gun.quaternion.slerpQuaternions(flat, aimAt.quaternion, e);
     if (this.shot?.spin && !this.shot.fired && this.shot.t < SPIN_S) this.gun.rotateY(Math.sin(this.shot.t * 40) * 0.08 * (1 - this.shot.t / SPIN_S)); // the cylinder spun in the hand: a quick shake
@@ -242,9 +252,13 @@ export class Roulette {
     for (const [name, s] of this.seats) {
       s.mixer.update(dt);
       if (s.arm) {
-        s.armRest ??= s.arm.rotation.clone(); // the seated pose, taken once
+        s.armRest ??= s.arm.quaternion.clone(); // the seated pose, taken once
         const e = name === this.heldBy ? this.hold * this.hold * (3 - 2 * this.hold) : 0;
-        s.arm.rotation.set(s.armRest.x + (-2.7 - s.armRest.x) * e, s.armRest.y, s.armRest.z + 0.25 * e); // the gun arm up beside the head
+        if (e > 0 && s.arm.parent) {
+          const toParent = s.arm.parent.getWorldQuaternion(new THREE.Quaternion()).invert();
+          const point = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, -1, 0), this.reach.clone().applyQuaternion(toParent)); // the arm hangs along -y
+          s.arm.quaternion.slerpQuaternions(s.armRest, point, e);
+        } else s.arm.quaternion.copy(s.armRest);
       }
       s.bubble.hidden = now > s.bubbleUntil;
       const f = s.fallen * (2 - s.fallen); // eased
