@@ -596,19 +596,20 @@ export class World {
     if (a.joined) this.emit('rename', `${old} is now ${name}.`, a);
   }
 
-  /** What a robot holds right now: the tool for the job, its weapon in a fight, a torch at night. */
+  /** What a robot holds: the tool for the job, else its weapon, else its best tool, else a torch at night. */
   heldOf(a: Agent): string | null {
     const t = a.task;
+    if (a.dead || !a.inventory || t?.type === 'rest' || t?.type === 'sleep') return null; // a corrupt bag must not stop the tick
     if (t?.type === 'gather') {
       const kind = t.target === 'treasure' ? 'iron_vein' : this.nodes.get(t.node)?.kind;
-      return kind ? bestTool(a, kind)?.item ?? null : null;
+      const tool = kind ? bestTool(a, kind)?.item : undefined;
+      if (tool) return tool;
     }
-    if (t?.type === 'attack') {
-      const w = weaponOf(a).name;
-      return w === 'fists' ? null : w;
-    }
-    if (timeOf(this.tick).phase === 'night' && (a.inventory.torch ?? 0) > 0) return 'torch';
-    return null;
+    const weapon = weaponOf(a).name;
+    if (weapon !== 'fists') return weapon;
+    const tools = Object.keys(a.inventory).filter((i) => ITEMS[i]?.tool).sort((p, q) => (ITEMS[q].tool!.tier - ITEMS[p].tool!.tier));
+    if (tools.length) return tools[0];
+    return (a.inventory.torch ?? 0) > 0 && timeOf(this.tick).phase === 'night' ? 'torch' : null;
   }
 
   bedOf(a: Agent): Vec | null {

@@ -155,13 +155,19 @@ test('robots visibly hold the tool for the job, their weapon in a fight, a torch
   g.wear.stone_axe = 100;
   const [fx, fy] = baseOf(w, g.id)!.flag;
   const held = () => w.views().find((v) => v.id === g.id)?.held;
-  assert.equal(held(), null);
+  assert.equal(held(), 'club'); // idle: it carries its weapon
+  g.task = { type: 'rest' };
+  assert.equal(held(), null); // hands free while resting
+  g.task = null;
   w.nodes.set(w.index(fx + 1, fy), { kind: 'tree', left: 5, regrowAt: 0 });
   w.gather(g.id, 'tree', 1);
   assert.equal(held(), 'stone_axe');
   g.task = { type: 'attack', target: 'mob_1', progress: 0 };
   assert.equal(held(), 'club');
   g.task = null;
+  g.inventory = { torch: 1 };
   w.tick = B.dayTicks - 10; // night
   assert.equal(held(), 'torch');
+  g.inventory = { stone_pickaxe: 1 };
+  assert.equal(held(), 'stone_pickaxe'); // no weapon: its best tool
 });
