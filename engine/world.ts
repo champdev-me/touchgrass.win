@@ -16,6 +16,7 @@ import { NODE_DEF, chunkOf, fullAmount, wrongRole, type ResourceNode } from './n
 import { buildObservation } from './observe.ts';
 import { expireOffers, type Offer } from './trade.ts';
 import { spawnTreasures, type Clue } from './treasure.ts';
+import { inDuel, stepDuels, type Challenge, type Duel } from './duel.ts';
 import { baseOf, lockCheck, placeBase, releaseIdle } from './bases.ts';
 import { findPath } from './path.ts';
 import { addScore } from './score.ts';
@@ -65,6 +66,10 @@ export class World {
   loot = new Map<number, LootPile>();
   offers = new Map<string, Offer>(); // memory only: a restart clears open offers
   bases = new Map<string, Base>(); // base id -> base; a robot may own several
+  challenges = new Map<string, Challenge>(); // defender id -> open challenge (memory only)
+  duels: Duel[] = []; // seated or waiting, first come first served
+  chickens = new Map<string, number[]>(); // robot -> times it rejected a challenge (ms)
+  defended = new Map<string, number>(); // robot -> tick its defense shield ends
   nextBaseId = 1;
   basesDirty = false;
   treasures = new Map<number, { loot: number }>(); // tile -> buried treasure; scouts only, never broadcast
@@ -215,6 +220,7 @@ export class World {
 
   gather(id: string, target: string, until?: number) {
     const a = this.alive(id);
+    if (inDuel(this, a.id)) throw new GameFail('in_duel', 'You are in a duel. Fight!', 'fight(moves=[...])');
     if (a.energy <= 0) throw new GameFail('too_tired', 'Your robot is too tired to punch anything.', 'rest or sleep first.');
     if (!isTarget(target)) throw new GameFail('bad_target', `You cannot gather "${target}".`, `Gather one of: ${GATHER_TARGETS.join(', ')}.`);
     if (target === 'treasure') return this.digFor(a);
@@ -347,6 +353,7 @@ export class World {
   cooldownFor(id: string): number {
     const a = this.agents.get(id);
     if (!a) return B.doCooldownMs;
+    if (inDuel(this, a.id)) return B.duelCooldownMs;
     if (this.inCombat(a)) return B.combatCooldownMs;
     return a.health < B.lowHealth || a.food < B.lowStat || a.water < B.lowStat ? B.lowStatCooldownMs : B.doCooldownMs;
   }
@@ -392,6 +399,7 @@ export class World {
     }
     stepCreatures(this);
     expireOffers(this);
+    stepDuels(this);
     if (this.tick % 60 === 0) spawnTreasures(this);
     if (this.tick % 3600 === 0) releaseIdle(this, Date.now());
     this.regrow();

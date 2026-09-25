@@ -79,6 +79,7 @@ export interface Agent {
   autoFlee: boolean; // reflex: run from creatures charging at you
   wear: Record<string, number>; // uses left on the gear item in use, per item
   roleSwitchedAt: number; // tick of the last switch_role
+  duelReturn: Vec | null; // where to put the robot back after a duel
 }
 
 export interface GameError {

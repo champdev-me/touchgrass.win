@@ -10,6 +10,7 @@ import { baseLines } from './bases.ts';
 import { offerLines } from './trade.ts';
 import { clueLines } from './treasure.ts';
 import { farmLines } from './farm.ts';
+import { duelView } from './duel.ts';
 import type { World } from './world.ts';
 
 const GRID: Record<number, string> = { [T.DEEP]: '~', [T.SHALLOW]: ',', [T.SAND]: ':', [T.MEADOW]: '.', [T.FOREST]: 'f', [T.HILLS]: '^', [T.RUINS]: 'r', [T.PLAZA]: '#', [T.MOUNTAIN]: 'm', [T.HIGH]: 'm', [T.PEAK]: 'm' };
@@ -113,6 +114,7 @@ export function buildObservation(w: World, a: Agent) {
       in_combat: w.inCombat(a),
       ...baseLines(w, a),
       farm: farmLines(w, a),
+      duel: duelView(w, a.id),
       clues: clueLines(w, a, (x, y) => TERRAIN_NAME[w.at(x, y)]),
       maps: Object.keys(a.inventory).filter(isMap).map((m) => `treasure_map -> (${m.slice('treasure_map:'.length).replace(',', ', ')})`),
     },

@@ -129,6 +129,7 @@ export async function loadWorld(r: Redis, seed = 'touchgrass-season-1'): Promise
       a.inbox.push('Task cancelled: the universe rebooted.');
       w.dirty.add(a.id);
     }
+    if (a.duelReturn) [a.x, a.y, a.duelReturn] = [a.duelReturn[0], a.duelReturn[1], null]; // duels end on restart
     w.agents.set(a.id, a);
   }
   const savedNodes = oldTerrain ? {} : await r.hGetAll(K.nodes); // new land grows fresh nodes

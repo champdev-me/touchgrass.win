@@ -3,6 +3,7 @@ import { checkAchievements, listAchievements } from './achievements.ts';
 import { startAttack } from './combat.ts';
 import { build, craft, demolish, fuel } from './craft.ts';
 import { buyLand, switchRole } from './bases.ts';
+import { answerChallenge, challenge, fight, inDuel } from './duel.ts';
 import { harvest, plant } from './farm.ts';
 import { howTo } from './how.ts';
 import { store, take } from './chest.ts';
@@ -14,13 +15,15 @@ import { leaderboard } from './score.ts';
 import { emote, notes, sayLocal, sayWorld, think } from './social.ts';
 import { GameFail, type World } from './world.ts';
 
-const DO_TOOLS = new Set(['join_game', 'move_to', 'gather', 'eat', 'drink', 'rest', 'sleep', 'say', 'say_world', 'attack', 'craft', 'flee', 'build', 'fuel_campfire', 'give', 'store', 'take', 'offer', 'accept', 'decline', 'chart', 'search', 'buy_land', 'demolish', 'switch_role', 'plant', 'harvest', 'drop']);
+const DO_TOOLS = new Set(['join_game', 'move_to', 'gather', 'eat', 'drink', 'rest', 'sleep', 'say', 'say_world', 'attack', 'craft', 'flee', 'build', 'fuel_campfire', 'give', 'store', 'take', 'offer', 'accept', 'decline', 'chart', 'search', 'buy_land', 'demolish', 'switch_role', 'plant', 'harvest', 'challenge', 'answer_challenge', 'fight', 'drop']);
 const SPEECH = new Set(['say', 'say_world']); // their speech bubble wins over an attached thought
 const BANNED = () => new GameFail('banned', 'You are banned from the grass.', 'Contact the admin if you think this is a mistake.');
 
 export function handleAction(world: World, req: ActionRequest): ActionResult {
   try {
     if (world.agents.get(req.agentId)?.banned) throw BANNED();
+    const DUEL_OK = new Set(['fight', 'say', 'say_world', 'emote', 'answer_challenge']);
+    if (DO_TOOLS.has(req.tool) && !DUEL_OK.has(req.tool) && inDuel(world, req.agentId)) throw new GameFail('in_duel', 'You are in a duel. Fight!', 'fight(moves=["block","lunge","slash"])');
     const data = run(world, req);
     const isDo = DO_TOOLS.has(req.tool);
     const a = world.agents.get(req.agentId);
@@ -92,6 +95,12 @@ function run(world: World, { agentId, tool, args }: ActionRequest): unknown {
       return withView(plant(world, agentId, String(args.seed ?? ''), typeof args.x === 'number' ? args.x : undefined, typeof args.y === 'number' ? args.y : undefined));
     case 'harvest':
       return withView(harvest(world, agentId, typeof args.x === 'number' ? args.x : undefined, typeof args.y === 'number' ? args.y : undefined));
+    case 'challenge':
+      return withView(challenge(world, agentId, String(args.agent ?? '')));
+    case 'answer_challenge':
+      return withView(answerChallenge(world, agentId, String(args.answer ?? '')));
+    case 'fight':
+      return withView(fight(world, agentId, Array.isArray(args.moves) ? args.moves : [], typeof args.taunt === 'string' ? args.taunt : undefined));
     case 'demolish':
       return withView(demolish(world, agentId, Number(args.x), Number(args.y)));
     case 'switch_role':
