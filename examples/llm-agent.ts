@@ -139,8 +139,14 @@ function fallback(o: Obs, skip = ''): Action {
   if (me.energy < 15) options.push({ name: o.time.phase === 'night' ? 'sleep' : 'rest', args: {}, why: 'out of energy' });
   if (me.food < 70 && (me.inventory.berries ?? 0) < 10 && find('berry_bush')) options.push({ name: 'gather', args: { target: 'berry_bush', until: 6 }, why: 'stocking up on berries' });
   if (o.time.phase === 'night' && me.energy < 80) options.push({ name: 'sleep', args: {}, why: 'night, sleeping' });
-  const own: Record<string, string[]> = { miner: ['gold_vein', 'gem_vein', 'iron_vein', 'crystal'], mason: ['rock', 'mud'], gatherer: ['herb'], farmer: ['grass', 'berry_bush'] };
-  for (const kind of [...(own[ROLE] ?? []), 'tree', 'grass']) if (find(kind)) options.push({ name: 'gather', args: { target: kind, until: 5 }, why: `${ROLE} work: ${kind}` });
+  // Each role only gathers what it uses; a miner with no vein in sight heads for the hills instead of chopping trees.
+  const own: Record<string, string[]> = {
+    miner: ['gold_vein', 'gem_vein', 'iron_vein', 'crystal'], mason: ['rock', 'mud'], gatherer: ['herb', 'tree', 'grass', 'berry_bush'],
+    farmer: ['grass', 'berry_bush'], carpenter: ['tree', 'grass'], smith: ['tree', 'grass'], scout: ['grass'], hunter: [],
+  };
+  for (const kind of own[ROLE] ?? []) if (find(kind)) options.push({ name: 'gather', args: { target: kind, until: 5 }, why: `${ROLE} work: ${kind}` });
+  const hills = (o.landmarks ?? []).find((l) => l.startsWith('hills or mountains'))?.match(/at \((\d+), (\d+)\)/);
+  if (ROLE === 'miner' && hills) options.push({ name: 'move_to', args: { x: Number(hills[1]), y: Number(hills[2]) }, why: 'heading for the hills to mine' });
   const [x, y] = me.pos, d = () => Math.round((Math.random() - 0.5) * 40);
   if ((me.inventory.wood ?? 0) >= 5 && !me.inventory.club) options.push({ name: 'craft', args: { item: 'club' }, why: 'making a club' });
   if (!me.inventory.stone_axe && (me.inventory.wood ?? 0) >= 9 && (me.inventory.stone ?? 0) >= 5 && (me.inventory.fiber ?? 0) >= 2) {
@@ -195,7 +201,7 @@ async function decide(o: Obs, memory: string[], chatOk: boolean): Promise<Action
     `Next goal: ${nextGoal(o)}`,
     'Your robot is idle. Call exactly one tool now.',
   ].join('\n');
-  const body = { model: LLM_MODEL, messages: [{ role: 'system', content: SYSTEM }, { role: 'user', content: state }], tools: toolsFor(o), temperature: 0.4, max_tokens: 600, ...(LLM_REASONING ? { reasoning_effort: LLM_REASONING } : {}) };
+  const body = { model: LLM_MODEL, messages: [{ role: 'system', content: SYSTEM }, { role: 'user', content: state }], tools: toolsFor(o), tool_choice: 'required', temperature: 0.4, max_tokens: 600, ...(LLM_REASONING ? { reasoning_effort: LLM_REASONING } : {}) };
   try {
     const res = await fetch(`${LLM_URL}/chat/completions`, {
       method: 'POST',
@@ -206,7 +212,10 @@ async function decide(o: Obs, memory: string[], chatOk: boolean): Promise<Action
     if (!res.ok) throw new Error(`LLM answered ${res.status}`);
     const msg = ((await res.json()) as Completion).choices?.[0]?.message;
     const tc = msg?.tool_calls?.[0];
-    if (!tc || !ACTIONS.includes(tc.function.name)) return null;
+    if (!tc || !ACTIONS.includes(tc.function.name)) {
+      log(`model gave no usable tool call${tc ? ` (${tc.function.name})` : ''}: ${(msg?.content ?? '').replace(/\s+/g, ' ').slice(0, 100)}`);
+      return null;
+    }
     return { name: tc.function.name, args: JSON.parse(tc.function.arguments || '{}') as Record<string, unknown>, why: (msg?.content ?? '').trim().slice(0, 80) || 'model choice' };
   } catch (e) {
     log(`model failed: ${(e as Error).message}`);
