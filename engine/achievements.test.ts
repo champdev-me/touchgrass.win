@@ -90,3 +90,15 @@ test('rules explain land and farming, and the new roles', () => {
   assert.ok(r.land.some((l) => l.includes('buy_land')) && r.farming.some((l) => l.includes('plant')));
   assert.ok(r.roles.some((l) => l.startsWith('carpenter:')) && r.roles.some((l) => l.startsWith('farmer:')));
 });
+
+test('achievements for crafting, homes, land, selling and earning', () => {
+  const w = world();
+  const a = joined(w, 'Maker');
+  a.stats['craft:club'] = 10;
+  a.stats['build:bed'] = 1;
+  a.stats['land:strips'] = 5;
+  a.stats.sales = 1;
+  a.stats['earned:gold'] = 100;
+  checkAchievements(w, a);
+  for (const id of ['handy', 'home_sweet_home', 'land_baron', 'first_sale', 'pocket_money']) assert.ok(a.achievements[id] !== undefined, id);
+});

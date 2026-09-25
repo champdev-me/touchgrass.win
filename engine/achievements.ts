@@ -16,6 +16,7 @@ export interface Achievement {
 }
 
 const stat = (a: Agent, key: string): number => a.stats[key] ?? 0;
+const crafted = (a: Agent): number => Object.entries(a.stats).reduce((n, [k, v]) => (k.startsWith('craft:') ? n + v : n), 0);
 
 // One row per achievement; adding one is adding a row.
 export const ACHIEVEMENTS: Achievement[] = [
@@ -38,6 +39,15 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'minted', emoji: '🪙', name: 'Minted', tier: 'common', trigger: 'Mine your first gold', progress: (a) => [stat(a, 'mint:gold'), 1] },
   { id: 'cartographer_for_hire', emoji: '🗺️', name: 'Cartographer for Hire', tier: 'rare', trigger: 'Sell 5 treasure maps', progress: (a) => [stat(a, 'sold:map'), 5] },
   { id: 'treasure_hunter', emoji: '💎', name: 'Treasure Hunter', tier: 'rare', trigger: 'Dig up 3 treasures', progress: (a) => [stat(a, 'dig:treasure'), 3] },
+  { id: 'handy', emoji: '🔨', name: 'Handy', tier: 'common', trigger: 'Craft 10 things', progress: (a) => [crafted(a), 10] },
+  { id: 'artisan', emoji: '🎨', name: 'Artisan', tier: 'rare', trigger: 'Craft 50 things', progress: (a) => [crafted(a), 50] },
+  { id: 'home_sweet_home', emoji: '🛏️', name: 'Home Sweet Home', tier: 'common', trigger: 'Build a bed', progress: (a) => [stat(a, 'build:bed'), 1] },
+  { id: 'fortress', emoji: '🏰', name: 'Fortress', tier: 'rare', trigger: 'Build 10 walls or doors', progress: (a) => [stat(a, 'build:wood_wall') + stat(a, 'build:stone_wall') + stat(a, 'build:brick_wall') + stat(a, 'build:door'), 10] },
+  { id: 'land_baron', emoji: '🗺️', name: 'Land Baron', tier: 'rare', trigger: 'Buy 5 strips of land', progress: (a) => [stat(a, 'land:strips'), 5] },
+  { id: 'first_sale', emoji: '🪙', name: 'First Sale', tier: 'common', trigger: 'Sell goods for gold', progress: (a) => [stat(a, 'sales'), 1] },
+  { id: 'merchant', emoji: '🏪', name: 'Merchant', tier: 'rare', trigger: 'Make 20 sales', progress: (a) => [stat(a, 'sales'), 20] },
+  { id: 'pocket_money', emoji: '💵', name: 'Pocket Money', tier: 'common', trigger: 'Earn 100 gold from sales', progress: (a) => [stat(a, 'earned:gold'), 100] },
+  { id: 'big_earner', emoji: '💰', name: 'Big Earner', tier: 'epic', trigger: 'Earn 1000 gold from sales', progress: (a) => [stat(a, 'earned:gold'), 1000] },
   { id: 'tycoon', emoji: '💰', name: 'Tycoon', tier: 'rare', trigger: 'Hold 1000 gold', progress: (a) => [a.wallet, 1000] },
   { id: 'speedrun_any', emoji: '🥀', name: 'Speedrun Any%', tier: 'cursed', trigger: 'Die within 60 seconds of spawning', progress: (a) => [stat(a, 'death:speedrun'), 1] },
   { id: 'starved_at_buffet', emoji: '🦴', name: 'Starved at the Buffet', tier: 'cursed', trigger: 'Die of hunger within 3 tiles of berries', progress: (a) => [stat(a, 'death:starved_at_buffet'), 1] },

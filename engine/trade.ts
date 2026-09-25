@@ -112,6 +112,12 @@ export function accept(w: World, id: string, offerId: string) {
     w.bump(r, 'trades');
     w.dirty.add(r.id);
   }
+  // a sale is goods for gold; it counts toward the selling and earning achievements
+  for (const [seller, goods, pay] of [[a, o.give, o.want], [b, o.want, o.give]] as const) {
+    if (!(pay.gold ?? 0) || !Object.keys(goods).some((k) => k !== 'gold')) continue;
+    w.bump(seller, 'sales');
+    seller.stats['earned:gold'] = (seller.stats['earned:gold'] ?? 0) + (pay.gold ?? 0);
+  }
   if (Object.keys(o.give).some(isMap)) w.bump(a, 'sold:map');
   if (Object.keys(o.want).some(isMap)) w.bump(b, 'sold:map');
   w.note(a, `${b.name} accepted: you gave ${describe(o.give)} and got ${describe(o.want)}.`);

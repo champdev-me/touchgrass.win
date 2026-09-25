@@ -206,7 +206,6 @@ function harvest(w: World, a: Agent, t: GatherTask): Activity {
     w.bump(a, `gather:${def.item}`);
     const before = a.stats.gathered ?? 0;
     a.stats.gathered = before + got;
-    if (Math.floor(a.stats.gathered / B.gatherScoreEvery) > Math.floor(before / B.gatherScoreEvery)) addScore(w, a, 1);
   }
   if (t.got >= t.until) w.finish(a, `Task done: gathered ${t.got} ${def.item}.`);
   else if (def.item !== 'gold' && room(a.inventory, def.item) === 0) w.interrupt(a, 'Your bag is full.');

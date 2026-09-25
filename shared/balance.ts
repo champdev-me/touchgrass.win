@@ -108,8 +108,6 @@ export const B = {
   chatLogKeep: 50, // lines the engine keeps in memory
   chatStreamMax: 10_000, // lines kept in the Redis stream for read_chat
   // scoring and achievements
-  aliveScoreEveryTicks: 60,
-  gatherScoreEvery: 20,
   yapperCountEveryTicks: 60, // at most one chat message per minute counts toward Yapper
   cursedBadgeTicks: 3600,
   cartographerShare: 0.5,

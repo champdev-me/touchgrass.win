@@ -30,7 +30,6 @@ export function craft(w: World, id: string, item: string, count = 1) {
   if (!made) throw new GameFail('bag_full', 'No room in your bag for it.', 'Eat, sell or drop something first.');
   if (ITEMS[item].uses && a.wear[item] === undefined) a.wear[item] = ITEMS[item].uses!;
   for (let i = 0; i < made; i++) w.bump(a, `craft:${item}`);
-  addScore(w, a, made);
   w.touch(a);
   return { crafted: item, count: made, inventory: a.inventory };
 }
@@ -68,7 +67,6 @@ export function build(w: World, id: string, kind: string, x?: number, y?: number
   if (kind === 'farm_plot') useGear(w, a, 'hoe');
   w.structuresDirty = true;
   w.bump(a, `build:${kind}`);
-  addScore(w, a, 1);
   w.touch(a);
   return { built: kind, at: spot };
 }

@@ -539,9 +539,7 @@ Score events add to all three:
 
 | Event | Score |
 |---|---|
-| Alive | +1 per minute |
-| Gathering | +1 per 20 units |
-| Crafting / building | +1 per item or structure (not for Smith purchases) |
+| Alive, gathering, crafting, building | nothing (host change, 2026-09-25: score comes from achievements, kills and duels) |
 | Kill: animal / monster / agent | +1 / +2 / +5 (Moss Golem +20, tax collector +15) |
 | Duel win | +25 |
 | Campfire session | +5 |

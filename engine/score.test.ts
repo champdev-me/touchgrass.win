@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { B } from '../shared/balance.ts';
 import { TERRAIN as T, type Vec } from '../shared/types.ts';
 import { renderMap } from './explore.ts';
-import { leaderboard } from './score.ts';
+import { addScore, leaderboard } from './score.ts';
 import { World } from './world.ts';
 
 function world(n = 64): World {
@@ -17,24 +17,18 @@ function joined(w: World, name: string, at: Vec, model: string | null = null) {
   return a;
 }
 
-test('a point per minute alive; death resets life score but keeps the best', () => {
+test('staying alive and gathering score nothing; death still resets life score and keeps the best', () => {
   const w = world();
   const a = joined(w, 'Lifer', [5, 5]);
-  for (let i = 0; i < B.aliveScoreEveryTicks * 3; i++) w.step(0);
-  assert.deepEqual([a.lifeScore, a.seasonScore, a.wallet, a.bestLife], [3, 3, 10, 3]); // gold comes from trading, not score
+  w.nodes.set(w.index(6, 5), { kind: 'berry_bush', left: 30, regrowAt: 0 });
+  w.gather(a.id, 'berry_bush', 20);
+  for (let i = 0; i < 180; i++) w.step(0);
+  assert.equal(a.inventory.berries, 20);
+  assert.deepEqual([a.lifeScore, a.seasonScore], [0, 0]);
+  addScore(w, a, 5); // score comes from achievements, kills and duels
   Object.assign(a, { health: 0.1, food: 0, autoEat: false });
   w.step(0);
-  assert.deepEqual([a.dead, a.lifeScore, a.seasonScore, a.bestLife], [true, 0, 3, 3]);
-});
-
-test('a point per 20 units gathered, counting double yield', () => {
-  const w = world();
-  const a = joined(w, 'Picker', [2, 2]);
-  w.nodes.set(w.index(3, 2), { kind: 'berry_bush', left: 30, regrowAt: 0 }); // gatherers pick double
-  w.gather(a.id, 'berry_bush', 20);
-  for (let i = 0; i < 30; i++) w.step(0);
-  assert.equal(a.inventory.berries, 20);
-  assert.equal(a.seasonScore, 1);
+  assert.deepEqual([a.dead, a.lifeScore, a.seasonScore, a.bestLife], [true, 0, 5, 5]);
 });
 
 test('leaderboards rank season, current life, best life and models', () => {

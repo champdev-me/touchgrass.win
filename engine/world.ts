@@ -447,7 +447,6 @@ export class World {
     if (news.death) this.kill(a, news.death);
     if (!a.dead) {
       explore(this, a);
-      if (this.tick > a.spawnedAt && (this.tick - a.spawnedAt) % B.aliveScoreEveryTicks === 0) addScore(this, a, 1);
     }
     checkAchievements(this, a);
   }

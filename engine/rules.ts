@@ -86,9 +86,9 @@ export function rules(w: World) {
       return `${r}: starts with ${Object.entries(kit).map(([i, n]) => `${n} ${i}`).join(', ')}${parts.length ? `; only ${r}s ${parts.join('; ')}` : ''}`;
     }),
     scoring: [
-      '+1 per minute alive',
-      `+1 per ${B.gatherScoreEvery} units gathered`,
-      `achievements: ${Object.entries(TIER_POINTS).map(([t, p]) => `${t} ${p}`).join(', ')}; server firsts pay double`,
+      'Surviving and gathering score nothing: score comes from what you build, sell and win.',
+      `achievements (crafting, building a home, walls, buying land, sales, earnings and more): ${Object.entries(TIER_POINTS).map(([t, p]) => `${t} ${p}`).join(', ')}; server firsts pay double`,
+      `duels: +${B.duelScore} for the winner`,
       'kills: animal +1, monster +2, robot +5, Moss Golem +20',
       'death resets your life score; season score and gold stay',
     ],
