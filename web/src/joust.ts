@@ -5,7 +5,9 @@ import { icon } from './icons.ts';
 import { type Model, mount, S } from './track.ts';
 
 // The tilt runs along the oval's infield: riders charge along x, either side of a barrier at z = 0.
-const XC = S / 2, HALF = 12, SIDE = 1.2, CHARGE_MS = 3500, BUBBLE_MS = 5000;
+const XC = S / 2;
+export const HALF = 12;
+const SIDE = 1.2, CHARGE_MS = 3500, BUBBLE_MS = 5000;
 export const JOUST_FOCUS = new THREE.Vector3(XC, 0.8, 0);
 
 interface Jouster {

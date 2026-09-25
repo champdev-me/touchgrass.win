@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
 import type { MatchView, QueueView, ServerMsg } from '../../shared/types.ts';
 import { connect } from './net.ts';
-import { buildTilt, JOUST_FOCUS, Jousters } from './joust.ts';
+import { buildTilt, HALF, JOUST_FOCUS, Jousters } from './joust.ts';
 import { buildTrack, CENTER, onOval, Riders } from './track.ts';
 import { setupUi } from './ui.ts';
 
@@ -85,8 +85,11 @@ renderer.setAnimationLoop(() => {
   jousters.update(dt);
   const game = matches.find((x) => x.id === watching)?.game;
   if (game === 'joust') {
-    look.lerp(JOUST_FOCUS, k); // side-on to the tilt
-    eye.lerp(want.set(JOUST_FOCUS.x - 2, 7, 15), k);
+    // Side-on, far enough back that both ends of the tilt fit between the panel columns.
+    const free = Math.max(0.3, 1 - (2 * 290) / innerWidth), tanH = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * camera.aspect;
+    const d = (HALF + 3) / (tanH * free);
+    look.lerp(JOUST_FOCUS, k);
+    eye.lerp(want.set(JOUST_FOCUS.x, d * 0.38, d), k);
   } else if (game) {
     const at = riders.positions(), target = at.length ? at.reduce((sum, p) => sum.add(p), new THREE.Vector3()).divideScalar(at.length) : START;
     const spread = at.length ? Math.max(...at.map((p) => p.distanceTo(target))) : 0, back = Math.min(20, 13 + spread * 0.8);
