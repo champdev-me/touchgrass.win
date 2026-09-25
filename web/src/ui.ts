@@ -42,7 +42,7 @@ export function setupUi(onPick: (id: string) => void) {
       const lane = new Map(v.runners.map((r, i) => [r.id, i]));
       const head = el('div', 'banner');
       head.append(
-        icon('horse'), el('b', '', `Leg ${Math.min(v.leg + 1, v.legs)}/${v.legs}`),
+        icon('horse'), el('b', '', `Leg ${Math.min(v.leg + 1, v.legs)}/${v.legs}`), el('small', '', `lap ${Math.floor(Math.min(v.leg, v.legs - 1) / (v.legs / 2)) + 1}/2`),
         icon(v.event, v.event.replace('_', ' ')), el('span', 'evt', v.event_text),
         ...(m.finished ? [] : [icon('timer', 'seconds to choose'), el('b', 'secs', `${m.seconds_left}s`)]),
       );

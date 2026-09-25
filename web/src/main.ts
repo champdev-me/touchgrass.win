@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
 import type { MatchView, ServerMsg } from '../../shared/types.ts';
 import { connect } from './net.ts';
-import { buildTrack, MID_Z, Riders, xOf } from './track.ts';
+import { buildTrack, CENTER, onOval, Riders } from './track.ts';
 import { setupUi } from './ui.ts';
 
 const host = document.getElementById('view')!;
@@ -37,6 +37,7 @@ const ui = setupUi((id) => {
   show();
 });
 const riders = new Riders(scene);
+const [sx, sz] = onOval(0, 14), START = new THREE.Vector3(sx, 0, sz); // the finish line, where the camera waits
 await Promise.all([buildTrack(scene), riders.load()]);
 
 // Keep watching the picked match while it lasts, else the first live one, else the latest finished.
@@ -64,16 +65,18 @@ addEventListener('keydown', (e) => {
   if (e.key.toLowerCase() === 'h') document.body.classList.toggle('clean');
 });
 
-// A side-on camera that follows the pack and pulls back when it spreads out.
+// A camera outside the oval that follows the pack round the bends and pulls back when it spreads out.
 const clock = new THREE.Clock();
-const eye = new THREE.Vector3(xOf(0), 8, MID_Z + 16), look = new THREE.Vector3(xOf(0), 0.8, MID_Z), want = new THREE.Vector3();
+const eye = new THREE.Vector3(CENTER.x, 20, 40), look = CENTER.clone(), want = new THREE.Vector3(), out = new THREE.Vector3();
 renderer.setAnimationLoop(() => {
-  const dt = Math.min(clock.getDelta(), 0.1), k = 1 - Math.pow(0.05, dt);
+  const dt = Math.min(clock.getDelta(), 0.1), k = 1 - Math.pow(0.1, dt);
   riders.update(dt);
-  const [lo, hi] = riders.spread() ?? [xOf(0), xOf(0)];
-  const cx = (lo + hi) / 2 + 2, back = Math.max(13, (hi - lo) * 0.9 + 9);
-  look.lerp(want.set(cx, 0.8, MID_Z), k);
-  eye.lerp(want.set(cx - 4, 4 + back * 0.55, MID_Z + back), k);
+  const at = riders.positions(), target = at.length ? at.reduce((sum, p) => sum.add(p), new THREE.Vector3()).divideScalar(at.length) : START;
+  const spread = at.length ? Math.max(...at.map((p) => p.distanceTo(target))) : 0, back = Math.min(20, 13 + spread * 0.8);
+  out.subVectors(target, CENTER).setY(0);
+  if (out.lengthSq() < 1) out.set(0, 0, 1);
+  look.lerp(want.copy(target).setY(0.8), k);
+  eye.lerp(want.copy(target).addScaledVector(out.normalize(), back).setY(6 + back * 0.45), k);
   camera.position.copy(eye);
   camera.lookAt(look);
   renderer.render(scene, camera);

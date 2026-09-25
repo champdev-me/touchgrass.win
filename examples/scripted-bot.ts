@@ -45,8 +45,9 @@ async function call<T>(c: Client, name: string, args: Record<string, unknown> = 
 function pick(o: Observe): number {
   const s = o.state!, me = s.runners.find((r) => r.id === o.you), id = (label: string) => o.options!.find((x) => x.label === label)?.id ?? o.options![0].id;
   if (!me) return id('steady');
+  if (s.event === 'hurdle') return id(me.stamina >= 2 ? 'jump' : 'conserve');
   if (s.leg === 0) return id('conserve');
-  if (s.leg >= s.legs - 2 && me.stamina >= 3) return id(Math.random() < 0.3 ? 'overtake' : 'sprint');
+  if (s.leg >= s.legs - 3 && s.event !== 'turn' && me.stamina >= 3) return id(Math.random() < 0.3 ? 'overtake' : 'sprint');
   return id(Math.random() < 0.2 ? 'overtake' : 'steady');
 }
 

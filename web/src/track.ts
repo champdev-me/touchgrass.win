@@ -6,14 +6,33 @@ import type { HorseView, MatchView } from '../../shared/types.ts';
 import { icon } from './icons.ts';
 
 export const LANES = 4, LANE_W = 2.4;
-const SCALE = 0.6, START_X = 4, FINISH = 100, TRACK_END = 150; // SCALE: world units per length
 export const LANE_COLORS = ['#c0392b', '#2e6fd8', '#e0b020', '#2f9e55']; // heraldic red, blue, gold, green
 const COATS = ['#8a5a3a', '#4a3a32', '#d8cfc4', '#b07a45']; // chestnut, black, grey, bay
-export const xOf = (distance: number) => START_X + distance * SCALE;
-export const MID_Z = (LANES * LANE_W) / 2;
-const laneZ = (i: number) => (i + 0.5) * LANE_W;
-const HORSE_H = 1.5, RIDER_H = 0.95, DASH_MS = 2500, BUBBLE_MS = 6000;
-const ROMAN = ['I', 'II', 'III', 'IV'];
+// One lap is 100 lengths: a 30-length straight, a 20-length bend, the back straight, the far bend.
+const SCALE = 1.3, S = 30 * SCALE, R0 = (20 * SCALE) / Math.PI, WIDTH = LANES * LANE_W, OUTER = R0 + WIDTH;
+export const CENTER = new THREE.Vector3(S / 2, 0, 0);
+const HURDLES = [25, 65]; // lengths into each lap, one on each straight
+const HORSE_H = 1.5, RIDER_H = 0.95, DASH_MS = 2500, BUBBLE_MS = 6000, JUMP = 2.5;
+const laneRho = (i: number) => R0 + (i + 0.5) * LANE_W;
+
+/** [x, z, heading] on the oval at `distance` lengths, `rho` units out from the bend centres. */
+export function onOval(distance: number, rho: number): [number, number, number] {
+  const d = ((distance % 100) + 100) % 100;
+  if (d < 30) return [(S * d) / 30, rho, Math.PI / 2];
+  if (d < 50) {
+    const a = (Math.PI * (d - 30)) / 20;
+    return [S + rho * Math.sin(a), rho * Math.cos(a), Math.PI / 2 + a];
+  }
+  if (d < 80) return [S - (S * (d - 50)) / 30, -rho, -Math.PI / 2];
+  const a = (Math.PI * (d - 80)) / 20;
+  return [-rho * Math.sin(a), -rho * Math.cos(a), -Math.PI / 2 + a];
+}
+const ring = (rho: number, y = 0) => Array.from({ length: 200 }, (_, i) => {
+  const [x, z] = onOval(i / 2, rho);
+  return new THREE.Vector3(x, y, z);
+});
+/** How far past the nearest hurdle a runner is, in lengths (hurdles repeat every lap). */
+const fromHurdle = (distance: number) => Math.min(...HURDLES.map((h) => Math.abs(((((distance - h) % 100) + 150) % 100) - 50)));
 
 interface Model { scene: THREE.Object3D; clips: THREE.AnimationClip[] }
 const loader = new GLTFLoader();
@@ -28,7 +47,6 @@ const flat = (w: number, d: number, color: string, y: number) => {
   m.position.y = y;
   return m;
 };
-const label = (text: string, cls: string) => new CSS2DObject(Object.assign(document.createElement('div'), { className: cls, textContent: text }));
 
 /** The tiltyard: grass, a dirt track with lanes, leg posts, a checkered finish, castle walls and towers. */
 export async function buildTrack(scene: THREE.Scene): Promise<void> {
@@ -46,19 +64,24 @@ export async function buildTrack(scene: THREE.Scene): Promise<void> {
     scene.add(c);
     return c;
   };
-  const end = xOf(TRACK_END), width = LANES * LANE_W;
-  scene.add(flat(800, 800, '#79b356', 0));
-  const dirt = flat(end + 8, width + 1.2, '#b08556', 0.01);
-  dirt.position.set((end + 8) / 2 - 6, 0.01, MID_Z);
-  scene.add(dirt);
-  for (let i = 0; i <= LANES; i++) {
-    const line = flat(end + 4, 0.06, '#f4ecd8', 0.02);
-    line.position.set((end + 4) / 2 - 4, 0.02, i * LANE_W);
-    scene.add(line);
+  const outline = (rho: number) => ring(rho).map((v) => new THREE.Vector2(v.x, -v.z));
+  const shape = new THREE.Shape(outline(OUTER + 0.6));
+  shape.holes.push(new THREE.Path(outline(R0 - 0.6)));
+  const dirt = new THREE.Mesh(new THREE.ShapeGeometry(shape), new THREE.MeshLambertMaterial({ color: '#b08556' }));
+  dirt.rotation.x = -Math.PI / 2;
+  dirt.position.y = 0.01;
+  scene.add(flat(800, 800, '#79b356', 0), dirt);
+  const tube = (rho: number, y: number, r: number, color: string) => scene.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(ring(rho, y), true), 400, r, 4, true), new THREE.MeshLambertMaterial({ color })));
+  for (let i = 1; i < LANES; i++) tube(R0 + i * LANE_W, 0, 0.04, '#f4ecd8');
+  for (const rho of [R0 - 0.4, OUTER + 0.4]) {
+    tube(rho, 0.8, 0.07, '#f4ecd8'); // the rails, on posts
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.8, 5), new THREE.MeshLambertMaterial({ color: '#f4ecd8' }));
+    for (let d = 0; d < 100; d += 2.5) {
+      const [x, z] = onOval(d, rho), p = post.clone();
+      p.position.set(x, 0.4, z);
+      scene.add(p);
+    }
   }
-  const start = flat(0.25, width, '#f4ecd8', 0.03);
-  start.position.set(xOf(0), 0.03, MID_Z);
-  scene.add(start);
   const checker = document.createElement('canvas');
   checker.width = 2;
   checker.height = 16;
@@ -69,48 +92,60 @@ export async function buildTrack(scene: THREE.Scene): Promise<void> {
   }
   const tex = new THREE.CanvasTexture(checker);
   tex.magFilter = THREE.NearestFilter;
-  const finish = new THREE.Mesh(new THREE.PlaneGeometry(0.8, width), new THREE.MeshLambertMaterial({ map: tex }));
+  const finish = new THREE.Mesh(new THREE.PlaneGeometry(0.8, WIDTH), new THREE.MeshLambertMaterial({ map: tex }));
   finish.rotation.x = -Math.PI / 2;
-  finish.position.set(xOf(FINISH), 0.03, MID_Z);
+  finish.position.set(0, 0.03, R0 + WIDTH / 2);
   scene.add(finish);
+  for (const z of [R0 - 0.9, OUTER + 0.9]) put(pennant, 0, z, 2.2, Math.PI / 2);
 
-  // Leg posts every 20 lengths on the near side (high z, where the camera is), the finish flags, a low fence along the rail.
-  const post = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 1.4, 6), new THREE.MeshLambertMaterial({ color: '#f4ecd8' }));
-  ROMAN.forEach((r, i) => {
-    const p = post.clone();
-    p.position.set(xOf((i + 1) * 20), 0.7, width + 0.7);
-    const l = label(r, 'post');
-    l.position.y = 1;
-    p.add(l);
-    scene.add(p);
-  });
-  for (const z of [-0.9, width + 0.9]) put(pennant, xOf(FINISH), z, 2.2, Math.PI / 2);
-  for (let x = -4; x < end + 4; x += 1.05 * 0.9) put(fence, x, width + 1.4, 0.6, 0).scale.y = 0.35;
+  // Hurdles across the track on both straights: two wooden bars between posts.
+  const wood = new THREE.MeshLambertMaterial({ color: '#8a5a3a' }), white = new THREE.MeshLambertMaterial({ color: '#f4ecd8' });
+  for (const h of HURDLES) {
+    const [x, z] = onOval(h, R0 + WIDTH / 2), hurdle = new THREE.Group();
+    for (const [y, mat] of [[0.3, white], [0.6, wood], [0.9, white]] as const) {
+      const bar = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.16, WIDTH), mat);
+      bar.position.y = y;
+      hurdle.add(bar);
+    }
+    for (const side of [-1, 1]) {
+      const p = new THREE.Mesh(new THREE.BoxGeometry(0.25, 1.1, 0.25), wood);
+      p.position.set(0, 0.55, (side * WIDTH) / 2);
+      hurdle.add(p);
+    }
+    hurdle.position.set(x, 0, z);
+    scene.add(hurdle);
+  }
 
-  // The castle wall on the far side, a tower every 8 segments, a banner on each tower.
-  const WALL_S = 3, wallZ = -4;
-  for (let i = 0, x = -12; x < end + 12; i++, x += WALL_S) {
-    if (i % 8 === 0) {
-      const T = 4;
-      put(base, x, wallZ, T);
-      put(mid, x, wallZ, T, 0, T * 1.01);
-      put(roof, x, wallZ, T, 0, T * 2.02);
-      put(banner, x, wallZ + T * 0.5 + 0.05, 1.6, Math.PI / 2, T * 1.1);
-    } else put(wall, x, wallZ, WALL_S);
-  }
-  // Two gate towers behind the start, trees beyond the wall.
-  for (const z of [-2.6, width + 1.6]) {
-    put(base, START_X - 3, z, 2.2);
-    put(roof, START_X - 3, z, 2.2, 0, 2.2);
-  }
-  for (let i = 0; i < 70; i++) {
-    const x = -20 + ((i * 37) % 71) * ((end + 40) / 71), z = wallZ - 5 - ((i * 53) % 29);
-    put(i % 3 ? oak : tree, x, z, 5 + (i % 4), i);
+  // A keep in the infield; castle walls all round with towers and banners; trees beyond.
+  const T = 3;
+  put(base, S / 2, 0, T);
+  put(mid, S / 2, 0, T, 0, T * 1.01);
+  put(roof, S / 2, 0, T, 0, T * 2.02);
+  for (const side of [-1, 1]) put(banner, S / 2, (side * T) / 2 + side * 0.05, 1.6, side * Math.PI / 2, T * 1.1);
+  const M = 22, x0 = -OUTER - M, x1 = S + OUTER + M, z0 = OUTER + M, WALL_S = 3;
+  const side = (from: THREE.Vector3, to: THREE.Vector3) => {
+    const n = Math.round(from.distanceTo(to) / WALL_S), rot = Math.atan2(to.x - from.x, to.z - from.z) + Math.PI / 2;
+    for (let i = 0; i < n; i++) {
+      const p = from.clone().lerp(to, i / n);
+      if (i % 8 === 0) {
+        put(base, p.x, p.z, T);
+        put(roof, p.x, p.z, T, 0, T);
+      } else put(wall, p.x, p.z, WALL_S, rot);
+    }
+  };
+  const c = [new THREE.Vector3(x0, 0, -z0), new THREE.Vector3(x1, 0, -z0), new THREE.Vector3(x1, 0, z0), new THREE.Vector3(x0, 0, z0)];
+  c.forEach((p, i) => side(p, c[(i + 1) % 4]));
+  for (let i = 0; i < 90; i++) {
+    const a = (i / 90) * Math.PI * 2, r = 1 + ((i * 37) % 11) / 30;
+    put(i % 3 ? oak : tree, S / 2 + Math.cos(a) * (x1 - S / 2 + 10) * r, Math.sin(a) * (z0 + 10) * r, 5 + (i % 4), i);
   }
 }
 
 interface Rider {
   root: THREE.Group;
+  body: THREE.Group; // horse, caparison and rider: this is what jumps and stumbles
+  lane: number;
+  clipped: boolean;
   mixers: THREE.AnimationMixer[];
   horseActs: Map<string, THREE.AnimationAction>;
   clip: string;
@@ -123,7 +158,7 @@ interface Rider {
   bubbleUntil: number;
 }
 
-/** Horses with robot riders, one per lane, placed at x = distance. */
+/** Horses with robot riders, one per lane, placed around the oval by distance. */
 export class Riders {
   scene: THREE.Scene;
   riders = new Map<string, Rider>();
@@ -168,6 +203,7 @@ export class Riders {
       r.pips.replaceChildren(...Array.from({ length: 10 }, (_, k) => Object.assign(document.createElement('i'), { className: k < run.stamina ? 'on' : '' })));
       r.last.replaceChildren(...(run.last ? [icon(run.last, run.last)] : []));
       const line = m.last_round.find((l) => l.startsWith(run.id));
+      if (fresh) r.clipped = Boolean(line?.includes('clips'));
       if (fresh && line && m.round > 0) {
         r.bubble.textContent = line.slice(run.id.length).trim();
         r.bubbleUntil = performance.now() + BUBBLE_MS;
@@ -176,21 +212,22 @@ export class Riders {
   }
 
   spawn(name: string, model: string, lane: number): Rider {
-    const root = new THREE.Group();
+    const root = new THREE.Group(), body = new THREE.Group();
+    root.add(body);
     const horse = SkeletonUtils.clone(this.horse!.scene);
     horse.scale.setScalar(HORSE_H / heightOf(this.horse!.scene));
     tint(horse, COATS[lane % COATS.length], 0.55);
-    root.add(horse);
+    body.add(horse);
     const top = new THREE.Box3().setFromObject(horse).max.y;
     const cloth = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.35, 0.95), new THREE.MeshLambertMaterial({ color: LANE_COLORS[lane] }));
     cloth.position.set(0, top * 0.62, -0.1); // a caparison in the lane's colour
-    root.add(cloth);
+    body.add(cloth);
     const look = this.robots[[...name].reduce((h, c) => h + c.charCodeAt(0), 0) % this.robots.length];
     const rider = SkeletonUtils.clone(look.scene);
     rider.scale.setScalar(RIDER_H / heightOf(look.scene));
     tint(rider, LANE_COLORS[lane], 0.35);
     rider.position.set(0, top * 0.62, -0.15);
-    root.add(rider);
+    body.add(rider);
     const tag = Object.assign(document.createElement('div'), { className: 'tag' });
     tag.style.setProperty('--lane', LANE_COLORS[lane]);
     const bubble = Object.assign(document.createElement('div'), { className: 'bubble' });
@@ -202,16 +239,15 @@ export class Riders {
     const lbl = new CSS2DObject(tag);
     lbl.position.y = top + RIDER_H * 0.8;
     root.add(lbl);
-    root.rotation.y = Math.PI / 2; // models face +z; the track runs along +x
-    root.position.set(xOf(0), 0, laneZ(lane));
     this.scene.add(root);
     const hm = new THREE.AnimationMixer(horse), rm = new THREE.AnimationMixer(rider);
     const drive = look.clips.find((c) => c.name === 'drive');
     if (drive) rm.clipAction(drive).play(); // seated, hands on the reins
     const r: Rider = {
-      root, mixers: [hm, rm], clip: '', from: 0, to: 0, t: 1, pips, last, bubble, bubbleUntil: 0,
+      root, body, lane, clipped: false, mixers: [hm, rm], clip: '', from: 0, to: 0, t: 1, pips, last, bubble, bubbleUntil: 0,
       horseActs: new Map(this.horse!.clips.map((c) => [c.name, hm.clipAction(c)])),
     };
+    this.place(r, 0);
     this.riders.set(name, r);
     return r;
   }
@@ -220,17 +256,26 @@ export class Riders {
     const now = performance.now();
     for (const [name, r] of this.riders) {
       r.t = Math.min(1, r.t + (dt * 1000) / DASH_MS);
-      r.root.position.x = xOf(r.from + (r.to - r.from) * ease(r.t));
+      this.place(r, r.from + (r.to - r.from) * ease(r.t));
       this.play(r, r.t < 1 ? 'run' : this.finished && name === this.winner ? 'dance' : 'idle');
       r.bubble.hidden = now > r.bubbleUntil;
       for (const m of r.mixers) m.update(dt);
     }
   }
 
-  /** The x range the camera should keep in view. */
-  spread(): [number, number] | null {
-    const xs = [...this.riders.values()].map((r) => r.root.position.x);
-    return xs.length ? [Math.min(...xs), Math.max(...xs)] : null;
+  /** Puts a rider on its lane; over a hurdle it jumps, or stumbles if it clipped it this leg. */
+  place(r: Rider, distance: number): void {
+    const [x, z, heading] = onOval(distance, laneRho(r.lane)), near = Math.max(0, 1 - fromHurdle(distance) / JUMP);
+    r.root.position.set(x, 0, z);
+    r.root.rotation.y = heading; // models face +z
+    const crossing = r.t < 1 && near > 0;
+    r.body.position.y = crossing && !r.clipped ? 1.1 * (1 - (1 - near) ** 2) : 0;
+    r.body.rotation.x = crossing && r.clipped ? 0.4 * near : 0;
+  }
+
+  /** Where the riders are, for the camera. */
+  positions(): THREE.Vector3[] {
+    return [...this.riders.values()].map((r) => r.root.position);
   }
 
   play(r: Rider, name: string): void {
